@@ -1,0 +1,270 @@
+version: "3.1"
+
+nlu:
+
+# =========================
+# SALUDOS Y DESPEDIDAS
+# =========================
+- intent: greet
+  examples: |
+    - hola
+    - buenas
+    - buen día
+    - buenas tardes
+    - buenas noches
+    - qué tal
+    - qué onda
+    - qué haces
+    - cómo estás
+    - saludos
+
+- intent: goodbye
+  examples: |
+    - chau
+    - hasta luego
+    - adiós
+    - nos vemos
+    - bye
+    - goodbye
+    - see you later
+
+- intent: agradecimiento
+  examples: |
+    - gracias
+    - muchas gracias
+    - te agradezco
+    - excelente atención
+    - muy amable
+
+# =========================
+# AFIRMACIÓN / NEGACIÓN
+# =========================
+- intent: affirm
+  examples: |
+    - sí
+    - ok
+    - correcto
+    - dale
+    - afirmo
+    - claro que sí
+
+- intent: deny
+  examples: |
+    - no
+    - para nada
+    - no quiero
+    - no gracias
+    - mejor no
+
+# =========================
+# ESTADOS DE ÁNIMO
+# =========================
+- intent: mood_great
+  examples: |
+    - estoy muy bien
+    - genial
+    - excelente
+    - perfecto
+    - maravilloso
+
+- intent: mood_unhappy
+  examples: |
+    - estoy triste
+    - me siento mal
+    - no estoy bien
+    - muy decepcionado
+    - pésimo día
+
+# =========================
+# BOT CHALLENGE
+# =========================
+- intent: bot_challenge
+  examples: |
+    - sos un bot?
+    - eres humano?
+    - estoy hablando con una persona?
+    - sos real?
+
+# =========================
+# AGENDAMIENTO DE TURNOS
+# =========================
+- intent: agendar_turno
+  examples: |
+    - quiero sacar un turno
+    - necesito agendar mi cédula
+    - me gustaría reservar un turno
+    - cómo saco turno
+    - quiero que me agendes para mañana
+    - me gustaría un turno para mañana
+
+- intent: proporcionar_datos_turno
+  examples: |
+    - mi nombre es [Jhonatan Villalba](nombre), mi cédula es [1234567](cedula) y quiero un turno el [martes 20](fecha) a las [09:00](hora)
+    - soy [María López](nombre), mi número es [7894561](cedula), quiero agendar para el [viernes 10](fecha) a las [11:00](hora)
+    - [Carlos Ruiz](nombre) quiere turno el [martes 15](fecha) a las [10:30](hora), cédula [4561230](cedula)
+    - necesito turno para el [miércoles 20](fecha) a las [13:30](hora), me llamo [Jhonatan Villalba](nombre), cédula [1234567](cedula)
+    - quiero el turno para el [martes 14](fecha) a las [08:00](hora), mi nombre es [Laura Duarte](nombre), mi cédula [6543210](cedula)
+    - quiero un turno para [mañana](fecha) a las [15:00](hora)
+    - reservar turno el [27 de agosto](fecha) a las [3pm](hora)
+    - el [martes](fecha) a las [10 de la mañana](hora)
+    - para el día [mañana](fecha) a las [3 de la tarde](hora)
+
+- intent: elegir_horario
+  examples: |
+    - prefiero a las [09:00](hora)
+    - mejor a las [13:00](hora)
+    - marcame para las [10:30](hora)
+    - a las [07:30](hora) me va bien
+    - a las [11:00](hora)
+    - [15:00](hora)
+    - puede ser a las [16:30](hora)
+    - a las [12](hora)
+    - marcame a las [9](hora)
+
+- intent: informar_fecha
+  examples: |
+    - [mañana](fecha)
+    - para [mañana](fecha)
+    - el [lunes](fecha)
+    - para el [lunes 20](fecha)
+    - el [martes 21](fecha)
+    - [próximo jueves](fecha)
+    - el [22 de septiembre](fecha)
+    - mañana
+    - pasado mañana
+    - este viernes
+    - el próximo lunes
+    - viernes 15
+    - 15 de septiembre
+    - 20/09/2025
+
+- intent: confirmar_turno
+  examples: |
+    - confirmo
+    - confirmo turno
+    - confirmo la hora
+    - confirmo el turno
+    - dale confirmo
+    - ok confirmo
+    - está bien, confirmo
+
+- intent: cancelar_turno
+  examples: |
+    - quiero cancelar mi turno
+    - anulá mi cita
+    - me equivoqué de fecha
+    - no voy a poder asistir
+
+- intent: frase_ambigua
+  examples: |
+    - lo más temprano posible
+    - cuando haya menos gente
+    - cualquier horario disponible
+    - cuando esté más tranquilo
+    - el primer horario que tengas
+    - qué horas hay disponibles
+    - qué horarios tenes
+    - qué horarios tenes disponible
+    - qué horarios disponibles hay
+    - a qué hora puedo ir
+    - qué hora hay
+    - dame un horario
+    - recomendame un horario
+    - qué hora me recomiendas
+
+# =========================
+# CONSULTAS FRECUENTES
+# =========================
+- intent: consultar_requisitos
+  examples: |
+    - qué necesito para hacer mi cédula
+    - qué documentos debo llevar
+    - qué requisitos hay
+    - me pueden decir qué papeles piden
+    - qué necesito si es renovación
+
+- intent: consultar_requisitos_primera_vez
+  examples: |
+    - qué documentos necesito para sacar mi cédula por primera vez
+    - requisitos para la primera cédula
+    - qué papeles tengo que llevar para mi primera cédula
+    - qué se necesita si nunca tuve cédula
+    - documentación para la primera vez
+    - no tengo
+    - no tengo cédula
+    - es mi primera vez
+    - nunca tuve cédula
+
+- intent: consultar_menor_edad
+  examples: |
+    - mi hijo tiene 13, ¿puede sacar su cédula?
+    - desde qué edad se hace la cédula?
+    - un menor puede tramitar su cédula?
+    - necesita ir acompañado de sus padres?
+
+- intent: consultar_extranjeros
+  examples: |
+    - soy extranjero, puedo sacar cédula?
+    - qué necesito si tengo residencia permanente
+    - tengo pasaporte argentino, sirve?
+    - qué documentos necesito si no soy paraguayo
+
+- intent: consultar_disponibilidad
+  examples: |
+    - hay turno esta semana?
+    - qué horarios libres hay mañana?
+    - qué disponibilidad hay hoy?
+    - quedan turnos libres?
+
+- intent: consultar_horarios
+  examples: |
+    - qué horarios atienden?
+    - cuál es el horario de la oficina?
+    - hasta qué hora atienden?
+    - de qué hora a qué hora están abiertos?
+
+- intent: consultar_ubicacion
+  examples: |
+    - dónde queda la oficina?
+    - cuál es la dirección?
+    - cómo llego a la oficina?
+    - dónde están ubicados?
+
+- intent: consultar_costo
+  examples: |
+    - cuánto cuesta el trámite?
+    - cuál es el precio?
+    - qué costo tiene?
+
+# =========================
+# OTROS
+# =========================
+- intent: estado_tramite
+  examples: |
+    - quiero saber el estado de mi trámite
+    - cómo va mi cédula
+    - ya está lista mi cédula?
+    - puedo consultar mi trámite?
+
+- intent: ayuda_tecnica
+  examples: |
+    - tengo problemas con la página
+    - no me carga el sistema
+    - tengo un error técnico
+    - no funciona la web
+
+- intent: consulta_tiempo_espera
+  examples: |
+    - cuánto voy a esperar?
+    - hay mucha fila?
+    - el tiempo de espera es largo?
+    - cuántos minutos voy a tardar?
+    - la espera es corta o larga?
+
+- intent: calcular_saturacion
+  examples: |
+    - cómo está la oficina ahora?
+    - qué tan llena está la oficina?
+    - cuántas personas hay esperando?
+    - está muy lleno?
+    - hay mucha gente en cola?

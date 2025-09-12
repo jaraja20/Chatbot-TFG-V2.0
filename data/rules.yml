@@ -1,0 +1,166 @@
+version: "3.1"
+
+rules:
+
+# =========================
+# SALUDOS Y BIENVENIDA
+# =========================
+- rule: Bienvenida al iniciar sesión
+  steps:
+    - intent: greet
+    - action: utter_greet
+
+- rule: Despedida
+  steps:
+    - intent: goodbye
+    - action: utter_goodbye
+
+- rule: Respuesta a agradecimiento
+  steps:
+    - intent: agradecimiento
+    - action: utter_agradecimiento
+
+- rule: Pregunta si soy un bot
+  steps:
+    - intent: bot_challenge
+    - action: utter_iamabot
+
+# =========================
+# AGENDAR TURNOS
+# =========================
+- rule: Activar formulario de turno
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+
+- rule: Confirmar turno después de formulario
+  condition:
+    - active_loop: turno_form
+  steps:
+    - action: turno_form
+    - active_loop: null
+    - slot_was_set:
+        - requested_slot: null
+    - action: utter_confirmar_turno
+
+- rule: Guardar turno tras confirmación
+  steps:
+    - action: utter_confirmar_turno
+    - or:
+        - intent: confirmar_turno
+        - intent: affirm
+    - action: action_guardar_turno
+
+# Normalización de fecha con dateparser
+- rule: Normalizar fecha
+  steps:
+    - intent: informar_fecha
+    - action: action_normalizar_fecha
+
+# =========================
+# CANCELAR TURNOS
+# =========================
+- rule: Cancelar turno
+  steps:
+    - intent: cancelar_turno
+    - action: utter_cancelar_turno
+
+# =========================
+# CONSULTAS FRECUENTES
+# =========================
+- rule: Consultar requisitos
+  steps:
+    - intent: consultar_requisitos
+    - action: utter_consultar_requisitos
+
+- rule: Consultar requisitos primera vez
+  steps:
+    - intent: consultar_requisitos_primera_vez
+    - action: utter_consultar_requisitos_primera_vez
+
+- rule: Consultar trámite menor de edad
+  steps:
+    - intent: consultar_menor_edad
+    - action: utter_consultar_menor_edad
+
+- rule: Consultar extranjeros
+  steps:
+    - intent: consultar_extranjeros
+    - action: utter_consultar_extranjeros
+
+- rule: Consultar si necesita turno
+  steps:
+    - intent: consultar_si_necesita_turno
+    - action: utter_consultar_si_necesita_turno
+
+- rule: Consultar trámite online
+  steps:
+    - intent: consultar_tramite_online
+    - action: utter_consultar_tramite_online
+
+- rule: Consultar trámite para terceros
+  steps:
+    - intent: consultar_tramite_para_terceros
+    - action: utter_consultar_tramite_para_terceros
+
+- rule: Consultar tolerancia horaria
+  steps:
+    - intent: consultar_tolerancia_horaria
+    - action: utter_consultar_tolerancia_horaria
+
+- rule: Consultar sin QR
+  steps:
+    - intent: consultar_sin_qr
+    - action: utter_consultar_sin_qr
+
+- rule: Consultar disponibilidad
+  steps:
+    - intent: consultar_disponibilidad
+    - action: utter_consultar_disponibilidad
+
+- rule: Consultar horarios
+  steps:
+    - intent: consultar_horarios
+    - action: utter_consultar_horarios
+
+- rule: Consultar ubicación
+  steps:
+    - intent: consultar_ubicacion
+    - action: utter_consultar_ubicacion
+
+- rule: Consultar costo
+  steps:
+    - intent: consultar_costo
+    - action: utter_consultar_costo
+
+# =========================
+# OTROS
+# =========================
+- rule: Estado del trámite
+  steps:
+    - intent: estado_tramite
+    - action: utter_estado_tramite
+
+- rule: Ayuda técnica
+  steps:
+    - intent: ayuda_tecnica
+    - action: utter_ayuda_tecnica
+
+- rule: Tiempo de espera (difusa)
+  steps:
+    - intent: consulta_tiempo_espera
+    - action: action_tiempo_espera_fuzzy
+
+- rule: Calcular saturación
+  steps:
+    - intent: calcular_saturacion
+    - action: action_calcular_saturacion
+
+- rule: Recomendar turno con lógica difusa
+  condition:
+    - active_loop: turno_form
+  steps:
+    - intent: frase_ambigua
+    - action: action_recomendar_turno_fuzzy
+    - action: utter_ask_hora

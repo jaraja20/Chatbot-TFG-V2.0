@@ -1,0 +1,131 @@
+version: "3.1"
+
+stories:
+
+# =========================
+# HISTORIAS BÁSICAS
+# =========================
+- story: Happy path
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: mood_great
+    - action: utter_happy
+    - intent: agradecimiento
+    - action: utter_agradecimiento
+    - intent: goodbye
+    - action: utter_goodbye
+
+- story: Sad path affirm
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: mood_unhappy
+    - action: utter_cheer_up
+    - action: utter_did_that_help
+    - intent: affirm
+    - action: utter_happy
+
+- story: Sad path deny
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: mood_unhappy
+    - action: utter_cheer_up
+    - action: utter_did_that_help
+    - intent: deny
+    - action: utter_goodbye
+
+# =========================
+# AGENDAMIENTO DE TURNOS
+# =========================
+- story: Flujo de agendamiento completo
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - active_loop: null
+    - action: utter_confirmar_turno
+    - intent: confirmar_turno
+    - action: action_guardar_turno
+
+# =========================
+# CONSULTAS FRECUENTES
+# =========================
+- story: Consulta requisitos
+  steps:
+    - intent: consultar_requisitos
+    - action: utter_consultar_requisitos
+
+- story: Consulta requisitos primera vez
+  steps:
+    - intent: consultar_requisitos_primera_vez
+    - action: utter_consultar_requisitos_primera_vez
+
+- story: Consulta menor de edad
+  steps:
+    - intent: consultar_menor_edad
+    - action: utter_consultar_menor_edad
+
+- story: Consulta extranjeros
+  steps:
+    - intent: consultar_extranjeros
+    - action: utter_consultar_extranjeros
+
+- story: Consulta necesidad turno
+  steps:
+    - intent: consultar_si_necesita_turno
+    - action: utter_consultar_si_necesita_turno
+
+- story: Consulta trámite online
+  steps:
+    - intent: consultar_tramite_online
+    - action: utter_consultar_tramite_online
+
+- story: Consulta trámite terceros
+  steps:
+    - intent: consultar_tramite_para_terceros
+    - action: utter_consultar_tramite_para_terceros
+
+- story: Consulta tolerancia horaria
+  steps:
+    - intent: consultar_tolerancia_horaria
+    - action: utter_consultar_tolerancia_horaria
+
+- story: Consulta sin QR
+  steps:
+    - intent: consultar_sin_qr
+    - action: utter_consultar_sin_qr
+
+- story: Consulta disponibilidad
+  steps:
+    - intent: consultar_disponibilidad
+    - action: utter_consultar_disponibilidad
+
+- story: Consulta horarios
+  steps:
+    - intent: consultar_horarios
+    - action: utter_consultar_horarios
+
+- story: Consulta ubicación
+  steps:
+    - intent: consultar_ubicacion
+    - action: utter_consultar_ubicacion
+
+- story: Consulta costo
+  steps:
+    - intent: consultar_costo
+    - action: utter_consultar_costo
+
+# =========================
+# OTROS
+# =========================
+- story: Estado trámite
+  steps:
+    - intent: estado_tramite
+    - action: utter_estado_tramite
+
+- story: Ayuda técnica
+  steps:
+    - intent: ayuda_tecnica
+    - action: utter_ayuda_tecnica
