@@ -1,0 +1,25 @@
+@"
+# Ignorar entorno virtual
+venv/
+
+# Archivos temporales de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de configuración locales
+.env
+.DS_Store
+
+# Carpetas de logs y cache
+logs/
+*.log
+
+# Archivos de Rasa
+models/
+results/
+
+# Streamlit cache
+.streamlit/
+"@ | Out-File -Encoding utf8 .gitignore
