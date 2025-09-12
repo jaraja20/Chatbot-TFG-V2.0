@@ -1,9 +1,10 @@
-# Configuración de Rasa
+# Configuración de Rasa para español paraguayo
 recipe: default.v1
-assistant_id: chatbot-cedula
-
+assistant_id: chatbot-cedula-cde
 language: es
-
+# ===============================
+# PIPELINE DE NLU
+# ===============================
 pipeline:
   - name: WhitespaceTokenizer
   - name: RegexFeaturizer
@@ -15,14 +16,84 @@ pipeline:
     max_ngram: 4
   - name: DIETClassifier
     epochs: 100
+    constrain_similarities: true
   - name: EntitySynonymMapper
   - name: FallbackClassifier
     threshold: 0.3
     ambiguity_threshold: 0.1
-
+# ===============================
+# POLÍTICAS DE DIÁLOGO
+# ===============================
 policies:
   - name: MemoizationPolicy
   - name: RulePolicy
+  - name: UnexpecTEDIntentPolicy
+    max_history: 5
+    epochs: 100
   - name: TEDPolicy
     max_history: 5
     epochs: 100
+    constrain_similarities: true
+
+# This file contains the credentials for the voice & chat platforms
+# which your bot is using.
+# https://rasa.com/docs/rasa/messaging-and-voice-channels
+rest:
+#  # you don't need to provide anything here - this channel doesn't
+#  # require any credentials
+#facebook:
+#  verify: "<verify>"
+#  secret: "<your secret>"
+#  page-access-token: "<your page access token>"
+#slack:
+#  slack_token: "<your slack token>"
+#  slack_channel: "<the slack channel>"
+#  slack_signing_secret: "<your slack signing secret>"
+#socketio:
+#  user_message_evt: <event name for user message>
+#  bot_message_evt: <event name for bot messages>
+#  session_persistence: <true/false>
+#mattermost:
+#  url: "https://<mattermost instance>/api/v4"
+#  token: "<bot token>"
+#  webhook_url: "<callback URL>"
+# This entry is needed if you are using Rasa Enterprise. The entry represents credentials
+# for the Rasa Enterprise "channel", i.e. Talk to your bot and Share with guest testers.
+rasa:
+  url: "http://localhost:5002/api"
+
+# This file contains the different endpoints your bot can use.
+action_endpoint:
+  url: "http://localhost:5055/webhook"
+# Server where the models are pulled from.
+# https://rasa.com/docs/rasa/model-storage#fetching-models-from-a-server
+#models:
+#  url: http://my-server.com/models/default_core@latest
+#  wait_time_between_pulls:  10   # [optional](default: 100)
+# Server which runs your custom actions.
+# https://rasa.com/docs/rasa/custom-actions
+#action_endpoint:
+#  url: "http://localhost:5055/webhook"
+# Tracker store which is used to store the conversations.
+# By default the conversations are stored in memory.
+# https://rasa.com/docs/rasa/tracker-stores
+#tracker_store:
+#    type: redis
+#    url: <host of the redis instance, e.g. localhost>
+#    port: <port of your redis instance, usually 6379>
+#    db: <number of your database within redis, e.g. 0>
+#    password: <password used for authentication>
+#    use_ssl: <whether or not the communication is encrypted, default false>
+#tracker_store:
+#    type: mongod
+#    url: <url to your mongo instance, e.g. mongodb://localhost:27017>
+#    db: <name of the db within your mongo instance, e.g. rasa>
+#    username: <username used for authentication>
+#    password: <password used for authentication>
+# Event broker which all conversation events should be streamed to.
+# https://rasa.com/docs/rasa/event-brokers
+#event_broker:
+#  url: localhost
+#  username: username
+#  password: password
+#  queue: queue

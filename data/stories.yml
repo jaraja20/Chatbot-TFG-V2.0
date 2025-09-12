@@ -1,11 +1,10 @@
 version: "3.1"
-
 stories:
 
-# =========================
-# HISTORIAS BÁSICAS
-# =========================
-- story: Happy path
+# ===============================
+# HISTORIAS BÁSICAS DE CONVERSACIÓN
+# ===============================
+- story: Saludo y conversación simple
   steps:
     - intent: greet
     - action: utter_greet
@@ -16,7 +15,7 @@ stories:
     - intent: goodbye
     - action: utter_goodbye
 
-- story: Sad path affirm
+- story: Saludo con estado negativo
   steps:
     - intent: greet
     - action: utter_greet
@@ -26,33 +25,244 @@ stories:
     - intent: affirm
     - action: utter_happy
 
-- story: Sad path deny
+- story: Pregunta si es bot
   steps:
-    - intent: greet
-    - action: utter_greet
-    - intent: mood_unhappy
-    - action: utter_cheer_up
-    - action: utter_did_that_help
-    - intent: deny
-    - action: utter_goodbye
+    - intent: bot_challenge
+    - action: utter_iamabot
 
-# =========================
-# AGENDAMIENTO DE TURNOS
-# =========================
-- story: Flujo de agendamiento completo
+# ===============================
+# FLUJO COMPLETO DE AGENDAMIENTO EXITOSO
+# ===============================
+- story: Agendamiento de turno completo - flujo feliz
   steps:
     - intent: agendar_turno
     - action: turno_form
     - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: nombre
+    - intent: informar_nombre
+      entities:
+        - nombre: "Juan Carlos Pérez"
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: cedula
+    - intent: informar_cedula
+      entities:
+        - cedula: "1234567"
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: fecha
+    - intent: informar_fecha
+      entities:
+        - fecha: "mañana"
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: hora
+    - intent: elegir_horario
+      entities:
+        - hora: "10:00"
+    - action: turno_form
     - active_loop: null
-    - action: utter_confirmar_turno
+    - slot_was_set:
+        - requested_slot: null
+    - action: action_confirmar_datos_turno
     - intent: confirmar_turno
     - action: action_guardar_turno
 
-# =========================
+- story: Agendamiento con datos completos en una respuesta
+  steps:
+    - intent: proporcionar_datos_turno
+      entities:
+        - nombre: "María López"
+        - cedula: "7894561"
+        - fecha: "viernes 15"
+        - hora: "14:30"
+    - action: turno_form
+    - active_loop: turno_form
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: affirm
+    - action: action_guardar_turno
+
+# ===============================
+# FLUJO CON PRIMERA VEZ
+# ===============================
+- story: Agendamiento primera cédula
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: nombre
+    - intent: informar_nombre
+      entities:
+        - nombre: "Ana Ruiz"
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: cedula
+    - intent: consultar_requisitos_primera_vez
+    - action: utter_consultar_requisitos_primera_vez
+    - action: turno_form
+    - intent: informar_cedula_primera_vez
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: fecha
+    - intent: informar_fecha
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: hora
+    - intent: elegir_horario
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: confirmar_turno
+    - action: action_guardar_turno
+
+# ===============================
+# FLUJO CON RECOMENDACIONES DIFUSAS
+# ===============================
+- story: Usuario solicita recomendación de horario
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: nombre
+    - intent: informar_nombre
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: cedula
+    - intent: informar_cedula
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: fecha
+    - intent: informar_fecha
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: hora
+    - intent: frase_ambigua
+    - action: action_recomendar_horario_fuzzy
+    - intent: elegir_horario
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: confirmar_turno
+    - action: action_guardar_turno
+
+- story: Usuario consulta disponibilidad durante agendamiento
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: hora
+    - intent: consultar_disponibilidad
+    - action: action_consultar_disponibilidad
+    - action: turno_form
+    - intent: elegir_horario
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: confirmar_turno
+    - action: action_guardar_turno
+
+# ===============================
+# FLUJO CON CORRECCIONES Y CAMBIOS
+# ===============================
+- story: Usuario corrige datos en confirmación
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: deny
+    - action: utter_datos_incorrectos
+    - action: turno_form
+    - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: nombre
+    - intent: informar_nombre
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: confirmar_turno
+    - action: action_guardar_turno
+
+- story: Usuario solicita cambio específico
+  steps:
+    - action: action_confirmar_datos_turno
+    - intent: solicitar_cambio_datos
+    - action: utter_datos_incorrectos
+    - action: turno_form
+    - active_loop: turno_form
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: affirm
+    - action: action_guardar_turno
+
+# ===============================
+# FLUJO CON INTERRUPCIONES
+# ===============================
+- story: Interrupción para consultar requisitos durante formulario
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: cedula
+    - intent: consultar_requisitos
+    - action: utter_consultar_requisitos
+    - action: turno_form
+    - intent: informar_cedula
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: confirmar_turno
+    - action: action_guardar_turno
+
+- story: Saludo durante formulario
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - intent: greet
+    - action: utter_greet
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: nombre
+    - intent: informar_nombre
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: confirmar_turno
+    - action: action_guardar_turno
+
+# ===============================
+# CANCELACIONES
+# ===============================
+- story: Cancelación durante formulario
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - intent: cancelar_turno
+    - action: action_deactivate_loop
+    - active_loop: null
+    - action: utter_cancelar_turno
+
+- story: Cancelación de turno existente
+  steps:
+    - intent: cancelar_turno
+    - action: utter_cancelar_turno
+
+# ===============================
 # CONSULTAS FRECUENTES
-# =========================
-- story: Consulta requisitos
+# ===============================
+- story: Consulta de requisitos generales
   steps:
     - intent: consultar_requisitos
     - action: utter_consultar_requisitos
@@ -61,6 +271,26 @@ stories:
   steps:
     - intent: consultar_requisitos_primera_vez
     - action: utter_consultar_requisitos_primera_vez
+
+- story: Consulta seguida de agendamiento
+  steps:
+    - intent: consultar_requisitos
+    - action: utter_consultar_requisitos
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+
+- story: Multiple consultas antes de agendar
+  steps:
+    - intent: consultar_horarios
+    - action: utter_consultar_horarios
+    - intent: consultar_costo
+    - action: utter_consultar_costo
+    - intent: consultar_ubicacion
+    - action: utter_consultar_ubicacion
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
 
 - story: Consulta menor de edad
   steps:
@@ -76,51 +306,24 @@ stories:
   steps:
     - intent: consultar_si_necesita_turno
     - action: utter_consultar_si_necesita_turno
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
 
-- story: Consulta trámite online
+# ===============================
+# SERVICIOS ADICIONALES
+# ===============================
+- story: Consulta tiempo de espera
   steps:
-    - intent: consultar_tramite_online
-    - action: utter_consultar_tramite_online
+    - intent: consulta_tiempo_espera
+    - action: action_tiempo_espera_actual
 
-- story: Consulta trámite terceros
+- story: Consulta saturación
   steps:
-    - intent: consultar_tramite_para_terceros
-    - action: utter_consultar_tramite_para_terceros
+    - intent: calcular_saturacion
+    - action: action_calcular_saturacion
 
-- story: Consulta tolerancia horaria
-  steps:
-    - intent: consultar_tolerancia_horaria
-    - action: utter_consultar_tolerancia_horaria
-
-- story: Consulta sin QR
-  steps:
-    - intent: consultar_sin_qr
-    - action: utter_consultar_sin_qr
-
-- story: Consulta disponibilidad
-  steps:
-    - intent: consultar_disponibilidad
-    - action: utter_consultar_disponibilidad
-
-- story: Consulta horarios
-  steps:
-    - intent: consultar_horarios
-    - action: utter_consultar_horarios
-
-- story: Consulta ubicación
-  steps:
-    - intent: consultar_ubicacion
-    - action: utter_consultar_ubicacion
-
-- story: Consulta costo
-  steps:
-    - intent: consultar_costo
-    - action: utter_consultar_costo
-
-# =========================
-# OTROS
-# =========================
-- story: Estado trámite
+- story: Estado de trámite
   steps:
     - intent: estado_tramite
     - action: utter_estado_tramite
@@ -129,3 +332,95 @@ stories:
   steps:
     - intent: ayuda_tecnica
     - action: utter_ayuda_tecnica
+
+# ===============================
+# FLUJOS DE DISPONIBILIDAD
+# ===============================
+- story: Consulta disponibilidad general
+  steps:
+    - intent: consultar_disponibilidad
+    - action: action_consultar_disponibilidad
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+
+- story: Frase ambigua seguida de agendamiento
+  steps:
+    - intent: frase_ambigua
+    - action: action_recomendar_horario_fuzzy
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+
+
+# ===============================
+# CASOS EDGE Y MANEJO DE ERRORES
+# ===============================
+- story: Datos inválidos en formulario
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: nombre
+    - intent: informar_nombre
+    - action: validate_turno_form
+    - action: turno_form
+    - slot_was_set:
+        - requested_slot: nombre  # Volver a preguntar si no es válido
+    - intent: informar_nombre
+    - action: turno_form
+
+- story: Usuario indeciso con múltiples cambios
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: deny
+    - action: utter_datos_incorrectos
+    - action: turno_form
+    - active_loop: turno_form
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: deny
+    - action: utter_datos_incorrectos
+    - action: turno_form
+    - active_loop: turno_form
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: affirm
+    - action: action_guardar_turno
+
+# ===============================
+# FLUJOS CONVERSACIONALES MIXTOS
+# ===============================
+- story: Conversación compleja con múltiples intents
+  steps:
+    - intent: greet
+    - action: utter_greet
+    - intent: consultar_horarios
+    - action: utter_consultar_horarios
+    - intent: consultar_costo
+    - action: utter_consultar_costo
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: hora
+    - intent: frase_ambigua
+    - action: action_recomendar_horario_fuzzy
+    - intent: elegir_horario
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: confirmar_turno
+    - action: action_guardar_turno
+    - intent: agradecimiento
+    - action: utter_agradecimiento
+    - intent: goodbye
+    - action: utter_goodbye

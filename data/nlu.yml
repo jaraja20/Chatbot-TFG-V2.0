@@ -17,6 +17,11 @@ nlu:
     - qué haces
     - cómo estás
     - saludos
+    - hey
+    - buenos días
+    - muy buenas
+    - holaa
+    - hola que tal
 
 - intent: goodbye
   examples: |
@@ -27,6 +32,11 @@ nlu:
     - bye
     - goodbye
     - see you later
+    - me voy
+    - hasta la vista
+    - que tengas buen día
+    - nos vemos luego
+    - chau chau
 
 - intent: agradecimiento
   examples: |
@@ -35,6 +45,11 @@ nlu:
     - te agradezco
     - excelente atención
     - muy amable
+    - mil gracias
+    - gracias por la ayuda
+    - perfecto gracias
+    - genial gracias
+    - ok gracias
 
 # =========================
 # AFIRMACIÓN / NEGACIÓN
@@ -47,6 +62,15 @@ nlu:
     - dale
     - afirmo
     - claro que sí
+    - exacto
+    - perfecto
+    - está bien
+    - de acuerdo
+    - bueno
+    - okey
+    - si
+    - confirmo
+    - acepto
 
 - intent: deny
   examples: |
@@ -55,6 +79,13 @@ nlu:
     - no quiero
     - no gracias
     - mejor no
+    - no está correcto
+    - no es así
+    - incorrecto
+    - mal
+    - no acepto
+    - cambiar
+    - modificar
 
 # =========================
 # ESTADOS DE ÁNIMO
@@ -66,6 +97,10 @@ nlu:
     - excelente
     - perfecto
     - maravilloso
+    - fantástico
+    - súper bien
+    - todo perfecto
+    - de maravilla
 
 - intent: mood_unhappy
   examples: |
@@ -74,6 +109,9 @@ nlu:
     - no estoy bien
     - muy decepcionado
     - pésimo día
+    - mal día
+    - no muy bien
+    - regular nomás
 
 # =========================
 # BOT CHALLENGE
@@ -84,6 +122,10 @@ nlu:
     - eres humano?
     - estoy hablando con una persona?
     - sos real?
+    - eres un robot?
+    - sos artificial?
+    - quién sos?
+    - que sos vos?
 
 # =========================
 # AGENDAMIENTO DE TURNOS
@@ -96,6 +138,20 @@ nlu:
     - cómo saco turno
     - quiero que me agendes para mañana
     - me gustaría un turno para mañana
+    - necesito un turno
+    - sacar turno
+    - agendar turno
+    - reservar turno
+    - quiero agendar
+    - necesito agendar
+    - turno por favor
+    - dame un turno
+    - quiero marcar un turno
+    - agendar cita
+    - reservar cita
+    - necesito una cita
+    - quiero hacer un trámite
+    - tramitar mi cédula
 
 - intent: proporcionar_datos_turno
   examples: |
@@ -104,10 +160,48 @@ nlu:
     - [Carlos Ruiz](nombre) quiere turno el [martes 15](fecha) a las [10:30](hora), cédula [4561230](cedula)
     - necesito turno para el [miércoles 20](fecha) a las [13:30](hora), me llamo [Jhonatan Villalba](nombre), cédula [1234567](cedula)
     - quiero el turno para el [martes 14](fecha) a las [08:00](hora), mi nombre es [Laura Duarte](nombre), mi cédula [6543210](cedula)
-    - quiero un turno para [mañana](fecha) a las [15:00](hora)
-    - reservar turno el [27 de agosto](fecha) a las [3pm](hora)
-    - el [martes](fecha) a las [10 de la mañana](hora)
-    - para el día [mañana](fecha) a las [3 de la tarde](hora)
+    - [Ana Pérez](nombre), [2345678](cedula), [lunes 25](fecha), [15:30](hora)
+    - me llamo [Pedro González](nombre), cédula [3456789](cedula), para el [jueves próximo](fecha) a las [14:00](hora)
+    - [Carmen Silva](nombre), documento [4567890](cedula), fecha [28 de septiembre](fecha), hora [08:30](hora)
+
+- intent: informar_nombre
+  examples: |
+    - mi nombre es Juan Carlos Pérez
+    - me llamo María López
+    - soy Ana Ruiz García
+    - Pedro González
+    - Carmen Silva Rodríguez
+    - José Antonio Martínez
+    - Lucía Fernández
+    - Carlos Eduardo Benítez
+    - Rosa María Duarte
+    - Miguel Ángel Torres
+
+- intent: informar_cedula
+  examples: |
+    - mi cédula es 1234567
+    - documento 2345678
+    - número 3456789
+    - ci 4567890
+    - cédula 5678901
+    - mi número es 6789012
+    - documento de identidad 7890123
+    - 1234567
+    - 2345678
+    - 987654
+
+- intent: informar_cedula_primera_vez
+  examples: |
+    - no tengo cédula
+    - es mi primera vez
+    - primera vez
+    - nunca tuve cédula
+    - no tengo documento
+    - primera cédula
+    - no tengo ci
+    - nunca tramité
+    - es la primera
+    - primera vez que saco
 
 - intent: elegir_horario
   examples: |
@@ -120,6 +214,15 @@ nlu:
     - puede ser a las [16:30](hora)
     - a las [12](hora)
     - marcame a las [9](hora)
+    - [3 de la tarde](hora)
+    - [8 de la mañana](hora)
+    - [2 pm](hora)
+    - [10 am](hora)
+    - [medio día](hora)
+    - [14:30](hora)
+    - a las [nueve](hora)
+    - a las [dos](hora)
+    - [ocho y media](hora)
 
 - intent: informar_fecha
   examples: |
@@ -130,13 +233,18 @@ nlu:
     - el [martes 21](fecha)
     - [próximo jueves](fecha)
     - el [22 de septiembre](fecha)
-    - mañana
-    - pasado mañana
-    - este viernes
-    - el próximo lunes
-    - viernes 15
-    - 15 de septiembre
-    - 20/09/2025
+    - [pasado mañana](fecha)
+    - [este viernes](fecha)
+    - el [próximo lunes](fecha)
+    - [viernes 15](fecha)
+    - [15 de septiembre](fecha)
+    - [20/09/2025](fecha)
+    - [la semana que viene](fecha)
+    - [el miércoles](fecha)
+    - [jueves que viene](fecha)
+    - [dentro de dos días](fecha)
+    - [el 25](fecha)
+    - [septiembre 30](fecha)
 
 - intent: confirmar_turno
   examples: |
@@ -147,6 +255,30 @@ nlu:
     - dale confirmo
     - ok confirmo
     - está bien, confirmo
+    - si confirmo
+    - perfecto confirmo
+    - confirmo todo
+    - está correcto
+    - todo bien
+    - agendar
+    - guardar
+    - si agendar
+
+- intent: solicitar_cambio_datos
+  examples: |
+    - quiero cambiar algo
+    - necesito modificar
+    - cambiar datos
+    - corregir información
+    - editar turno
+    - modificar fecha
+    - cambiar hora
+    - corregir nombre
+    - cambiar cédula
+    - está mal
+    - no está correcto
+    - hay un error
+    - quiero corregir
 
 - intent: cancelar_turno
   examples: |
@@ -154,6 +286,13 @@ nlu:
     - anulá mi cita
     - me equivoqué de fecha
     - no voy a poder asistir
+    - cancelar
+    - anular turno
+    - no puedo ir
+    - suspender turno
+    - ya no necesito
+    - cambié de idea
+    - mejor no
 
 - intent: frase_ambigua
   examples: |
@@ -166,11 +305,42 @@ nlu:
     - qué horarios tenes
     - qué horarios tenes disponible
     - qué horarios disponibles hay
+    - que horarios hay disponible
+    - que horarios tienes disponible
+    - que horarios tenes de mañana
+    - que hora hay disponible
+    - lo mas cercano posible
+    - cual es la disponibilidad
     - a qué hora puedo ir
     - qué hora hay
     - dame un horario
     - recomendame un horario
     - qué hora me recomiendas
+    - cuando sea mejor
+    - el que tengas libre
+    - cuando convenga
+    - hora que sea
+    - cualquier hora
+    - cuando hay lugar
+    - cuando está libre
+    - el mejor horario
+    - recomendación
+    - sugerencia de hora
+    - cuando es conveniente
+    - horario óptimo
+    - la mejor opción
+    - dime un horario
+    - recomiéndame un horario
+    - recomendame un horario
+    - qué horarios están libres
+    - cuál es la disponibilidad
+    - sugerime un horario
+    - qué hora me conviene
+    - dame un horario recomendado
+    - cuál es el mejor horario
+    - que disponibilidad hay
+    - horarios disponibles
+    - disponibilidad de horarios
 
 # =========================
 # CONSULTAS FRECUENTES
@@ -182,6 +352,12 @@ nlu:
     - qué requisitos hay
     - me pueden decir qué papeles piden
     - qué necesito si es renovación
+    - requisitos
+    - documentos necesarios
+    - qué debo llevar
+    - qué se necesita
+    - papeles requeridos
+    - documentación
 
 - intent: consultar_requisitos_primera_vez
   examples: |
@@ -190,17 +366,22 @@ nlu:
     - qué papeles tengo que llevar para mi primera cédula
     - qué se necesita si nunca tuve cédula
     - documentación para la primera vez
-    - no tengo
-    - no tengo cédula
-    - es mi primera vez
-    - nunca tuve cédula
+    - no tengo cédula qué necesito
+    - primera vez requisitos
+    - documentos primera cédula
+    - nunca saqué cédula qué llevo
 
 - intent: consultar_menor_edad
   examples: |
-    - mi hijo tiene 13, ¿puede sacar su cédula?
+    - mi hijo tiene 13, puede sacar su cédula?
     - desde qué edad se hace la cédula?
     - un menor puede tramitar su cédula?
     - necesita ir acompañado de sus padres?
+    - menores de edad
+    - cédula para niños
+    - adolescentes cédula
+    - acompañante para menores
+    - padre o madre presente
 
 - intent: consultar_extranjeros
   examples: |
@@ -208,6 +389,10 @@ nlu:
     - qué necesito si tengo residencia permanente
     - tengo pasaporte argentino, sirve?
     - qué documentos necesito si no soy paraguayo
+    - extranjeros cédula
+    - residencia cédula
+    - foráneos documentos
+    - no soy paraguayo
 
 - intent: consultar_disponibilidad
   examples: |
@@ -215,6 +400,12 @@ nlu:
     - qué horarios libres hay mañana?
     - qué disponibilidad hay hoy?
     - quedan turnos libres?
+    - disponibilidad
+    - turnos libres
+    - horarios disponibles
+    - cupos libres
+    - hay lugar
+    - espacios disponibles
 
 - intent: consultar_horarios
   examples: |
@@ -222,6 +413,11 @@ nlu:
     - cuál es el horario de la oficina?
     - hasta qué hora atienden?
     - de qué hora a qué hora están abiertos?
+    - horario de atención
+    - cuándo abren
+    - cuándo cierran
+    - horarios de trabajo
+    - a qué hora funciona
 
 - intent: consultar_ubicacion
   examples: |
@@ -229,15 +425,69 @@ nlu:
     - cuál es la dirección?
     - cómo llego a la oficina?
     - dónde están ubicados?
+    - ubicación
+    - dirección
+    - cómo llegar
+    - dónde es
+    - localización
 
 - intent: consultar_costo
   examples: |
     - cuánto cuesta el trámite?
     - cuál es el precio?
     - qué costo tiene?
+    - precio
+    - costo
+    - cuánto sale
+    - valor del trámite
+    - tarifa
+
+- intent: consultar_si_necesita_turno
+  examples: |
+    - es obligatorio el turno?
+    - puedo ir sin turno?
+    - necesito agendar?
+    - es necesario reservar?
+    - obligatorio turno
+    - sin turno atienden?
+
+- intent: consultar_tramite_online
+  examples: |
+    - puedo hacer el trámite online?
+    - se hace por internet?
+    - trámite virtual
+    - online
+    - por internet
+    - digital
+
+- intent: consultar_tramite_para_terceros
+  examples: |
+    - puedo tramitar por otra persona?
+    - mi esposo puede ir por mí?
+    - terceros
+    - apoderado
+    - en representación
+    - por otra persona
+
+- intent: consultar_tolerancia_horaria
+  examples: |
+    - qué tolerancia hay?
+    - puedo llegar tarde?
+    - cuántos minutos de atraso?
+    - tolerancia
+    - llegada tarde
+
+- intent: consultar_sin_qr
+  examples: |
+    - sirve la cédula sin QR?
+    - mi cédula no tiene código QR
+    - cédula antigua válida?
+    - sin QR
+    - código QR
+    - cédula vieja
 
 # =========================
-# OTROS
+# OTROS SERVICIOS
 # =========================
 - intent: estado_tramite
   examples: |
@@ -245,6 +495,9 @@ nlu:
     - cómo va mi cédula
     - ya está lista mi cédula?
     - puedo consultar mi trámite?
+    - estado trámite
+    - seguimiento
+    - consulta estado
 
 - intent: ayuda_tecnica
   examples: |
@@ -252,6 +505,9 @@ nlu:
     - no me carga el sistema
     - tengo un error técnico
     - no funciona la web
+    - error técnico
+    - problemas sistema
+    - no carga
 
 - intent: consulta_tiempo_espera
   examples: |
@@ -260,6 +516,11 @@ nlu:
     - el tiempo de espera es largo?
     - cuántos minutos voy a tardar?
     - la espera es corta o larga?
+    - tiempo de espera
+    - demora
+    - cuánto demora
+    - espera estimada
+    - fila larga
 
 - intent: calcular_saturacion
   examples: |
@@ -268,3 +529,69 @@ nlu:
     - cuántas personas hay esperando?
     - está muy lleno?
     - hay mucha gente en cola?
+    - saturación
+    - ocupación
+    - lleno
+    - gente esperando
+    - cola larga
+
+# =========================
+# REGEX PATTERNS PARA ENTITIES
+# =========================
+- regex: cedula
+  examples: |
+    - \d{1,8}
+    - \d{1,3}\.?\d{3}\.?\d{3}
+
+- regex: hora
+  examples: |
+    - \d{1,2}:\d{2}
+    - \d{1,2}\s?(am|pm|AM|PM)
+    - \d{1,2}\s?de\s?la\s?(mañana|tarde|noche)
+
+- regex: fecha
+  examples: |
+    - \d{1,2}/\d{1,2}/\d{4}
+    - \d{1,2}-\d{1,2}-\d{4}
+    - \d{1,2}\s?de\s?\w+
+
+# =========================
+# LOOKUP TABLES
+# =========================
+- lookup: dias_semana
+  examples: |
+    - lunes
+    - martes
+    - miércoles
+    - jueves
+    - viernes
+    - sábado
+    - domingo
+
+- lookup: meses
+  examples: |
+    - enero
+    - febrero
+    - marzo
+    - abril
+    - mayo
+    - junio
+    - julio
+    - agosto
+    - septiembre
+    - octubre
+    - noviembre
+    - diciembre
+
+- lookup: nombres_comunes
+  examples: |
+    - Juan
+    - María
+    - Carlos
+    - Ana
+    - Pedro
+    - Carmen
+    - José
+    - Lucía
+    - Miguel
+    - Rosa

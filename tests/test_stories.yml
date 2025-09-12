@@ -1,4 +1,7 @@
 stories:
+# ===============================
+# HISTORIAS BÁSICAS CORREGIDAS
+# ===============================
 - story: happy path 1
   steps:
   - user: |
@@ -8,7 +11,7 @@ stories:
   - user: |
       amazing
     intent: mood_great
-  - action: utter_mood_great
+  - action: utter_happy  # CORREGIDO
 
 - story: happy path 2
   steps:
@@ -19,7 +22,7 @@ stories:
   - user: |
       amazing
     intent: mood_great
-  - action: utter_mood_great
+  - action: utter_happy  # CORREGIDO
   - user: |
       bye-bye!
     intent: goodbye
@@ -34,11 +37,12 @@ stories:
   - user: |
       not good
     intent: mood_unhappy
-  - action: utter_mood_unhappy
+  - action: utter_cheer_up  # CORREGIDO
+  - action: utter_did_that_help  # AGREGADO (según tu domain)
   - user: |
       yes
     intent: affirm
-  - action: utter_affirm
+  - action: utter_happy  # CORREGIDO
 
 - story: sad path 2
   steps:
@@ -49,26 +53,8 @@ stories:
   - user: |
       not good
     intent: mood_unhappy
-  - action: utter_mood_unhappy
-  - user: |
-      not really
-    intent: deny
-  - action: utter_deny
-
-- story: sad path 3
-  steps:
-  - user: |
-      hi
-    intent: greet
-  - action: utter_greet
-  - user: |
-      very terrible
-    intent: mood_unhappy
-  - action: utter_mood_unhappy
-  - user: |
-      no
-    intent: deny
-  - action: utter_deny
+  - action: utter_cheer_up  # CORREGIDO
+  - action: utter_did_that_help  # AGREGADO
 
 - story: say goodbye
   steps:
@@ -84,9 +70,71 @@ stories:
     intent: bot_challenge
   - action: utter_iamabot
 
-- story: consulta tiempo de espera (difusa)
+# ===============================
+# HISTORIAS DEL MOTOR DIFUSO CORREGIDAS
+# ===============================
+- story: consulta tiempo de espera actual
   steps:
   - user: |
       ¿Cuánto voy a esperar?
     intent: consulta_tiempo_espera
-  - action: action_tiempo_espera_fuzzy
+  - action: action_tiempo_espera_actual  # CORREGIDO
+
+- story: motor difuso activado
+  steps:
+  - user: |
+      que horarios hay disponibles
+    intent: frase_ambigua
+  - action: action_recomendar_horario_fuzzy  # PRINCIPAL
+
+- story: consulta saturacion
+  steps:
+  - user: |
+      como esta la oficina ahora
+    intent: calcular_saturacion
+  - action: action_calcular_saturacion
+
+# ===============================
+# HISTORIAS DE AGENDAMIENTO
+# ===============================
+- story: agendar turno simple
+  steps:
+  - user: |
+      quiero agendar un turno
+    intent: agendar_turno
+  - action: turno_form
+  - active_loop: turno_form
+
+- story: motor difuso durante agendamiento
+  steps:
+  - user: |
+      quiero agendar un turno
+    intent: agendar_turno
+  - action: turno_form
+  - active_loop: turno_form
+  - slot_was_set:
+      - requested_slot: hora
+  - user: |
+      que horarios hay disponibles
+    intent: frase_ambigua
+  - action: action_recomendar_horario_fuzzy
+  - user: |
+      10:00
+    intent: elegir_horario
+  - action: turno_form
+  - active_loop: null
+  - action: action_confirmar_datos_turno
+
+- story: consultas frecuentes
+  steps:
+  - user: |
+      que requisitos necesito
+    intent: consultar_requisitos
+  - action: utter_consultar_requisitos
+
+- story: consultar disponibilidad
+  steps:
+  - user: |
+      hay turnos libres
+    intent: consultar_disponibilidad
+  - action: action_consultar_disponibilidad

@@ -1,11 +1,10 @@
 version: "3.1"
-
 rules:
 
-# =========================
-# SALUDOS Y BIENVENIDA
-# =========================
-- rule: Bienvenida al iniciar sesión
+# ===============================
+# SALUDOS Y DESPEDIDAS
+# ===============================
+- rule: Saludo inicial
   steps:
     - intent: greet
     - action: utter_greet
@@ -15,26 +14,26 @@ rules:
     - intent: goodbye
     - action: utter_goodbye
 
-- rule: Respuesta a agradecimiento
+- rule: Agradecimiento
   steps:
     - intent: agradecimiento
     - action: utter_agradecimiento
 
-- rule: Pregunta si soy un bot
+- rule: Bot challenge
   steps:
     - intent: bot_challenge
     - action: utter_iamabot
 
-# =========================
-# AGENDAR TURNOS
-# =========================
-- rule: Activar formulario de turno
+# ===============================
+# FLUJO DE AGENDAMIENTO DE TURNOS
+# ===============================
+- rule: Iniciar formulario de turno
   steps:
     - intent: agendar_turno
     - action: turno_form
     - active_loop: turno_form
 
-- rule: Confirmar turno después de formulario
+- rule: Completar formulario y mostrar confirmación
   condition:
     - active_loop: turno_form
   steps:
@@ -42,34 +41,74 @@ rules:
     - active_loop: null
     - slot_was_set:
         - requested_slot: null
-    - action: utter_confirmar_turno
+    - action: action_confirmar_datos_turno
 
-- rule: Guardar turno tras confirmación
+- rule: Confirmar y guardar turno
   steps:
-    - action: utter_confirmar_turno
+    - action: action_confirmar_datos_turno
     - or:
         - intent: confirmar_turno
         - intent: affirm
     - action: action_guardar_turno
 
-# Normalización de fecha con dateparser
-- rule: Normalizar fecha
+- rule: Solicitar cambio de datos
+  steps:
+    - action: action_confirmar_datos_turno
+    - or:
+        - intent: solicitar_cambio_datos
+        - intent: deny
+    - action: utter_datos_incorrectos
+    - action: turno_form
+    - active_loop: turno_form
+
+# ===============================
+# MOTOR DIFUSO - REGLA ÚNICA
+# ===============================
+- rule: Activar motor difuso
+  steps:
+    - intent: frase_ambigua
+    - action: action_recomendar_horario_fuzzy
+
+# ===============================
+# OTRAS CONSULTAS
+# ===============================
+- rule: Consultar disponibilidad
+  steps:
+    - intent: consultar_disponibilidad
+    - action: action_consultar_disponibilidad
+
+- rule: Normalizar fecha explícitamente
   steps:
     - intent: informar_fecha
     - action: action_normalizar_fecha
 
-# =========================
-# CANCELAR TURNOS
-# =========================
+- rule: Procesar datos completos de turno
+  steps:
+    - intent: proporcionar_datos_turno
+    - action: turno_form
+    - active_loop: turno_form
+
+# ===============================
+# CANCELACIÓN DE TURNOS
+# ===============================
 - rule: Cancelar turno
   steps:
     - intent: cancelar_turno
     - action: utter_cancelar_turno
 
-# =========================
+- rule: Cancelar durante formulario
+  condition:
+    - active_loop: turno_form
+  steps:
+    - intent: cancelar_turno
+    - action: action_deactivate_loop
+    - active_loop: null
+    - action: utter_cancelar_turno
+
+# ===============================
 # CONSULTAS FRECUENTES
-# =========================
-- rule: Consultar requisitos
+# ===============================
+- rule: Consultar requisitos generales
   steps:
     - intent: consultar_requisitos
     - action: utter_consultar_requisitos
@@ -84,12 +123,12 @@ rules:
     - intent: consultar_menor_edad
     - action: utter_consultar_menor_edad
 
-- rule: Consultar extranjeros
+- rule: Consultar trámites para extranjeros
   steps:
     - intent: consultar_extranjeros
     - action: utter_consultar_extranjeros
 
-- rule: Consultar si necesita turno
+- rule: Consultar necesidad de turno
   steps:
     - intent: consultar_si_necesita_turno
     - action: utter_consultar_si_necesita_turno
@@ -109,17 +148,12 @@ rules:
     - intent: consultar_tolerancia_horaria
     - action: utter_consultar_tolerancia_horaria
 
-- rule: Consultar sin QR
+- rule: Consultar cédulas sin QR
   steps:
     - intent: consultar_sin_qr
     - action: utter_consultar_sin_qr
 
-- rule: Consultar disponibilidad
-  steps:
-    - intent: consultar_disponibilidad
-    - action: utter_consultar_disponibilidad
-
-- rule: Consultar horarios
+- rule: Consultar horarios de atención
   steps:
     - intent: consultar_horarios
     - action: utter_consultar_horarios
@@ -129,15 +163,15 @@ rules:
     - intent: consultar_ubicacion
     - action: utter_consultar_ubicacion
 
-- rule: Consultar costo
+- rule: Consultar costo del trámite
   steps:
     - intent: consultar_costo
     - action: utter_consultar_costo
 
-# =========================
-# OTROS
-# =========================
-- rule: Estado del trámite
+# ===============================
+# SERVICIOS ADICIONALES
+# ===============================
+- rule: Consultar estado de trámite
   steps:
     - intent: estado_tramite
     - action: utter_estado_tramite
@@ -147,20 +181,34 @@ rules:
     - intent: ayuda_tecnica
     - action: utter_ayuda_tecnica
 
-- rule: Tiempo de espera (difusa)
+- rule: Consultar tiempo de espera actual
   steps:
     - intent: consulta_tiempo_espera
-    - action: action_tiempo_espera_fuzzy
+    - action: action_tiempo_espera_actual
 
-- rule: Calcular saturación
+- rule: Calcular saturación actual
   steps:
     - intent: calcular_saturacion
     - action: action_calcular_saturacion
 
-- rule: Recomendar turno con lógica difusa
-  condition:
-    - active_loop: turno_form
+# ===============================
+# MANEJO DE ESTADOS DE ÁNIMO
+# ===============================
+- rule: Respuesta a estado positivo
   steps:
-    - intent: frase_ambigua
-    - action: action_recomendar_turno_fuzzy
-    - action: utter_ask_hora
+    - intent: mood_great
+    - action: utter_happy
+
+- rule: Respuesta a estado negativo
+  steps:
+    - intent: mood_unhappy
+    - action: utter_cheer_up
+    - action: utter_did_that_help
+
+# ===============================
+# REGLAS DE SESIÓN
+# ===============================
+- rule: Inicialización de sesión
+  conversation_start: true
+  steps:
+    - action: action_session_start
