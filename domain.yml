@@ -1,0 +1,171 @@
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - affirm
+  - deny
+  - mood_great
+  - mood_unhappy
+  - bot_challenge
+  - agradecimiento
+  - agendar_turno
+  - cancelar_turno
+  - confirmar_turno
+  - proporcionar_datos_turno
+  - informar_fecha
+  - elegir_horario
+  - frase_ambigua 
+  - consultar_requisitos
+  - consultar_requisitos_primera_vez
+  - consultar_menor_edad
+  - consultar_extranjeros
+  - consultar_si_necesita_turno
+  - consultar_tramite_online
+  - consultar_tramite_para_terceros
+  - consultar_tolerancia_horaria
+  - consultar_sin_qr
+  - consultar_disponibilidad
+  - consultar_horarios
+  - consultar_ubicacion
+  - consultar_costo
+  - estado_tramite
+  - ayuda_tecnica
+  - consulta_tiempo_espera
+  - calcular_saturacion
+
+entities:
+  - nombre
+  - cedula
+  - fecha
+  - hora
+
+slots:
+  nombre:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_text
+        conditions:
+          - active_loop: turno_form
+            requested_slot: nombre
+
+  cedula:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: cedula
+      - type: from_text
+        conditions:
+          - active_loop: turno_form
+            requested_slot: cedula
+
+  fecha:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_text
+        conditions:
+          - active_loop: turno_form
+            requested_slot: fecha
+
+  hora:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: hora
+      - type: from_text
+        conditions:
+          - active_loop: turno_form
+            requested_slot: hora
+
+forms:
+  turno_form:
+    required_slots:
+      - nombre
+      - cedula
+      - fecha
+      - hora
+
+responses:
+  # SALUDOS
+  utter_did_that_help:
+    - text: "¿Esto te ayudó?"
+  utter_greet:
+    - text: "¡Hola! ¿Cómo estás? ¿En qué puedo ayudarte con tu cédula de identidad?"
+  utter_goodbye:
+    - text: "¡Hasta luego! Que tengas un buen día."
+  utter_iamabot:
+    - text: "Soy un asistente virtual diseñado para ayudarte con trámites de cédula."
+  utter_agradecimiento:
+    - text: "¡De nada! Estoy para ayudarte."
+  utter_bienvenida:
+    - text: "Bienvenido/a, ¿en qué puedo ayudarte hoy?"
+  utter_cheer_up:
+    - text: "¡Ánimo! Todo va a salir bien, ¿querés que te muestre algo para alegrarte?"
+  utter_happy:
+    - text: "¡Me alegra mucho escuchar eso! 😊"
+
+  # AGENDAR Y CANCELAR
+  utter_ask_nombre:
+    - text: "¿Cuál es tu nombre completo?"
+  utter_ask_cedula:
+    - text: "¿Cuál es tu número de cédula? (si no tenés, decime que es tu primera vez)"
+  utter_ask_fecha:
+    - text: "¿Para qué fecha querés el turno?"
+  utter_ask_hora:
+    - text: "¿A qué hora querés el turno?"
+  utter_confirmar_turno:
+    - text: "¿Querés confirmar este turno?"
+  utter_cancelar_turno:
+    - text: "Tu turno fue cancelado correctamente."
+
+  # CONSULTAS FRECUENTES
+  utter_consultar_requisitos:
+    - text: "Necesitás presentar tu cédula anterior y comprobante de pago."
+  utter_consultar_requisitos_primera_vez:
+    - text: "Para la primera vez necesitás tu partida de nacimiento original, comprobante de pago y un adulto responsable si sos menor."
+  utter_consultar_menor_edad:
+    - text: "Los menores deben ir acompañados de su madre, padre o tutor legal, con documentos que acrediten la relación."
+  utter_consultar_extranjeros:
+    - text: "Las personas extranjeras pueden gestionar su cédula si tienen residencia legal en Paraguay. Presentá pasaporte, carnet migratorio y documentos legalizados."
+  utter_consultar_si_necesita_turno:
+    - text: "Sí, es obligatorio agendar un turno para todos los trámites."
+  utter_consultar_tramite_online:
+    - text: "Algunos pasos se pueden iniciar online, pero la gestión final es presencial."
+  utter_consultar_tramite_para_terceros:
+    - text: "No, el trámite debe realizarlo la persona interesada."
+  utter_consultar_tolerancia_horaria:
+    - text: "Tenés 15 minutos de tolerancia después del horario agendado."
+  utter_consultar_sin_qr:
+    - text: "Podés usar tu cédula aunque no tenga QR, pero se recomienda renovarla."
+  utter_consultar_disponibilidad:
+    - text: "Los turnos disponibles se actualizan constantemente. Te puedo ayudar a encontrar uno."
+  utter_consultar_horarios:
+    - text: "La oficina atiende de lunes a viernes de 7:00 a 17:00 horas."
+  utter_consultar_ubicacion:
+    - text: "La oficina central está en Ciudad del Este, Av. Pioneros del Este."
+  utter_consultar_costo:
+    - text: "El costo del trámite es de 25.000 guaraníes."
+
+  # OTROS
+  utter_estado_tramite:
+    - text: "Podés verificar el estado de tu trámite ingresando en el portal de Identificaciones."
+  utter_ayuda_tecnica:
+    - text: "Si tenés problemas técnicos, probá reiniciar la página o contactá soporte al 0800-123-456."
+  utter_frase_ambigua:
+    - text: "No entendí del todo. ¿Podés reformular tu consulta?"
+
+actions:
+  - action_guardar_turno
+  - action_normalizar_fecha
+  - action_tiempo_espera_fuzzy
+  - action_calcular_saturacion
+  - action_recomendar_turno_fuzzy
+  - action_session_start
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true

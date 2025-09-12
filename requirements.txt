@@ -1,0 +1,13 @@
+rasa==3.6.20
+rasa-sdk==3.6.2
+streamlit==1.28.1
+requests==2.31.0
+pandas==2.0.3
+plotly==5.17.0
+sqlalchemy==1.4.53
+psycopg2-binary==2.9.7
+python-dateutil==2.8.2
+dateparser==1.1.8
+scikit-fuzzy==0.4.2
+numpy==1.24.4
+matplotlib==3.7.2
