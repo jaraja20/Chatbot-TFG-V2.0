@@ -11,7 +11,6 @@ try:
     DASHBOARD_AVAILABLE = True
 except ImportError:
     DASHBOARD_AVAILABLE = False
-    st.error("Dashboard de aprendizaje no disponible. Instala las dependencias necesarias.")
 
 # =====================================================
 # CONFIGURACIÓN
@@ -361,8 +360,9 @@ def main():
         # Solo mostrar chat si el dashboard no está disponible
         show_chat_interface()
         
-        # Mostrar advertencia
-        st.warning("⚠️ Dashboard de aprendizaje no disponible. Instala las dependencias: `pip install plotly pandas`")
+        # Mostrar advertencia si el dashboard no está disponible
+        if not DASHBOARD_AVAILABLE:
+            st.warning("⚠️ Dashboard de aprendizaje no disponible. Instala las dependencias: `pip install plotly pandas`")
 
 # =====================================================
 # PUNTO DE ENTRADA

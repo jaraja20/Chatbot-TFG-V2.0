@@ -523,7 +523,7 @@ class ActionRecomendarHorarioFuzzy(Action):
             
             # CORRECCIÓN: Pasar hora también al cálculo difuso
             hora_promedio = sum(horas) / len(horas)
-            tiempo_espera = calcular_espera(ocupacion_promedio, urgencia, hora_promedio)
+            tiempo_espera = calcular_espera(ocupacion_promedio, urgencia)
             
             recomendaciones.append((nombre_franja, ocupacion_promedio, tiempo_espera, horas))
         
