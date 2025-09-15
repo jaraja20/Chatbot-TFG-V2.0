@@ -110,21 +110,27 @@ def send_message_to_rasa(message: str, sender: str = "user") -> List[Dict]:
         response = requests.post(
             RASA_URL,
             json=payload,
-            timeout=10,
-            headers={"Content-Type": "application/json"}
+            timeout=15,  # Aumentar timeout
+            headers={
+                "Content-Type": "application/json; charset=utf-8"  # Especificar charset
+            }
         )
         
         if response.status_code == 200:
-            return response.json()
+            # Verificar que hay respuesta
+            response_data = response.json()
+            if not response_data:
+                return [{"text": "El bot no respondió. Intenta de nuevo."}]
+            return response_data
         else:
-            return [{"text": f"Error del servidor: {response.status_code}"}]
+            return [{"text": f"Error del servidor: {response.status_code}. Verifica que Rasa esté funcionando."}]
             
     except requests.exceptions.Timeout:
-        return [{"text": "El bot está tardando en responder. Por favor, intenta de nuevo."}]
+        return [{"text": "El bot tardó demasiado en responder. Verifica la conexión con Rasa."}]
     except requests.exceptions.ConnectionError:
-        return [{"text": "No se puede conectar con el bot. Verifica que Rasa esté ejecutándose."}]
+        return [{"text": "No se puede conectar con Rasa. Asegúrate de que esté ejecutándose en el puerto 5005."}]
     except Exception as e:
-        return [{"text": f"Error inesperado: {str(e)}"}]
+        return [{"text": f"Error de conexión: {str(e)}"}]
 
 def initialize_session():
     """Inicializa el estado de la sesión"""
@@ -349,12 +355,15 @@ def main():
     
     # Crear pestañas principales
     if DASHBOARD_AVAILABLE:
-        tab1, tab2 = st.tabs(["💬 Chat", "📊 Dashboard de Aprendizaje"])
+        # Selector de página en lugar de pestañas
+        page = st.sidebar.radio(
+            "Seleccionar página:",
+            ["💬 Chat", "📊 Dashboard de Aprendizaje"]
+        )
         
-        with tab1:
+        if page == "💬 Chat":
             show_chat_interface()
-        
-        with tab2:
+        else:
             show_learning_dashboard()
     else:
         # Solo mostrar chat si el dashboard no está disponible
