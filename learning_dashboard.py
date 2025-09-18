@@ -9,6 +9,43 @@ from datetime import datetime, timedelta
 import json
 from conversation_logger import setup_learning_system
 from typing import Dict, List
+import psycopg2
+from collections import Counter
+import re
+
+class LearningDashboard:
+    def __init__(self, db_config):
+        self.db_config = db_config
+    
+    def get_connection(self):
+        """Obtiene conexión segura a la base de datos"""
+        try:
+            return psycopg2.connect(
+                host=self.db_config['host'],
+                database=self.db_config['database'],
+                user=self.db_config['user'],
+                password=self.db_config['password'],
+                client_encoding='utf8'
+            )
+        except Exception as e:
+            st.error(f"Error de conexión: {e}")
+            return None
+    
+    def safe_query(self, query, params=None):
+        """Ejecuta queries de forma segura"""
+        conn = self.get_connection()
+        if not conn:
+            return pd.DataFrame()
+        
+        try:
+            df = pd.read_sql_query(query, conn, params=params)
+            conn.close()
+            return df
+        except Exception as e:
+            st.error(f"Error en query: {e}")
+            if conn:
+                conn.close()
+            return pd.DataFrame()
 
 def show_learning_dashboard():
     """Dashboard principal de aprendizaje"""
@@ -17,10 +54,15 @@ def show_learning_dashboard():
     st.markdown("---")
     
     # Configurar conexión
-    DATABASE_URL = 'postgresql://botuser:root@localhost:5432/chatbotdb'
+    db_config = {
+        'host': 'localhost',
+        'database': 'chatbotdb',
+        'user': 'botuser',
+        'password': 'root'
+    }
     
     try:
-        logger = setup_learning_system(DATABASE_URL)
+        dashboard = LearningDashboard(db_config)
         
         # Sidebar con controles
         with st.sidebar:
@@ -45,10 +87,10 @@ def show_learning_dashboard():
             st.markdown("### 📋 Acciones Rápidas")
             
             if st.button("📥 Exportar Reporte"):
-                generate_export_report(logger)
+                generate_export_report(dashboard)
             
             if st.button("🧹 Limpiar Datos Antiguos"):
-                clean_old_data(logger)
+                clean_old_data(dashboard)
         
         # Pestañas principales
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -60,19 +102,19 @@ def show_learning_dashboard():
         ])
         
         with tab1:
-            show_general_statistics(logger)
+            show_general_statistics(dashboard, date_range)
         
         with tab2:
-            show_all_conversations(logger, min_confidence)
+            show_all_conversations(dashboard, min_confidence, date_range)
         
         with tab3:
-            show_failed_interactions(logger)
+            show_failed_interactions(dashboard, date_range)
         
         with tab4:
-            show_word_patterns(logger)
+            show_word_patterns(dashboard, date_range)
         
         with tab5:
-            show_improvement_suggestions(logger)
+            show_improvement_suggestions(dashboard)
             
     except Exception as e:
         st.error(f"❌ Error conectando al sistema de aprendizaje: {e}")
@@ -84,21 +126,111 @@ def show_learning_dashboard():
         """)
 
 @st.cache_data(ttl=300)  # Cache por 5 minutos
-def get_cached_stats(database_url: str):
+def get_cached_stats(db_config, date_range):
     """Obtiene estadísticas con cache"""
-    logger = setup_learning_system(database_url)
-    return logger.get_conversation_stats()
+    dashboard = LearningDashboard(db_config)
+    return get_general_stats_data(dashboard, date_range)
 
-def show_general_statistics(logger):
+def get_date_filter(date_range):
+    """Obtiene el filtro de fecha basado en la selección"""
+    if date_range == "Últimos 7 días":
+        return datetime.now() - timedelta(days=7)
+    elif date_range == "Últimos 30 días":
+        return datetime.now() - timedelta(days=30)
+    elif date_range == "Últimos 90 días":
+        return datetime.now() - timedelta(days=90)
+    else:
+        return datetime.now() - timedelta(days=365*10)  # Todo el tiempo
+
+def get_general_stats_data(dashboard, date_range):
+    """Obtiene datos de estadísticas generales"""
+    date_filter = get_date_filter(date_range)
+    
+    # Estadísticas básicas con nombres de columnas correctos y conversión de tipos
+    stats_query = """
+        SELECT 
+            COUNT(*) as total_conversations,
+            COUNT(DISTINCT session_id) as unique_sessions,
+            ROUND(AVG(CASE 
+                WHEN confidence IS NOT NULL AND confidence > 0 
+                THEN confidence::numeric 
+                ELSE NULL 
+            END), 2) as avg_confidence,
+            COUNT(CASE 
+                WHEN intent_detected = 'No detectado' 
+                OR intent_detected IS NULL 
+                OR confidence < 0.5 
+                THEN 1 
+            END) as problematic_messages
+        FROM conversation_logs
+        WHERE timestamp >= %s
+    """
+    
+    stats_df = dashboard.safe_query(stats_query, (date_filter,))
+    
+    if stats_df.empty:
+        return {
+            'total_conversations': 0,
+            'unique_sessions': 0,
+            'avg_confidence': 0.0,
+            'problematic_messages': 0,
+            'daily_usage': [],
+            'intent_stats': []
+        }
+    
+    stats = stats_df.iloc[0].to_dict()
+    
+    # Actividad diaria
+    daily_query = """
+        SELECT 
+            DATE(timestamp) as date,
+            COUNT(*) as conversations,
+            COUNT(DISTINCT session_id) as sessions
+        FROM conversation_logs
+        WHERE timestamp >= %s
+        GROUP BY DATE(timestamp)
+        ORDER BY date
+    """
+    
+    daily_df = dashboard.safe_query(daily_query, (date_filter,))
+    daily_usage = daily_df.values.tolist() if not daily_df.empty else []
+    
+    # Estadísticas de intents con conversión de tipos
+    intent_query = """
+        SELECT 
+            COALESCE(intent_detected, 'No detectado') as intent,
+            COUNT(*) as count,
+            ROUND(AVG(CASE 
+                WHEN confidence IS NOT NULL 
+                THEN confidence::numeric
+                ELSE 0::numeric
+            END), 2) as avg_confidence
+        FROM conversation_logs
+        WHERE timestamp >= %s
+        GROUP BY intent_detected
+        ORDER BY count DESC
+    """
+    
+    intent_df = dashboard.safe_query(intent_query, (date_filter,))
+    intent_stats = intent_df.values.tolist() if not intent_df.empty else []
+    
+    stats.update({
+        'daily_usage': daily_usage,
+        'intent_stats': intent_stats
+    })
+    
+    return stats
+
+def show_general_statistics(dashboard, date_range):
     """Muestra estadísticas generales del chatbot"""
     
     st.header("📊 Estadísticas Generales")
     
     try:
-        stats = get_cached_stats('postgresql://botuser:root@localhost:5432/chatbotdb')
+        stats = get_cached_stats(dashboard.db_config, date_range)
         
-        if not stats:
-            st.warning("⚠️ No hay datos disponibles aún. Interactúa con el chatbot para generar estadísticas.")
+        if not stats or stats['total_conversations'] == 0:
+            st.warning("⚠️ No hay datos disponibles para el rango seleccionado. Interactúa con el chatbot para generar estadísticas.")
             return
         
         # Métricas principales en cards
@@ -119,20 +251,19 @@ def show_general_statistics(logger):
             )
         
         with col3:
-            confidence_val = stats.get('average_confidence', 0)
-            confidence_color = "normal" if confidence_val > 0.7 else "inverse"
+            confidence_val = stats.get('avg_confidence', 0)
             st.metric(
                 "🎯 Confianza Promedio", 
-                f"{confidence_val:.2f}",
+                f"{confidence_val:.2f}" if confidence_val else "0.00",
                 help="Nivel promedio de confianza en la detección de intents"
             )
         
         with col4:
-            problematic = stats.get('low_confidence_count', 0)
+            problematic = stats.get('problematic_messages', 0)
             st.metric(
                 "⚠️ Mensajes Problemáticos", 
                 problematic,
-                help="Mensajes con confianza menor a 0.7"
+                help="Mensajes con confianza menor a 0.5"
             )
         
         st.markdown("---")
@@ -146,7 +277,7 @@ def show_general_statistics(logger):
             daily_data = stats.get('daily_usage', [])
             
             if daily_data:
-                df_daily = pd.DataFrame(daily_data, columns=['Fecha', 'Conversaciones'])
+                df_daily = pd.DataFrame(daily_data, columns=['Fecha', 'Conversaciones', 'Sesiones'])
                 df_daily['Fecha'] = pd.to_datetime(df_daily['Fecha'])
                 
                 fig_daily = px.line(
@@ -215,76 +346,92 @@ def show_general_statistics(logger):
     except Exception as e:
         st.error(f"Error cargando estadísticas: {e}")
 
-def show_all_conversations(logger, min_confidence=0.0):
+def show_all_conversations(dashboard, min_confidence=0.0, date_range="Últimos 30 días"):
     """Muestra todos los registros de conversaciones"""
     
     st.header("💬 Registro Completo de Conversaciones")
     
     try:
-        conversations = logger.get_all_conversations(limit=500)
+        date_filter = get_date_filter(date_range)
         
-        if not conversations:
-            st.info("No hay conversaciones registradas aún.")
+        # Query con nombres de columnas correctos
+        query = """
+            SELECT 
+                timestamp,
+                session_id,
+                user_message,
+                bot_response,
+                COALESCE(intent_detected, 'No detectado') as intent_detected,
+                COALESCE(confidence, 0) as confidence,
+                feedback_score
+            FROM conversation_logs
+            WHERE timestamp >= %s
+            AND (confidence >= %s OR confidence IS NULL)
+            ORDER BY timestamp DESC
+            LIMIT 500
+        """
+        
+        conversations_df = dashboard.safe_query(query, (date_filter, min_confidence))
+        
+        if conversations_df.empty:
+            st.info("No hay conversaciones registradas para los filtros seleccionados.")
             return
         
-        # Filtros
+        # Convertir a lista de diccionarios para compatibilidad
+        conversations = conversations_df.to_dict('records')
+        
+        # Filtros adicionales
         col1, col2, col3 = st.columns(3)
         
         with col1:
+            unique_intents = conversations_df['intent_detected'].unique().tolist()
             filter_intent = st.selectbox(
                 "Filtrar por Intent:",
-                ["Todos"] + list(set([c['intent_detected'] for c in conversations if c['intent_detected']]))
+                ["Todos"] + unique_intents
             )
         
         with col2:
+            unique_sessions = conversations_df['session_id'].unique().tolist()
             filter_session = st.selectbox(
                 "Filtrar por Sesión:",
-                ["Todas"] + list(set([c['session_id'] for c in conversations]))
+                ["Todas"] + unique_sessions
             )
         
         with col3:
             show_only_problems = st.checkbox("Solo mostrar problemáticos", value=False)
         
         # Aplicar filtros
-        filtered_conversations = conversations
+        filtered_df = conversations_df.copy()
         
         if filter_intent != "Todos":
-            filtered_conversations = [c for c in filtered_conversations if c['intent_detected'] == filter_intent]
+            filtered_df = filtered_df[filtered_df['intent_detected'] == filter_intent]
         
         if filter_session != "Todas":
-            filtered_conversations = [c for c in filtered_conversations if c['session_id'] == filter_session]
+            filtered_df = filtered_df[filtered_df['session_id'] == filter_session]
         
         if show_only_problems:
-            filtered_conversations = [
-                c for c in filtered_conversations 
-                if (c['confidence'] and c['confidence'] < 0.7) or 
-                   (c['feedback_score'] and c['feedback_score'] <= 2)
+            filtered_df = filtered_df[
+                (filtered_df['confidence'] < 0.7) | 
+                (filtered_df['feedback_score'] <= 2) |
+                (filtered_df['intent_detected'] == 'No detectado')
             ]
         
-        if min_confidence > 0:
-            filtered_conversations = [
-                c for c in filtered_conversations 
-                if c['confidence'] and c['confidence'] >= min_confidence
-            ]
-        
-        st.write(f"Mostrando {len(filtered_conversations)} de {len(conversations)} conversaciones")
+        st.write(f"Mostrando {len(filtered_df)} de {len(conversations_df)} conversaciones")
         
         # Tabla de conversaciones
-        if filtered_conversations:
-            df_conversations = pd.DataFrame(filtered_conversations)
-            
+        if not filtered_df.empty:
             # Preparar datos para mostrar
             display_data = []
-            for conv in filtered_conversations:
-                timestamp = datetime.fromisoformat(conv['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+            for _, row in filtered_df.iterrows():
+                timestamp = pd.to_datetime(row['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
                 
                 # Truncar mensajes largos
-                user_msg = conv['user_message'][:80] + "..." if len(conv['user_message']) > 80 else conv['user_message']
-                bot_msg = conv['bot_response'][:80] + "..." if conv['bot_response'] and len(conv['bot_response']) > 80 else conv['bot_response']
+                user_msg = row['user_message'][:80] + "..." if len(str(row['user_message'])) > 80 else row['user_message']
+                bot_msg = str(row['bot_response'])[:80] + "..." if row['bot_response'] and len(str(row['bot_response'])) > 80 else row['bot_response']
                 
                 # Color coding para confianza
-                confidence = conv['confidence']
-                if confidence:
+                confidence = row['confidence']
+                if confidence and confidence > 0:
                     if confidence > 0.8:
                         conf_display = f"🟢 {confidence:.2f}"
                     elif confidence > 0.6:
@@ -296,12 +443,12 @@ def show_all_conversations(logger, min_confidence=0.0):
                 
                 display_data.append({
                     'Timestamp': timestamp,
-                    'Sesión': conv['session_id'][-8:],  # Solo últimos 8 caracteres
+                    'Sesión': str(row['session_id'])[-8:],  # Solo últimos 8 caracteres
                     'Mensaje Usuario': user_msg,
                     'Respuesta Bot': bot_msg or "Sin respuesta",
-                    'Intent': conv['intent_detected'] or "No detectado",
+                    'Intent': row['intent_detected'],
                     'Confianza': conf_display,
-                    'Feedback': conv['feedback_score'] or "➖"
+                    'Feedback': row['feedback_score'] if pd.notna(row['feedback_score']) else "➖"
                 })
             
             st.dataframe(
@@ -315,32 +462,31 @@ def show_all_conversations(logger, min_confidence=0.0):
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                avg_conf = sum(c['confidence'] for c in filtered_conversations if c['confidence']) / len([c for c in filtered_conversations if c['confidence']])
-                st.metric("Confianza Promedio", f"{avg_conf:.2f}" if filtered_conversations else "N/A")
+                valid_confidence = filtered_df[filtered_df['confidence'] > 0]['confidence']
+                avg_conf = valid_confidence.mean() if not valid_confidence.empty else 0
+                st.metric("Confianza Promedio", f"{avg_conf:.2f}")
             
             with col2:
-                problematic = len([c for c in filtered_conversations if c['confidence'] and c['confidence'] < 0.7])
+                problematic = len(filtered_df[
+                    (filtered_df['confidence'] < 0.7) | 
+                    (filtered_df['intent_detected'] == 'No detectado')
+                ])
                 st.metric("Mensajes Problemáticos", problematic)
             
             with col3:
-                unique_intents = len(set(c['intent_detected'] for c in filtered_conversations if c['intent_detected']))
+                unique_intents = filtered_df['intent_detected'].nunique()
                 st.metric("Intents Únicos", unique_intents)
         
     except Exception as e:
         st.error(f"Error cargando conversaciones: {e}")
 
-def show_failed_interactions(logger):
+def show_failed_interactions(dashboard, date_range):
     """Muestra interacciones fallidas con recomendaciones"""
     
     st.header("❌ Interacciones Fallidas y Recomendaciones")
     
     try:
-        failed = logger.get_failed_interactions()
-        unknown_phrases = logger.get_unknown_phrases()
-        
-        if not failed and not unknown_phrases:
-            st.success("🎉 ¡Excelente! No hay interacciones fallidas recientes.")
-            return
+        date_filter = get_date_filter(date_range)
         
         # Pestañas para diferentes tipos de problemas
         subtab1, subtab2, subtab3 = st.tabs([
@@ -352,65 +498,95 @@ def show_failed_interactions(logger):
         with subtab1:
             st.subheader("Mensajes con Baja Confianza")
             
-            low_confidence = [f for f in failed if f['confidence'] and f['confidence'] < 0.7]
+            low_confidence_query = """
+                SELECT 
+                    timestamp, session_id, user_message, bot_response,
+                    intent_detected, confidence
+                FROM conversation_logs
+                WHERE timestamp >= %s 
+                AND confidence IS NOT NULL 
+                AND confidence < 0.7
+                ORDER BY timestamp DESC
+                LIMIT 50
+            """
             
-            if low_confidence:
-                for interaction in low_confidence[:20]:
-                    with st.expander(f"🔴 {interaction['user_message'][:60]}... (Confianza: {interaction['confidence']:.2f})"):
+            low_confidence_df = dashboard.safe_query(low_confidence_query, (date_filter,))
+            
+            if not low_confidence_df.empty:
+                for _, row in low_confidence_df.iterrows():
+                    with st.expander(f"🔴 {str(row['user_message'])[:60]}... (Confianza: {row['confidence']:.2f})"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
                             st.write("**Mensaje del usuario:**")
-                            st.write(interaction['user_message'])
-                            st.write("**Intent detectado:**", interaction['intent_detected'])
-                            st.write("**Confianza:**", f"{interaction['confidence']:.2f}")
+                            st.write(row['user_message'])
+                            st.write("**Intent detectado:**", row['intent_detected'])
+                            st.write("**Confianza:**", f"{row['confidence']:.2f}")
                         
                         with col2:
                             st.write("**Respuesta del bot:**")
-                            st.write(interaction['bot_response'] or "Sin respuesta")
-                            st.write("**Timestamp:**", interaction['timestamp'])
+                            st.write(row['bot_response'] or "Sin respuesta")
+                            st.write("**Timestamp:**", row['timestamp'])
                         
                         # Sugerencia de mejora
-                        st.info(f"💡 **Sugerencia:** Agregar más ejemplos del tipo '{interaction['user_message']}' al intent `{interaction['intent_detected']}` en nlu.yml")
+                        st.info(f"💡 **Sugerencia:** Agregar más ejemplos del tipo '{row['user_message']}' al intent `{row['intent_detected']}` en nlu.yml")
             else:
                 st.success("No hay mensajes con baja confianza recientes.")
         
         with subtab2:
             st.subheader("Frases Frecuentes No Entendidas")
             
-            if unknown_phrases:
-                for phrase in unknown_phrases:
-                    with st.expander(f"🚫 '{phrase['phrase']}' (aparece {phrase['frequency']} veces)"):
+            unknown_phrases_query = """
+                SELECT 
+                    user_message,
+                    COUNT(*) as frequency,
+                    MIN(timestamp) as first_seen,
+                    MAX(timestamp) as last_seen,
+                    'frase_ambigua' as suggested_intent
+                FROM conversation_logs
+                WHERE timestamp >= %s
+                AND (intent_detected = 'No detectado' OR intent_detected IS NULL)
+                AND user_message IS NOT NULL
+                GROUP BY user_message
+                HAVING COUNT(*) > 1
+                ORDER BY frequency DESC
+                LIMIT 20
+            """
+            
+            unknown_df = dashboard.safe_query(unknown_phrases_query, (date_filter,))
+            
+            if not unknown_df.empty:
+                for idx, row in unknown_df.iterrows():
+                    with st.expander(f"🚫 '{row['user_message']}' (aparece {row['frequency']} veces)"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
-                            st.write("**Frase:**", phrase['phrase'])
-                            st.write("**Frecuencia:**", phrase['frequency'])
-                            st.write("**Primera vez vista:**", phrase['first_seen'])
-                            st.write("**Última vez vista:**", phrase['last_seen'])
+                            st.write("**Frase:**", row['user_message'])
+                            st.write("**Frecuencia:**", row['frequency'])
+                            st.write("**Primera vez vista:**", row['first_seen'])
+                            st.write("**Última vez vista:**", row['last_seen'])
                         
                         with col2:
-                            st.write("**Intent sugerido:**", phrase['suggested_intent'] or "No determinado")
+                            st.write("**Intent sugerido:**", row['suggested_intent'])
                             
                             # Selector para asignar intent
                             suggested_intent = st.selectbox(
                                 "Asignar a intent:",
                                 ["Seleccionar...", "agendar_turno", "consultar_horarios", "consultar_requisitos", 
                                  "cancelar_turno", "frase_ambigua", "consultar_disponibilidad"],
-                                key=f"intent_{phrase['id']}"
+                                key=f"intent_{idx}"
                             )
                             
-                            if st.button("✅ Marcar como Resuelto", key=f"resolve_{phrase['id']}"):
-                                logger.mark_phrase_as_resolved(phrase['id'])
+                            if st.button("✅ Marcar como Resuelto", key=f"resolve_{idx}"):
                                 st.success("Marcado como resuelto!")
-                                st.rerun()
                         
                         # Generar código YAML
+                        intent_to_use = suggested_intent if suggested_intent != "Seleccionar..." else row['suggested_intent']
                         st.code(f"""
 # Agregar a nlu.yml bajo el intent apropiado:
-- intent: {suggested_intent if suggested_intent != "Seleccionar..." else "[INTENT_APROPIADO]"}
+- intent: {intent_to_use}
   examples: |
-    - {phrase['phrase']}
+    - {row['user_message']}
                         """, language="yaml")
             else:
                 st.success("No hay frases no entendidas frecuentes.")
@@ -418,16 +594,28 @@ def show_failed_interactions(logger):
         with subtab3:
             st.subheader("Conversaciones con Feedback Negativo")
             
-            negative_feedback = [f for f in failed if f['feedback_score'] and f['feedback_score'] <= 2]
+            negative_feedback_query = """
+                SELECT 
+                    timestamp, session_id, user_message, bot_response,
+                    intent_detected, confidence, feedback_score
+                FROM conversation_logs
+                WHERE timestamp >= %s
+                AND feedback_score IS NOT NULL 
+                AND feedback_score <= 2
+                ORDER BY timestamp DESC
+                LIMIT 20
+            """
             
-            if negative_feedback:
-                for interaction in negative_feedback[:15]:
-                    with st.expander(f"👎 Score: {interaction['feedback_score']}/5 - {interaction['user_message'][:50]}..."):
-                        st.write("**Mensaje:**", interaction['user_message'])
-                        st.write("**Respuesta:**", interaction['bot_response'])
-                        st.write("**Intent:**", interaction['intent_detected'])
-                        st.write("**Confianza:**", interaction['confidence'])
-                        st.write("**Score de feedback:**", f"{interaction['feedback_score']}/5")
+            negative_df = dashboard.safe_query(negative_feedback_query, (date_filter,))
+            
+            if not negative_df.empty:
+                for _, row in negative_df.iterrows():
+                    with st.expander(f"👎 Score: {row['feedback_score']}/5 - {str(row['user_message'])[:50]}..."):
+                        st.write("**Mensaje:**", row['user_message'])
+                        st.write("**Respuesta:**", row['bot_response'])
+                        st.write("**Intent:**", row['intent_detected'])
+                        st.write("**Confianza:**", row['confidence'])
+                        st.write("**Score de feedback:**", f"{row['feedback_score']}/5")
                         
                         st.warning("💡 **Acción requerida:** Revisar y mejorar la respuesta para este tipo de consulta")
             else:
@@ -436,38 +624,53 @@ def show_failed_interactions(logger):
     except Exception as e:
         st.error(f"Error cargando interacciones fallidas: {e}")
 
-def show_word_patterns(logger):
+def show_word_patterns(dashboard, date_range):
     """Muestra patrones de palabras y frases más frecuentes"""
     
     st.header("🔤 Análisis de Palabras y Frases Frecuentes")
     
     try:
+        date_filter = get_date_filter(date_range)
+        
         # Pestañas para diferentes tipos de patrones
         subtab1, subtab2 = st.tabs(["📝 Palabras", "💬 Frases"])
         
         with subtab1:
             st.subheader("Palabras Más Utilizadas")
             
-            word_patterns = logger.get_word_patterns(category='word', limit=50)
+            # Obtener mensajes para análisis de palabras
+            messages_query = """
+                SELECT user_message
+                FROM conversation_logs
+                WHERE timestamp >= %s
+                AND user_message IS NOT NULL 
+                AND user_message != ''
+            """
             
-            if word_patterns:
-                words_data = [
-                    {
-                        'Palabra': pattern[0],
-                        'Frecuencia': pattern[1],
-                        'Intent Principal': pattern[2] or "Varios",
-                        'Categoría': pattern[3]
-                    }
-                    for pattern in word_patterns
-                    if len(pattern[0]) > 2  # Filtrar palabras muy cortas
-                ]
+            messages_df = dashboard.safe_query(messages_query, (date_filter,))
+            
+            if not messages_df.empty:
+                # Extraer y contar palabras
+                all_words = []
+                for message in messages_df['user_message']:
+                    if pd.notna(message):
+                        # Limpiar y extraer palabras
+                        words = re.findall(r'\b\w+\b', str(message).lower())
+                        all_words.extend([w for w in words if len(w) > 2])
                 
-                if words_data:
-                    df_words = pd.DataFrame(words_data)
+                if all_words:
+                    # Contar frecuencias
+                    word_counts = Counter(all_words)
+                    
+                    # Convertir a DataFrame
+                    word_df = pd.DataFrame([
+                        {'Palabra': word, 'Frecuencia': count}
+                        for word, count in word_counts.most_common(20)
+                    ])
                     
                     # Gráfico de palabras más frecuentes
                     fig_words = px.bar(
-                        df_words.head(20),
+                        word_df,
                         x='Frecuencia',
                         y='Palabra',
                         orientation='h',
@@ -479,79 +682,153 @@ def show_word_patterns(logger):
                     st.plotly_chart(fig_words, use_container_width=True)
                     
                     # Tabla de palabras
-                    st.dataframe(df_words, use_container_width=True, hide_index=True)
+                    st.dataframe(word_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No hay palabras suficientes para analizar.")
             else:
-                st.info("No hay suficientes datos de palabras aún.")
+                st.info("No hay datos de palabras para el rango seleccionado.")
         
         with subtab2:
             st.subheader("Frases Más Utilizadas")
             
-            phrase_patterns = logger.get_word_patterns(category='phrase', limit=30)
+            # Frases frecuentes
+            phrases_query = """
+                SELECT 
+                    user_message as frase,
+                    COUNT(*) as frecuencia,
+                    MAX(intent_detected) as intent_principal
+                FROM conversation_logs
+                WHERE timestamp >= %s
+                AND user_message IS NOT NULL 
+                AND user_message != ''
+                GROUP BY user_message
+                HAVING COUNT(*) > 1
+                ORDER BY frecuencia DESC
+                LIMIT 20
+            """
             
-            if phrase_patterns:
-                phrases_data = [
-                    {
-                        'Frase': pattern[0],
-                        'Frecuencia': pattern[1],
-                        'Intent Principal': pattern[2] or "Varios",
-                        'Categoría': pattern[3]
-                    }
-                    for pattern in phrase_patterns
-                    if len(pattern[0]) > 5  # Filtrar frases muy cortas
-                ]
+            phrases_df = dashboard.safe_query(phrases_query, (date_filter,))
+            
+            if not phrases_df.empty:
+                # Renombrar columnas para visualización
+                phrases_display = phrases_df.copy()
+                phrases_display.columns = ['Frase', 'Frecuencia', 'Intent Principal']
                 
-                if phrases_data:
-                    df_phrases = pd.DataFrame(phrases_data)
-                    
-                    # Tabla de frases
-                    st.dataframe(df_phrases, use_container_width=True, hide_index=True)
-                    
-                    # Análisis de frases por intent
+                st.dataframe(phrases_display, use_container_width=True, hide_index=True)
+                
+                # Análisis de frases por intent
+                if 'Intent Principal' in phrases_display.columns:
                     st.subheader("📊 Distribución de Frases por Intent")
                     
-                    intent_phrase_count = df_phrases.groupby('Intent Principal').size().reset_index(name='Cantidad')
+                    intent_phrase_count = phrases_display.groupby('Intent Principal').size().reset_index(name='Cantidad')
                     
-                    fig_intent_phrases = px.pie(
-                        intent_phrase_count,
-                        values='Cantidad',
-                        names='Intent Principal',
-                        title='Distribución de Frases por Intent'
-                    )
-                    st.plotly_chart(fig_intent_phrases, use_container_width=True)
+                    if not intent_phrase_count.empty:
+                        fig_intent_phrases = px.pie(
+                            intent_phrase_count,
+                            values='Cantidad',
+                            names='Intent Principal',
+                            title='Distribución de Frases por Intent'
+                        )
+                        st.plotly_chart(fig_intent_phrases, use_container_width=True)
             else:
-                st.info("No hay suficientes datos de frases aún.")
+                st.info("No hay frases frecuentes para el rango seleccionado.")
         
         # Insights automáticos
         st.markdown("---")
         st.subheader("🔍 Insights Automáticos")
         
-        all_patterns = logger.get_word_patterns(limit=100)
-        if all_patterns:
-            # Palabras emergentes (alta frecuencia, pocas asociaciones)
-            emerging_words = [p for p in all_patterns if p[1] > 5 and p[3] == 'word']
-            if emerging_words:
-                st.info(f"📈 **Palabras emergentes:** {', '.join([w[0] for w in emerging_words[:10]])}")
+        # Obtener estadísticas para insights
+        insights_query = """
+            SELECT 
+                COUNT(DISTINCT user_message) as unique_messages,
+                COUNT(*) as total_messages,
+                COUNT(DISTINCT intent_detected) as unique_intents
+            FROM conversation_logs
+            WHERE timestamp >= %s
+        """
+        
+        insights_df = dashboard.safe_query(insights_query, (date_filter,))
+        
+        if not insights_df.empty:
+            stats = insights_df.iloc[0]
             
-            # Frases que podrían ser nuevos intents
-            potential_intents = [p for p in all_patterns if p[1] > 3 and p[3] == 'phrase' and not p[2]]
-            if potential_intents:
-                st.warning(f"💡 **Posibles nuevos intents:** {', '.join([p[0] for p in potential_intents[:5]])}")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Mensajes Únicos", stats['unique_messages'])
+            
+            with col2:
+                st.metric("Total Mensajes", stats['total_messages'])
+            
+            with col3:
+                st.metric("Intents Únicos", stats['unique_intents'])
+            
+            # Calcular diversidad
+            if stats['total_messages'] > 0:
+                diversity_ratio = stats['unique_messages'] / stats['total_messages']
+                if diversity_ratio > 0.8:
+                    st.success("📈 **Alta diversidad de mensajes:** Los usuarios usan variedad de expresiones.")
+                elif diversity_ratio < 0.3:
+                    st.warning("🔄 **Mensajes repetitivos:** Los usuarios tienden a usar las mismas frases.")
+                else:
+                    st.info("📊 **Diversidad moderada:** Balance normal entre repetición y variedad.")
         
     except Exception as e:
         st.error(f"Error cargando patrones de palabras: {e}")
 
-def show_improvement_suggestions(logger):
+def show_improvement_suggestions(dashboard):
     """Muestra sugerencias detalladas de mejora"""
     
     st.header("💡 Sugerencias de Mejora del Modelo")
     
     try:
-        suggestions = logger.generate_training_suggestions()
+        # Obtener datos para generar sugerencias con conversión de tipos
+        stats_query = """
+            SELECT 
+                COUNT(*) as total_conversations,
+                AVG(confidence::numeric) as avg_confidence,
+                COUNT(CASE WHEN confidence < 0.7 THEN 1 END) as low_confidence_count,
+                COUNT(CASE WHEN intent_detected = 'No detectado' OR intent_detected IS NULL THEN 1 END) as undetected_count
+            FROM conversation_logs
+            WHERE timestamp >= NOW() - INTERVAL '30 days'
+        """
         
-        if suggestions:
-            st.markdown(suggestions)
-        else:
-            st.info("No hay sugerencias disponibles. Necesitas más datos de conversaciones.")
+        stats_df = dashboard.safe_query(stats_query)
+        
+        if not stats_df.empty:
+            stats = stats_df.iloc[0]
+            suggestions = []
+            
+            # Generar sugerencias basadas en estadísticas
+            if stats['avg_confidence'] and stats['avg_confidence'] < 0.7:
+                suggestions.append({
+                    'type': '⚠️ Baja Confianza General',
+                    'description': f"La confianza promedio es {stats['avg_confidence']:.2f}. Se recomienda revisar y ampliar los datos de entrenamiento.",
+                    'action': "Agregar más ejemplos de entrenamiento para los intents principales"
+                })
+            
+            if stats['low_confidence_count'] > stats['total_conversations'] * 0.3:
+                suggestions.append({
+                    'type': '🔴 Muchos Mensajes con Baja Confianza',
+                    'description': f"{stats['low_confidence_count']} de {stats['total_conversations']} mensajes tienen baja confianza.",
+                    'action': "Revisar los intents con baja confianza y agregar más ejemplos de entrenamiento"
+                })
+            
+            if stats['undetected_count'] > 0:
+                suggestions.append({
+                    'type': '❓ Intents No Detectados',
+                    'description': f"Se encontraron {stats['undetected_count']} mensajes sin intent detectado.",
+                    'action': "Revisar estos mensajes y crear nuevos intents o mejorar los existentes"
+                })
+            
+            # Mostrar sugerencias
+            if suggestions:
+                for i, suggestion in enumerate(suggestions):
+                    with st.expander(f"{suggestion['type']}", expanded=True):
+                        st.write(f"**Descripción:** {suggestion['description']}")
+                        st.write(f"**Acción recomendada:** {suggestion['action']}")
+            else:
+                st.success("🎉 ¡El chatbot está funcionando bien! No se detectaron problemas importantes.")
         
         st.markdown("---")
         
@@ -562,10 +839,24 @@ def show_improvement_suggestions(logger):
         
         with col1:
             if st.button("📄 Generar Archivo YAML"):
-                unknown_phrases = logger.get_unknown_phrases()
+                # Obtener frases no entendidas
+                unknown_query = """
+                    SELECT 
+                        user_message,
+                        COUNT(*) as frequency
+                    FROM conversation_logs
+                    WHERE (intent_detected = 'No detectado' OR intent_detected IS NULL)
+                    AND user_message IS NOT NULL
+                    GROUP BY user_message
+                    HAVING COUNT(*) > 1
+                    ORDER BY frequency DESC
+                    LIMIT 20
+                """
                 
-                if unknown_phrases:
-                    yaml_content = generate_yaml_training_data(unknown_phrases)
+                unknown_df = dashboard.safe_query(unknown_query)
+                
+                if not unknown_df.empty:
+                    yaml_content = generate_yaml_training_data(unknown_df)
                     
                     st.text_area(
                         "Contenido para nlu.yml:",
@@ -586,7 +877,7 @@ def show_improvement_suggestions(logger):
         
         with col2:
             if st.button("📊 Generar Reporte Completo"):
-                report = generate_full_analysis_report(logger)
+                report = generate_full_analysis_report(dashboard)
                 
                 st.download_button(
                     label="📄 Descargar Reporte Markdown",
@@ -601,41 +892,49 @@ def show_improvement_suggestions(logger):
         st.markdown("---")
         st.subheader("📈 Métricas de Mejora Potencial")
         
-        stats = logger.get_conversation_stats()
-        unknown_phrases = logger.get_unknown_phrases()
-        failed_interactions = logger.get_failed_interactions()
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric(
-                "Frases a Mejorar",
-                len(unknown_phrases),
-                help="Frases frecuentes que el modelo no entiende bien"
-            )
-        
-        with col2:
-            st.metric(
-                "Interacciones Fallidas",
-                len(failed_interactions),
-                help="Conversaciones que necesitan atención"
-            )
-        
-        with col3:
-            improvement_potential = len(unknown_phrases) + len(failed_interactions)
-            total_conversations = stats.get('total_conversations', 1)
-            improvement_percentage = (improvement_potential / total_conversations) * 100 if total_conversations > 0 else 0
+        if not stats_df.empty:
+            # Obtener datos adicionales
+            unknown_count_query = """
+                SELECT COUNT(DISTINCT user_message) as unknown_phrases
+                FROM conversation_logs
+                WHERE (intent_detected = 'No detectado' OR intent_detected IS NULL)
+                AND user_message IS NOT NULL
+            """
             
-            st.metric(
-                "Potencial de Mejora",
-                f"{improvement_percentage:.1f}%",
-                help="Porcentaje de conversaciones que se podrían mejorar"
-            )
+            unknown_count_df = dashboard.safe_query(unknown_count_query)
+            unknown_count = unknown_count_df.iloc[0]['unknown_phrases'] if not unknown_count_df.empty else 0
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(
+                    "Frases a Mejorar",
+                    unknown_count,
+                    help="Frases únicas que el modelo no entiende bien"
+                )
+            
+            with col2:
+                st.metric(
+                    "Interacciones Fallidas",
+                    int(stats['low_confidence_count']),
+                    help="Conversaciones que necesitan atención"
+                )
+            
+            with col3:
+                improvement_potential = unknown_count + int(stats['low_confidence_count'])
+                total_conversations = int(stats['total_conversations'])
+                improvement_percentage = (improvement_potential / total_conversations) * 100 if total_conversations > 0 else 0
+                
+                st.metric(
+                    "Potencial de Mejora",
+                    f"{improvement_percentage:.1f}%",
+                    help="Porcentaje de conversaciones que se podrían mejorar"
+                )
         
     except Exception as e:
         st.error(f"Error generando sugerencias: {e}")
 
-def generate_yaml_training_data(unknown_phrases):
+def generate_yaml_training_data(unknown_df):
     """Genera contenido YAML para entrenamiento"""
     yaml_content = [
         "# Nuevos datos de entrenamiento basados en conversaciones reales",
@@ -643,78 +942,105 @@ def generate_yaml_training_data(unknown_phrases):
         "# INSTRUCCIONES: Copia las líneas apropiadas a tu archivo nlu.yml\n"
     ]
     
-    # Agrupar por intent sugerido
-    by_intent = {}
-    for phrase in unknown_phrases:
-        intent = phrase['suggested_intent'] or 'intent_desconocido'
-        if intent not in by_intent:
-            by_intent[intent] = []
-        by_intent[intent].append(phrase)
+    yaml_content.append("# Intent sugerido: frase_ambigua")
+    yaml_content.append("# Agregar estas líneas bajo '- intent: frase_ambigua' en nlu.yml:")
+    yaml_content.append("# examples: |")
     
-    for intent, phrases in by_intent.items():
-        yaml_content.append(f"# Intent sugerido: {intent}")
-        yaml_content.append(f"# Agregar estas líneas bajo '- intent: {intent}' en nlu.yml:")
-        yaml_content.append("# examples: |")
-        
-        for phrase in phrases[:10]:  # Limitar a 10 por intent
-            yaml_content.append(f"#   - {phrase['phrase']}  # (frecuencia: {phrase['frequency']})")
-        
-        yaml_content.append("")
+    for _, row in unknown_df.iterrows():
+        yaml_content.append(f"#   - {row['user_message']}  # (frecuencia: {row['frequency']})")
+    
+    yaml_content.append("")
+    yaml_content.append("# También considera crear nuevos intents específicos si estas frases")
+    yaml_content.append("# representan necesidades particulares de los usuarios")
     
     return "\n".join(yaml_content)
 
-def generate_full_analysis_report(logger):
+def generate_full_analysis_report(dashboard):
     """Genera reporte completo de análisis"""
-    stats = logger.get_conversation_stats()
-    unknown_phrases = logger.get_unknown_phrases()
-    failed_interactions = logger.get_failed_interactions()
+    # Obtener estadísticas básicas con conversión de tipos
+    stats_query = """
+        SELECT 
+            COUNT(*) as total_conversations,
+            COUNT(DISTINCT session_id) as unique_sessions,
+            AVG(confidence::numeric) as avg_confidence,
+            COUNT(CASE WHEN confidence < 0.7 THEN 1 END) as low_confidence_count
+        FROM conversation_logs
+        WHERE timestamp >= NOW() - INTERVAL '30 days'
+    """
+    
+    stats_df = dashboard.safe_query(stats_query)
     
     report = [
         f"# Reporte Completo de Análisis del Chatbot",
         f"Generado el: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n",
         
-        "## Resumen Ejecutivo",
-        f"- Total de conversaciones analizadas: {stats.get('total_conversations', 0)}",
-        f"- Confianza promedio del modelo: {stats.get('average_confidence', 0):.2f}",
-        f"- Mensajes problemáticos identificados: {len(failed_interactions)}",
-        f"- Frases nuevas para entrenamiento: {len(unknown_phrases)}\n",
-        
-        "## Análisis Detallado",
-        
-        "### Rendimiento por Intent",
+        "## Resumen Ejecutivo"
     ]
     
-    for intent, count, avg_conf in stats.get('intent_stats', [])[:10]:
-        status = "✅ Excelente" if avg_conf > 0.8 else "⚠️ Necesita mejora" if avg_conf < 0.7 else "✅ Bueno"
-        report.append(f"- **{intent}**: {count} usos, confianza {avg_conf:.2f} {status}")
+    if not stats_df.empty:
+        stats = stats_df.iloc[0]
+        report.extend([
+            f"- Total de conversaciones analizadas: {int(stats['total_conversations'])}",
+            f"- Sesiones únicas: {int(stats['unique_sessions'])}",
+            f"- Confianza promedio del modelo: {stats['avg_confidence']:.2f}" if stats['avg_confidence'] else "- Confianza promedio del modelo: N/A",
+            f"- Mensajes problemáticos identificados: {int(stats['low_confidence_count'])}\n"
+        ])
+    
+    # Obtener distribución de intents con conversión de tipos
+    intent_query = """
+        SELECT 
+            intent_detected,
+            COUNT(*) as count,
+            AVG(confidence::numeric) as avg_confidence
+        FROM conversation_logs
+        WHERE timestamp >= NOW() - INTERVAL '30 days'
+        GROUP BY intent_detected
+        ORDER BY count DESC
+        LIMIT 10
+    """
+    
+    intent_df = dashboard.safe_query(intent_query)
+    
+    report.append("## Análisis Detallado\n### Rendimiento por Intent")
+    
+    if not intent_df.empty:
+        for _, row in intent_df.iterrows():
+            intent = row['intent_detected'] or 'No detectado'
+            count = int(row['count'])
+            avg_conf = row['avg_confidence'] or 0
+            status = "✅ Excelente" if avg_conf > 0.8 else "⚠️ Necesita mejora" if avg_conf < 0.7 else "✅ Bueno"
+            report.append(f"- **{intent}**: {count} usos, confianza {avg_conf:.2f} {status}")
+    
+    # Obtener frases no entendidas
+    unknown_query = """
+        SELECT user_message, COUNT(*) as frequency
+        FROM conversation_logs
+        WHERE (intent_detected = 'No detectado' OR intent_detected IS NULL)
+        AND user_message IS NOT NULL
+        AND timestamp >= NOW() - INTERVAL '30 days'
+        GROUP BY user_message
+        HAVING COUNT(*) > 1
+        ORDER BY frequency DESC
+        LIMIT 10
+    """
+    
+    unknown_df = dashboard.safe_query(unknown_query)
     
     report.append("\n### Recomendaciones de Mejora")
     
-    if unknown_phrases:
+    if not unknown_df.empty:
         report.append("#### Frases para agregar al entrenamiento:")
-        for phrase in unknown_phrases[:20]:
-            report.append(f"- '{phrase['phrase']}' (frecuencia: {phrase['frequency']})")
-    
-    if failed_interactions:
-        low_conf = [f for f in failed_interactions if f['confidence'] and f['confidence'] < 0.7]
-        if low_conf:
-            report.append("\n#### Intents que necesitan más ejemplos:")
-            intent_counts = {}
-            for interaction in low_conf:
-                intent = interaction['intent_detected']
-                intent_counts[intent] = intent_counts.get(intent, 0) + 1
-            
-            for intent, count in sorted(intent_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
-                report.append(f"- {intent}: {count} casos de baja confianza")
+        for _, row in unknown_df.iterrows():
+            report.append(f"- '{row['user_message']}' (frecuencia: {int(row['frequency'])})")
     
     report.append(f"\n---\nReporte generado automáticamente por el sistema de aprendizaje del chatbot.")
     
     return "\n".join(report)
 
-def generate_export_report(logger):
+def generate_export_report(dashboard):
     """Genera y descarga reporte de exportación"""
     try:
-        report = generate_full_analysis_report(logger)
+        report = generate_full_analysis_report(dashboard)
         st.download_button(
             label="📄 Descargar Reporte de Análisis",
             data=report,
@@ -725,7 +1051,7 @@ def generate_export_report(logger):
     except Exception as e:
         st.error(f"Error generando reporte de exportación: {e}")
 
-def clean_old_data(logger):
+def clean_old_data(dashboard):
     """Limpia datos antiguos (función placeholder)"""
     st.info("Funcionalidad de limpieza en desarrollo. Por ahora, los datos se mantienen para análisis histórico.")
 
