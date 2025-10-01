@@ -77,11 +77,6 @@ rules:
     - intent: consultar_disponibilidad
     - action: action_consultar_disponibilidad
 
-- rule: Normalizar fecha explícitamente
-  steps:
-    - intent: informar_fecha
-    - action: action_normalizar_fecha
-
 - rule: Procesar datos completos de turno
   steps:
     - intent: proporcionar_datos_turno

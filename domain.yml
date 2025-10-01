@@ -89,7 +89,6 @@ slots:
           - active_loop: turno_form
             requested_slot: hora
 
-  # Nuevos slots para mejorar el flujo
   turno_confirmado:
     type: bool
     initial_value: false
@@ -113,9 +112,6 @@ forms:
       - hora
 
 responses:
-  # ===============================
-  # SALUDOS Y CONVERSACIÓN GENERAL
-  # ===============================
   utter_greet:
     - text: "Hola! Soy tu asistente virtual para gestión de cédulas de identidad en Ciudad del Este. ¿En qué puedo ayudarte hoy?"
     - text: "¡Bienvenido/a! Te ayudo con todo lo relacionado a trámites de cédula. ¿Qué necesitás?"
@@ -140,9 +136,6 @@ responses:
   utter_did_that_help:
     - text: "¿Te fue útil esta información? ¿Necesitás que te ayude con algo más?"
 
-  # ===============================
-  # FORMULARIO DE TURNO MEJORADO
-  # ===============================
   utter_ask_nombre:
     - text: "Para agendar tu turno necesito tu nombre completo (nombre y apellido)."
     - text: "¿Cuál es tu nombre completo? Asegurate de incluir nombre y apellido."
@@ -159,9 +152,6 @@ responses:
     - text: "¿A qué hora preferís el turno? Nuestro horario es de 07:00 a 17:00."
     - text: "¿Qué horario te viene bien? Si no estás seguro/a, podés preguntarme por disponibilidad."
 
-  # ===============================
-  # CONFIRMACIÓN Y VALIDACIÓN
-  # ===============================
   utter_confirmar_turno:
     - text: "Perfecto! Voy a mostrarte un resumen de tu turno para que lo confirmes."
 
@@ -174,9 +164,6 @@ responses:
   utter_error_guardando_turno:
     - text: "Hubo un problema al guardar tu turno. Por favor intentá de nuevo en unos minutos o contactá al soporte."
 
-  # ===============================
-  # RECOMENDACIONES Y DISPONIBILIDAD
-  # ===============================
   utter_consultar_disponibilidad:
     - text: "Te voy a mostrar la disponibilidad actualizada para los próximos días:"
 
@@ -189,9 +176,6 @@ responses:
   utter_horario_no_disponible:
     - text: "Ese horario no está disponible o está fuera del horario de atención. Te sugiero estas alternativas:"
 
-  # ===============================
-  # CONSULTAS FRECUENTES MEJORADAS
-  # ===============================
   utter_consultar_requisitos:
     - text: |
         📋 **Requisitos para renovación de cédula:**
@@ -324,9 +308,6 @@ responses:
         
         No es urgente cambiarla, pero es conveniente hacerlo.
 
-  # ===============================
-  # OTROS SERVICIOS
-  # ===============================
   utter_estado_tramite:
     - text: |
         📊 **Consultar estado del trámite:**
@@ -360,9 +341,6 @@ responses:
         
         ¿Querés agendar un nuevo turno en su lugar?
 
-  # ===============================
-  # RESPUESTAS DE ERROR Y FALLBACK
-  # ===============================
   utter_default:
     - text: "No entendí bien tu consulta. ¿Podrías reformularla? Te puedo ayudar con turnos, requisitos, horarios y ubicación."
     - text: "Disculpá, no comprendí. Te puedo asistir con: agendar turnos, consultar requisitos, horarios de atención y más información sobre cédulas."
@@ -376,32 +354,16 @@ responses:
   utter_restart:
     - text: "Reiniciemos la conversación. ¿En qué puedo ayudarte con tu trámite de cédula?"
 
-# ===============================
-# ACCIONES PERSONALIZADAS
-# ===============================
 actions:
-  # Acciones de formulario y validación
   - validate_turno_form
   - action_confirmar_datos_turno
   - action_guardar_turno
-  - action_normalizar_fecha
-  
-  # Acciones de recomendación difusa
   - action_recomendar_horario_fuzzy
   - action_consultar_disponibilidad
   - action_tiempo_espera_actual
-  
-  # Acciones de consulta y estado
   - action_calcular_saturacion
-  - action_consultar_turnos_existentes
-  
-  # Acciones de sesión
   - action_session_start
-  - action_restart
 
-# ===============================
-# CONFIGURACIÓN DE SESIÓN
-# ===============================
 session_config:
-  session_expiration_time: 60  # 1 hora
+  session_expiration_time: 60
   carry_over_slots_to_new_session: false

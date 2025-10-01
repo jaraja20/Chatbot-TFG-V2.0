@@ -2,36 +2,147 @@ version: "3.1"
 stories:
 
 # ===============================
-# HISTORIAS BÁSICAS DE CONVERSACIÓN
+# HISTORIAS BÁSICAS CORREGIDAS
 # ===============================
-- story: Saludo y conversación simple
+- story: happy path 1
   steps:
-    - intent: greet
-    - action: utter_greet
-    - intent: mood_great
-    - action: utter_happy
-    - intent: agradecimiento
-    - action: utter_agradecimiento
-    - intent: goodbye
-    - action: utter_goodbye
+  - user: |
+      hello there!
+    intent: greet
+  - action: utter_greet
+  - user: |
+      amazing
+    intent: mood_great
+  - action: utter_happy
 
-- story: Saludo con estado negativo
+- story: happy path 2
   steps:
-    - intent: greet
-    - action: utter_greet
-    - intent: mood_unhappy
-    - action: utter_cheer_up
-    - action: utter_did_that_help
-    - intent: affirm
-    - action: utter_happy
+  - user: |
+      hello there!
+    intent: greet
+  - action: utter_greet
+  - user: |
+      amazing
+    intent: mood_great
+  - action: utter_happy
+  - user: |
+      bye-bye!
+    intent: goodbye
+  - action: utter_goodbye
 
-- story: Pregunta si es bot
+- story: sad path 1
   steps:
-    - intent: bot_challenge
-    - action: utter_iamabot
+  - user: |
+      hello
+    intent: greet
+  - action: utter_greet
+  - user: |
+      not good
+    intent: mood_unhappy
+  - action: utter_cheer_up
+  - action: utter_did_that_help
+  - user: |
+      yes
+    intent: affirm
+  - action: utter_happy
+
+- story: sad path 2
+  steps:
+  - user: |
+      hello
+    intent: greet
+  - action: utter_greet
+  - user: |
+      not good
+    intent: mood_unhappy
+  - action: utter_cheer_up
+  - action: utter_did_that_help
+
+- story: say goodbye
+  steps:
+  - user: |
+      bye-bye!
+    intent: goodbye
+  - action: utter_goodbye
+
+- story: bot challenge
+  steps:
+  - user: |
+      are you a bot?
+    intent: bot_challenge
+  - action: utter_iamabot
 
 # ===============================
-# FLUJO COMPLETO DE AGENDAMIENTO EXITOSO
+# HISTORIAS DEL MOTOR DIFUSO
+# ===============================
+- story: consulta tiempo de espera actual
+  steps:
+  - user: |
+      ¿Cuánto voy a esperar?
+    intent: consulta_tiempo_espera
+  - action: action_tiempo_espera_actual
+
+- story: motor difuso activado
+  steps:
+  - user: |
+      que horarios hay disponibles
+    intent: frase_ambigua
+  - action: action_recomendar_horario_fuzzy
+
+- story: consulta saturacion
+  steps:
+  - user: |
+      como esta la oficina ahora
+    intent: calcular_saturacion
+  - action: action_calcular_saturacion
+
+# ===============================
+# HISTORIAS DE AGENDAMIENTO
+# ===============================
+- story: agendar turno simple
+  steps:
+  - user: |
+      quiero agendar un turno
+    intent: agendar_turno
+  - action: turno_form
+  - active_loop: turno_form
+
+- story: motor difuso durante agendamiento
+  steps:
+  - user: |
+      quiero agendar un turno
+    intent: agendar_turno
+  - action: turno_form
+  - active_loop: turno_form
+  - slot_was_set:
+      - requested_slot: hora
+  - user: |
+      que horarios hay disponibles
+    intent: frase_ambigua
+  - action: action_recomendar_horario_fuzzy
+  - user: |
+      10:00
+    intent: elegir_horario
+  - action: turno_form
+  - active_loop: null
+  - action: action_confirmar_datos_turno
+
+- story: consultas frecuentes
+  steps:
+  - user: |
+      que requisitos necesito
+    intent: consultar_requisitos
+  - action: utter_consultar_requisitos
+
+- story: consultar disponibilidad
+  steps:
+  - user: |
+      hay turnos libres
+    intent: consultar_disponibilidad
+  - action: action_consultar_disponibilidad
+
+# ===============================
+# FLUJO COMPLETO DE AGENDAMIENTO
 # ===============================
 - story: Agendamiento de turno completo - flujo feliz
   steps:
@@ -352,7 +463,6 @@ stories:
     - action: turno_form
     - active_loop: turno_form
 
-
 # ===============================
 # CASOS EDGE Y MANEJO DE ERRORES
 # ===============================
@@ -367,7 +477,7 @@ stories:
     - action: validate_turno_form
     - action: turno_form
     - slot_was_set:
-        - requested_slot: nombre  # Volver a preguntar si no es válido
+        - requested_slot: nombre
     - intent: informar_nombre
     - action: turno_form
 

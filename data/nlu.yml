@@ -69,7 +69,6 @@ nlu:
     - bueno
     - okey
     - si
-    - confirmo
     - acepto
 
 - intent: deny
@@ -78,7 +77,6 @@ nlu:
     - para nada
     - no quiero
     - no gracias
-    - mejor no
     - no está correcto
     - no es así
     - incorrecto
@@ -95,7 +93,6 @@ nlu:
     - estoy muy bien
     - genial
     - excelente
-    - perfecto
     - maravilloso
     - fantástico
     - súper bien
@@ -276,7 +273,6 @@ nlu:
     - corregir nombre
     - cambiar cédula
     - está mal
-    - no está correcto
     - hay un error
     - quiero corregir
 
@@ -339,8 +335,6 @@ nlu:
     - dame un horario recomendado
     - cuál es el mejor horario
     - que disponibilidad hay
-    - horarios disponibles
-    - disponibilidad de horarios
 
 # =========================
 # CONSULTAS FRECUENTES

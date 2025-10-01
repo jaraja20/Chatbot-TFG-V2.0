@@ -1,25 +1,102 @@
-@"
-# Ignorar entorno virtual
+# Entorno virtual de Python
 venv/
+env/
+ENV/
+.venv
 
-# Archivos temporales de Python
+# Archivos compilados de Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
+.Python
 
-# Archivos de configuración locales
+# Distribución / empaquetado
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Entornos
 .env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
 
-# Carpetas de logs y cache
+# Archivos de Rasa
+models/*.tar.gz
+models/
+.rasa/
+results/
+*.db
+*.sqlite
+rasa_cache/
+
+# Logs
 logs/
 *.log
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Archivos de Rasa
-models/
-results/
-
-# Streamlit cache
+# Streamlit
 .streamlit/
-"@ | Out-File -Encoding utf8 .gitignore
+
+# Base de datos local (si usas SQLite para testing)
+*.sqlite3
+*.db
+
+# Archivos de configuración sensibles
+credentials.yml
+endpoints.yml
+secrets.json
+
+# Archivos temporales del sistema
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Backups
+*.bak
+*.backup
+*~
