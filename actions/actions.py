@@ -3,7 +3,7 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet, SessionStarted, EventType, FollowupAction
 from rasa_sdk.forms import FormValidationAction
-
+from calendar_utils import crear_evento_turno, consultar_disponibilidad
 from sqlalchemy import create_engine, Column, String, Integer, DateTime, UniqueConstraint, func
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
@@ -423,6 +423,136 @@ class ValidateFormularioTurno(FormValidationAction):
             return {"hora": None}
         
         return {"hora": hora_normalizada.strftime("%H:%M")}
+
+# =====================================================
+# ACCIONES guardar turno 
+# =====================================================
+class ActionGuardarTurno(Action):
+    def name(self) -> Text:
+        return "action_guardar_turno"
+
+    def run(self, dispatcher: CollectingDispatcher,
+            tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        
+        start_time = time.time()
+        nombre = tracker.get_slot("nombre")
+        cedula = tracker.get_slot("cedula")
+        fecha_slot = tracker.get_slot("fecha")
+        hora_slot = tracker.get_slot("hora")
+        
+        try:
+            fecha = datetime.datetime.fromisoformat(fecha_slot).date()
+            hora = datetime.datetime.strptime(hora_slot, "%H:%M").time()
+            fecha_hora = datetime.datetime.combine(fecha, hora)
+        except Exception as e:
+            dispatcher.utter_message(text="Error procesando la fecha u hora. Intentá de nuevo.")
+            logger.error(f"Error parseando fecha/hora: {e}")
+            return []
+        
+        codigo = generar_codigo_unico()
+        
+        try:
+            with get_db_session() as session:
+                # Verificar si ya existe un turno similar
+                turno_existente = session.query(Turno).filter(
+                    Turno.fecha_hora == fecha_hora,
+                    Turno.cedula == cedula,
+                    Turno.estado == 'activo'
+                ).first()
+                
+                if turno_existente:
+                    dispatcher.utter_message(
+                        text="Ya tenés un turno activo para esa fecha y hora. "
+                             "Si querés cambiarlo, primero cancelá el anterior."
+                    )
+                    return []
+                
+                # Crear nuevo turno en BD
+                nuevo_turno = Turno(
+                    nombre=nombre,
+                    cedula=cedula if cedula != "PRIMERA_VEZ" else None,
+                    fecha_hora=fecha_hora,
+                    codigo=codigo
+                )
+                
+                session.add(nuevo_turno)
+                session.flush()  # Para obtener el ID
+                
+                # ====================================================
+                # 🆕 INTEGRACIÓN CON GOOGLE CALENDAR
+                # ====================================================
+                calendar_link = None
+                try:
+                    logger.info(f"Intentando crear evento en Google Calendar para turno {codigo}")
+                    
+                    exito_calendar, resultado = crear_evento_turno(
+                        nombre=nombre,
+                        cedula=cedula,
+                        fecha_hora=fecha_hora,
+                        codigo_turno=codigo,
+                        email_usuario=None  # Puedes agregar email si lo tienes
+                    )
+                    
+                    if exito_calendar:
+                        calendar_link = resultado
+                        logger.info(f"✅ Evento creado en Google Calendar: {calendar_link}")
+                    else:
+                        logger.warning(f"⚠️ No se pudo crear evento en Calendar: {resultado}")
+                
+                except Exception as e:
+                    logger.error(f"❌ Error con Google Calendar: {e}")
+                    # Continuar de todos modos - el turno en BD ya está guardado
+                
+                # ====================================================
+                # MENSAJE DE CONFIRMACIÓN
+                # ====================================================
+                mensaje = "✅ **¡Turno agendado exitosamente!**\n\n"
+                mensaje += f"🎫 **Código de turno:** `{codigo}`\n"
+                mensaje += f"👤 **Nombre:** {nombre}\n"
+                
+                if cedula == "PRIMERA_VEZ":
+                    mensaje += f"🆔 **Tipo:** Primera cédula\n"
+                    mensaje += f"📋 **Recordatorio:** Llevá partida de nacimiento original\n"
+                else:
+                    mensaje += f"🆔 **Cédula:** {cedula}\n"
+                
+                mensaje += f"📅 **Fecha:** {fecha.strftime('%A %d de %B de %Y')}\n"
+                mensaje += f"🕐 **Hora:** {hora.strftime('%H:%M')}\n"
+                mensaje += f"📍 **Lugar:** Oficina Central - Av. Pioneros del Este, Ciudad del Este\n"
+                
+                # Agregar link de Google Calendar si se creó exitosamente
+                if calendar_link:
+                    mensaje += f"\n🔗 **Ver en Google Calendar:** {calendar_link}\n"
+                
+                mensaje += f"\n⚠️ **Importante:** Llegá 15 minutos antes con tu código `{codigo}` y los documentos requeridos."
+                
+                dispatcher.utter_message(text=mensaje)
+                logger.info(f"Turno creado exitosamente: ID {nuevo_turno.id}, Código {codigo}")
+                
+                # Registrar turno exitoso para aprendizaje
+                if conversation_logger:
+                    response_time_ms = int((time.time() - start_time) * 1000)
+                    log_rasa_interaction(
+                        conversation_logger,
+                        tracker,
+                        f"Turno agendado exitosamente - Código: {codigo}",
+                        response_time_ms
+                    )
+                
+        except SQLAlchemyError as e:
+            dispatcher.utter_message(
+                text="Hubo un problema al agendar tu turno. Por favor, intentá de nuevo en unos minutos."
+            )
+            logger.error(f"Error guardando turno: {e}")
+            return []
+        
+        # Limpiar slots
+        return [
+            SlotSet("nombre", None),
+            SlotSet("cedula", None),
+            SlotSet("fecha", None),
+            SlotSet("hora", None)
+        ]
 
 # =====================================================
 # ACCIONES PRINCIPALES
