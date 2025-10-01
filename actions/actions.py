@@ -118,7 +118,6 @@ def normalizar_fecha(texto: str) -> Optional[datetime.date]:
     if not texto:
         return None
     
-    # Configurar dateparser para Paraguay
     settings = {
         'PREFER_DATES_FROM': 'future',
         'RELATIVE_BASE': datetime.datetime.now(),
@@ -145,11 +144,10 @@ def normalizar_hora(texto: str) -> Optional[datetime.time]:
     if not texto:
         return None
     
-    # Patrones comunes de hora
     patrones = [
-        r'(\d{1,2}):(\d{2})',  # 15:30
-        r'(\d{1,2})\s*(am|pm)',  # 3pm, 10am
-        r'(\d{1,2})\s*de\s*la\s*(mañana|tarde|noche)',  # 3 de la tarde
+        r'(\d{1,2}):(\d{2})',
+        r'(\d{1,2})\s*(am|pm)',
+        r'(\d{1,2})\s*de\s*la\s*(mañana|tarde|noche)',
     ]
     
     texto_limpio = texto.lower().strip()
@@ -160,7 +158,6 @@ def normalizar_hora(texto: str) -> Optional[datetime.time]:
             try:
                 hora = int(match.group(1))
                 
-                # Manejo de AM/PM
                 if len(match.groups()) > 1:
                     periodo = match.group(2) if ':' not in match.group(0) else None
                     if periodo == 'pm' and hora < 12:
@@ -168,7 +165,6 @@ def normalizar_hora(texto: str) -> Optional[datetime.time]:
                     elif periodo == 'am' and hora == 12:
                         hora = 0
                 
-                # Manejo de expresiones naturales
                 if 'tarde' in texto_limpio and hora < 12:
                     hora += 12
                 elif 'noche' in texto_limpio and hora < 18:
@@ -179,7 +175,6 @@ def normalizar_hora(texto: str) -> Optional[datetime.time]:
             except (ValueError, IndexError):
                 continue
     
-    # Fallback con dateparser
     try:
         fecha_parseada = dateparser.parse(texto, languages=['es'])
         if fecha_parseada:
@@ -200,19 +195,18 @@ def obtener_ocupacion_simulada(fecha_hora: datetime.datetime) -> int:
     hora = fecha_hora.hour
     dia_semana = fecha_hora.weekday()
     
-    # Factores de ocupación
     factor_hora = 50
-    if 8 <= hora <= 10 or 14 <= hora <= 16:  # Horas pico
+    if 8 <= hora <= 10 or 14 <= hora <= 16:
         factor_hora = 85
-    elif 11 <= hora <= 13:  # Mediodía
+    elif 11 <= hora <= 13:
         factor_hora = 95
-    elif hora < 8 or hora > 16:  # Horas tranquilas
+    elif hora < 8 or hora > 16:
         factor_hora = 30
     
     factor_dia = 70
-    if dia_semana in [0, 4]:  # Lunes y viernes
+    if dia_semana in [0, 4]:
         factor_dia = 90
-    elif dia_semana in [1, 2, 3]:  # Martes a jueves
+    elif dia_semana in [1, 2, 3]:
         factor_dia = 60
     
     ocupacion = int((factor_hora + factor_dia) / 2)
@@ -229,12 +223,10 @@ class ValidateFormularioTurno(FormValidationAction):
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        """Valida el nombre completo"""
         if not slot_value or len(slot_value.strip()) < 3:
             dispatcher.utter_message(text="Por favor, proporcioná tu nombre completo (mínimo 3 caracteres).")
             return {"nombre": None}
         
-        # Verificar que tenga al menos nombre y apellido
         partes = slot_value.strip().split()
         if len(partes) < 2:
             dispatcher.utter_message(text="Necesito tu nombre completo (nombre y apellido).")
@@ -246,13 +238,11 @@ class ValidateFormularioTurno(FormValidationAction):
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        """Valida número de cédula o marca como primera vez"""
         if not slot_value:
             return {"cedula": None}
         
         texto = slot_value.lower().strip()
         
-        # Detectar si es primera vez
         frases_primera_vez = ["primera vez", "no tengo", "nunca tuve", "primera", "no tengo cedula"]
         if any(frase in texto for frase in frases_primera_vez):
             dispatcher.utter_message(
@@ -260,7 +250,6 @@ class ValidateFormularioTurno(FormValidationAction):
             )
             return {"cedula": "PRIMERA_VEZ"}
         
-        # Validar formato de cédula paraguaya (solo números, 1-8 dígitos)
         cedula_limpia = re.sub(r'[^\d]', '', texto)
         if cedula_limpia and 1 <= len(cedula_limpia) <= 8:
             return {"cedula": cedula_limpia}
@@ -274,7 +263,6 @@ class ValidateFormularioTurno(FormValidationAction):
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        """Valida y normaliza la fecha"""
         if not slot_value:
             return {"fecha": None}
         
@@ -285,7 +273,6 @@ class ValidateFormularioTurno(FormValidationAction):
             )
             return {"fecha": None}
         
-        # Validar que no sea fecha pasada
         hoy = datetime.date.today()
         if fecha_normalizada < hoy:
             dispatcher.utter_message(
@@ -293,15 +280,13 @@ class ValidateFormularioTurno(FormValidationAction):
             )
             return {"fecha": None}
         
-        # Validar que no sea muy lejana (máximo 30 días)
         if (fecha_normalizada - hoy).days > 30:
             dispatcher.utter_message(
                 text="Solo podemos agendar turnos hasta 30 días adelante. Elegí una fecha más cercana."
             )
             return {"fecha": None}
         
-        # Validar día laboral
-        if fecha_normalizada.weekday() > 4:  # Sábado=5, Domingo=6
+        if fecha_normalizada.weekday() > 4:
             dispatcher.utter_message(
                 text="Solo atendemos de lunes a viernes. Elegí un día hábil."
             )
@@ -316,15 +301,9 @@ class ValidateFormularioTurno(FormValidationAction):
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        """Valida y normaliza la hora, o activa motor difuso si es frase ambigua"""
         if not slot_value:
             return {"hora": None}
         
-        # ========================================
-        # DETECTAR FRASES AMBIGUAS PARA MOTOR DIFUSO
-        # ========================================
-        
-        # Lista de frases que deben activar el motor difuso
         frases_difusas = [
             "el que tengas libre", "cuando haya menos gente", "cuando esté más tranquilo",
             "que horarios hay disponibles", "recomendame un horario", "cualquier horario",
@@ -333,14 +312,11 @@ class ValidateFormularioTurno(FormValidationAction):
         ]
         
         texto_usuario = slot_value.lower().strip()
-        
-        # Verificar si es una frase ambigua
         es_frase_ambigua = any(frase in texto_usuario for frase in frases_difusas)
         
         if es_frase_ambigua:
             logger.info(f"Frase ambigua detectada en formulario: '{slot_value}'")
             
-            # Registrar para aprendizaje
             if conversation_logger:
                 log_rasa_interaction(
                     conversation_logger,
@@ -348,9 +324,7 @@ class ValidateFormularioTurno(FormValidationAction):
                     "Motor difuso activado en formulario de validación"
                 )
             
-            # Activar motor difuso desde dentro del formulario
             try:
-                # Obtener fecha del slot actual
                 fecha_slot = tracker.get_slot("fecha")
                 if fecha_slot:
                     try:
@@ -360,7 +334,6 @@ class ValidateFormularioTurno(FormValidationAction):
                 else:
                     fecha = datetime.date.today() + datetime.timedelta(days=1)
                 
-                # Usar motor difuso si está disponible
                 if FUZZY_AVAILABLE:
                     try:
                         from motor_difuso import analizar_disponibilidad_dia, obtener_mejor_recomendacion
@@ -374,7 +347,6 @@ class ValidateFormularioTurno(FormValidationAction):
                         mensaje += f"⏱️ **Espera estimada:** {mejor_datos['espera_estimada']:.0f} minutos\n"
                         mensaje += f"🕐 **Horarios sugeridos:** {', '.join(mejor_datos['horarios_sugeridos'])}\n\n"
                         
-                        # Mostrar opciones más compactas
                         mensaje += "📋 **Opciones disponibles:**\n"
                         for i, (franja_nombre, franja_datos) in enumerate(sorted(analisis.items(), key=lambda x: x[1]['recomendacion'], reverse=True), 1):
                             emoji = "🟢" if franja_datos['recomendacion'] >= 75 else "🟡" if franja_datos['recomendacion'] >= 50 else "🔴"
@@ -385,13 +357,11 @@ class ValidateFormularioTurno(FormValidationAction):
                         dispatcher.utter_message(text=mensaje)
                         logger.info("✅ Motor difuso activado desde validador de formulario")
                         
-                        # No completar el slot, seguir pidiendo hora específica
                         return {"hora": None}
                         
                     except Exception as e:
                         logger.error(f"Error en motor difuso desde formulario: {e}")
                         
-                # Fallback si motor difuso no está disponible
                 mensaje = "📊 **Recomendaciones de horario:**\n\n"
                 mensaje += "🌅 **Mañana temprano (07:00-09:00):** Menos ocupado\n"
                 mensaje += "🕐 **Media mañana (09:30-11:30):** Disponibilidad moderada\n" 
@@ -403,10 +373,6 @@ class ValidateFormularioTurno(FormValidationAction):
                 
             except Exception as e:
                 logger.error(f"Error procesando frase ambigua: {e}")
-        
-        # ========================================
-        # VALIDACIÓN NORMAL DE HORA
-        # ========================================
         
         hora_normalizada = normalizar_hora(slot_value)
         if not hora_normalizada:
@@ -425,272 +391,8 @@ class ValidateFormularioTurno(FormValidationAction):
         return {"hora": hora_normalizada.strftime("%H:%M")}
 
 # =====================================================
-# ACCIONES guardar turno 
-# =====================================================
-class ActionGuardarTurno(Action):
-    def name(self) -> Text:
-        return "action_guardar_turno"
-
-    def run(self, dispatcher: CollectingDispatcher,
-            tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-        
-        start_time = time.time()
-        nombre = tracker.get_slot("nombre")
-        cedula = tracker.get_slot("cedula")
-        fecha_slot = tracker.get_slot("fecha")
-        hora_slot = tracker.get_slot("hora")
-        
-        try:
-            fecha = datetime.datetime.fromisoformat(fecha_slot).date()
-            hora = datetime.datetime.strptime(hora_slot, "%H:%M").time()
-            fecha_hora = datetime.datetime.combine(fecha, hora)
-        except Exception as e:
-            dispatcher.utter_message(text="Error procesando la fecha u hora. Intentá de nuevo.")
-            logger.error(f"Error parseando fecha/hora: {e}")
-            return []
-        
-        codigo = generar_codigo_unico()
-        
-        try:
-            with get_db_session() as session:
-                # Verificar si ya existe un turno similar
-                turno_existente = session.query(Turno).filter(
-                    Turno.fecha_hora == fecha_hora,
-                    Turno.cedula == cedula,
-                    Turno.estado == 'activo'
-                ).first()
-                
-                if turno_existente:
-                    dispatcher.utter_message(
-                        text="Ya tenés un turno activo para esa fecha y hora. "
-                             "Si querés cambiarlo, primero cancelá el anterior."
-                    )
-                    return []
-                
-                # Crear nuevo turno en BD
-                nuevo_turno = Turno(
-                    nombre=nombre,
-                    cedula=cedula if cedula != "PRIMERA_VEZ" else None,
-                    fecha_hora=fecha_hora,
-                    codigo=codigo
-                )
-                
-                session.add(nuevo_turno)
-                session.flush()  # Para obtener el ID
-                
-                # ====================================================
-                # 🆕 INTEGRACIÓN CON GOOGLE CALENDAR
-                # ====================================================
-                calendar_link = None
-                try:
-                    logger.info(f"Intentando crear evento en Google Calendar para turno {codigo}")
-                    
-                    exito_calendar, resultado = crear_evento_turno(
-                        nombre=nombre,
-                        cedula=cedula,
-                        fecha_hora=fecha_hora,
-                        codigo_turno=codigo,
-                        email_usuario=None  # Puedes agregar email si lo tienes
-                    )
-                    
-                    if exito_calendar:
-                        calendar_link = resultado
-                        logger.info(f"✅ Evento creado en Google Calendar: {calendar_link}")
-                    else:
-                        logger.warning(f"⚠️ No se pudo crear evento en Calendar: {resultado}")
-                
-                except Exception as e:
-                    logger.error(f"❌ Error con Google Calendar: {e}")
-                    # Continuar de todos modos - el turno en BD ya está guardado
-                
-                # ====================================================
-                # MENSAJE DE CONFIRMACIÓN
-                # ====================================================
-                mensaje = "✅ **¡Turno agendado exitosamente!**\n\n"
-                mensaje += f"🎫 **Código de turno:** `{codigo}`\n"
-                mensaje += f"👤 **Nombre:** {nombre}\n"
-                
-                if cedula == "PRIMERA_VEZ":
-                    mensaje += f"🆔 **Tipo:** Primera cédula\n"
-                    mensaje += f"📋 **Recordatorio:** Llevá partida de nacimiento original\n"
-                else:
-                    mensaje += f"🆔 **Cédula:** {cedula}\n"
-                
-                mensaje += f"📅 **Fecha:** {fecha.strftime('%A %d de %B de %Y')}\n"
-                mensaje += f"🕐 **Hora:** {hora.strftime('%H:%M')}\n"
-                mensaje += f"📍 **Lugar:** Oficina Central - Av. Pioneros del Este, Ciudad del Este\n"
-                
-                # Agregar link de Google Calendar si se creó exitosamente
-                if calendar_link:
-                    mensaje += f"\n🔗 **Ver en Google Calendar:** {calendar_link}\n"
-                
-                mensaje += f"\n⚠️ **Importante:** Llegá 15 minutos antes con tu código `{codigo}` y los documentos requeridos."
-                
-                dispatcher.utter_message(text=mensaje)
-                logger.info(f"Turno creado exitosamente: ID {nuevo_turno.id}, Código {codigo}")
-                
-                # Registrar turno exitoso para aprendizaje
-                if conversation_logger:
-                    response_time_ms = int((time.time() - start_time) * 1000)
-                    log_rasa_interaction(
-                        conversation_logger,
-                        tracker,
-                        f"Turno agendado exitosamente - Código: {codigo}",
-                        response_time_ms
-                    )
-                
-        except SQLAlchemyError as e:
-            dispatcher.utter_message(
-                text="Hubo un problema al agendar tu turno. Por favor, intentá de nuevo en unos minutos."
-            )
-            logger.error(f"Error guardando turno: {e}")
-            return []
-        
-        # Limpiar slots
-        return [
-            SlotSet("nombre", None),
-            SlotSet("cedula", None),
-            SlotSet("fecha", None),
-            SlotSet("hora", None)
-        ]
-
-# =====================================================
 # ACCIONES PRINCIPALES
 # =====================================================
-class ActionRecomendarHorarioFuzzy(Action):
-    def name(self) -> Text:
-        return "action_recomendar_horario_fuzzy"
-
-    def run(self, dispatcher: CollectingDispatcher,
-            tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-        
-        start_time = time.time()
-        logger.info("🔥 Motor difuso EJECUTÁNDOSE")
-        
-        # Si no hay fecha en el slot, usar fecha por defecto (mañana)
-        fecha_slot = tracker.get_slot("fecha")
-        if fecha_slot:
-            try:
-                fecha = datetime.datetime.fromisoformat(fecha_slot).date()
-            except:
-                fecha = datetime.date.today() + datetime.timedelta(days=1)
-        else:
-            fecha = datetime.date.today() + datetime.timedelta(days=1)
-            logger.info(f"No hay fecha en slot, usando mañana: {fecha}")
-        
-        # ========================================
-        # USAR EL MOTOR DIFUSO CORRECTAMENTE
-        # ========================================
-        
-        # Importar funciones del motor difuso
-        if FUZZY_AVAILABLE:
-            try:
-                from motor_difuso import analizar_disponibilidad_dia, obtener_mejor_recomendacion
-                
-                # Usar análisis completo del motor difuso
-                analisis = analizar_disponibilidad_dia(fecha)
-                mejor_franja, mejor_datos = obtener_mejor_recomendacion(fecha)
-                
-                mensaje = f"📊 **Análisis difuso para {fecha.strftime('%A %d de %B')}**\n\n"
-                mensaje += f"🏆 **Mejor recomendación:** {mejor_franja} ({mejor_datos['rango']})\n"
-                mensaje += f"📈 **Puntuación:** {mejor_datos['recomendacion']:.0f}/100\n"
-                mensaje += f"⏱️ **Espera estimada:** {mejor_datos['espera_estimada']:.0f} minutos\n"
-                mensaje += f"📊 **Ocupación:** {mejor_datos['ocupacion']:.0f}%\n"
-                mensaje += f"🕐 **Horarios sugeridos:** {', '.join(mejor_datos['horarios_sugeridos'])}\n\n"
-                
-                # Mostrar todas las opciones
-                mensaje += "📋 **Todas las opciones disponibles:**\n"
-                for franja_nombre, franja_datos in sorted(analisis.items(), key=lambda x: x[1]['recomendacion'], reverse=True):
-                    emoji = "🟢" if franja_datos['recomendacion'] >= 75 else "🟡" if franja_datos['recomendacion'] >= 50 else "🔴"
-                    mensaje += f"{emoji} **{franja_nombre}** ({franja_datos['rango']}): "
-                    mensaje += f"Espera {franja_datos['espera_estimada']:.0f}min, "
-                    mensaje += f"Ocupación {franja_datos['ocupacion']:.0f}%\n"
-                
-                mensaje += "\n¿Cuál de estos horarios preferís?"
-                
-                dispatcher.utter_message(text=mensaje)
-                logger.info(f"✅ Motor difuso completado exitosamente")
-                
-                # Registrar interacción para aprendizaje
-                if conversation_logger:
-                    response_time_ms = int((time.time() - start_time) * 1000)
-                    log_rasa_interaction(
-                        conversation_logger,
-                        tracker,
-                        "Motor difuso activado - análisis completo generado",
-                        response_time_ms
-                    )
-                
-                return []
-                
-            except Exception as e:
-                logger.error(f"Error usando motor difuso avanzado: {e}")
-                # Continuar con lógica simple como fallback
-        
-        # ========================================
-        # FALLBACK: LÓGICA SIMPLE CORREGIDA
-        # ========================================
-        
-        # Generar recomendaciones usando el motor difuso básico
-        franjas = [
-            ("mañana temprano (07:00-09:00)", [7, 8, 9]),
-            ("media mañana (09:30-11:30)", [9.5, 10, 10.5, 11]),
-            ("tarde (14:30-16:30)", [14.5, 15, 15.5, 16])
-        ]
-        
-        recomendaciones = []
-        for nombre_franja, horas in franjas:
-            ocupacion_promedio = 0
-            for hora_decimal in horas:
-                hora = int(hora_decimal)
-                minuto = int((hora_decimal % 1) * 60)
-                fecha_hora = datetime.datetime.combine(fecha, datetime.time(hora, minuto))
-                ocupacion = obtener_ocupacion_simulada(fecha_hora)
-                ocupacion_promedio += ocupacion
-            
-            ocupacion_promedio /= len(horas)
-            urgencia = 5  # Nivel medio
-            
-            # CORRECCIÓN: Pasar hora también al cálculo difuso
-            hora_promedio = sum(horas) / len(horas)
-            tiempo_espera = calcular_espera(ocupacion_promedio, urgencia)
-            
-            recomendaciones.append((nombre_franja, ocupacion_promedio, tiempo_espera, horas))
-        
-        # Ordenar por menor tiempo de espera
-        recomendaciones.sort(key=lambda x: x[2])
-        
-        mejor_franja = recomendaciones[0]
-        nombre_franja, ocupacion, tiempo_espera, horas = mejor_franja
-        
-        # Generar horarios específicos
-        horarios_disponibles = []
-        for hora_decimal in horas[:3]:  # Mostrar 3 horarios
-            hora = int(hora_decimal)
-            minuto = int((hora_decimal % 1) * 60)
-            horarios_disponibles.append(f"{hora:02d}:{minuto:02d}")
-        
-        mensaje = f"📊 Según el análisis de disponibilidad, te recomiendo **{nombre_franja}**.\n"
-        mensaje += f"⏱️ Tiempo estimado de espera: **{tiempo_espera:.1f} minutos**\n"
-        mensaje += f"📊 Ocupación estimada: **{ocupacion:.0f}%**\n"
-        mensaje += f"🕐 Horarios disponibles: **{', '.join(horarios_disponibles)}**\n\n"
-        mensaje += "¿Cuál de estos horarios preferís?"
-        
-        dispatcher.utter_message(text=mensaje)
-        logger.info(f"✅ Motor difuso completado: {mensaje[:50]}...")
-        
-        # Registrar interacción para aprendizaje
-        if conversation_logger:
-            response_time_ms = int((time.time() - start_time) * 1000)
-            log_rasa_interaction(
-                conversation_logger,
-                tracker,
-                "Motor difuso básico activado - recomendaciones generadas",
-                response_time_ms
-            )
-        
-        return []
-    
 class ActionConfirmarDatosTurno(Action):
     def name(self) -> Text:
         return "action_confirmar_datos_turno"
@@ -716,7 +418,6 @@ class ActionConfirmarDatosTurno(Action):
             dispatcher.utter_message(text="Hubo un problema con la fecha u hora. Intentemos de nuevo.")
             return [FollowupAction("turno_form")]
         
-        # Mostrar resumen
         mensaje = "📋 **Resumen de tu turno:**\n\n"
         mensaje += f"👤 **Nombre:** {nombre}\n"
         
@@ -731,7 +432,6 @@ class ActionConfirmarDatosTurno(Action):
         
         dispatcher.utter_message(text=mensaje)
         
-        # Registrar interacción para aprendizaje
         if conversation_logger:
             log_rasa_interaction(
                 conversation_logger,
@@ -754,20 +454,24 @@ class ActionGuardarTurno(Action):
         fecha_slot = tracker.get_slot("fecha")
         hora_slot = tracker.get_slot("hora")
         
+        if not all([nombre, fecha_slot, hora_slot]):
+            dispatcher.utter_message(text="Faltan datos para agendar el turno.")
+            return []
+        
         try:
             fecha = datetime.datetime.fromisoformat(fecha_slot).date()
             hora = datetime.datetime.strptime(hora_slot, "%H:%M").time()
             fecha_hora = datetime.datetime.combine(fecha, hora)
         except Exception as e:
-            dispatcher.utter_message(text="Error procesando la fecha u hora. Intentá de nuevo.")
+            dispatcher.utter_message(text="Error procesando la fecha u hora.")
             logger.error(f"Error parseando fecha/hora: {e}")
             return []
         
         codigo = generar_codigo_unico()
+        calendar_link = None
         
         try:
             with get_db_session() as session:
-                # Verificar si ya existe un turno similar
                 turno_existente = session.query(Turno).filter(
                     Turno.fecha_hora == fecha_hora,
                     Turno.cedula == cedula,
@@ -776,12 +480,10 @@ class ActionGuardarTurno(Action):
                 
                 if turno_existente:
                     dispatcher.utter_message(
-                        text="Ya tenés un turno activo para esa fecha y hora. "
-                             "Si querés cambiarlo, primero cancelá el anterior."
+                        text="Ya tenés un turno activo para esa fecha y hora."
                     )
                     return []
                 
-                # Crear nuevo turno
                 nuevo_turno = Turno(
                     nombre=nombre,
                     cedula=cedula if cedula != "PRIMERA_VEZ" else None,
@@ -790,51 +492,192 @@ class ActionGuardarTurno(Action):
                 )
                 
                 session.add(nuevo_turno)
-                session.flush()  # Para obtener el ID
+                session.flush()
                 
-                # Mensaje de confirmación
-                mensaje = "✅ **¡Turno agendado exitosamente!**\n\n"
-                mensaje += f"🎫 **Código de turno:** `{codigo}`\n"
+                logger.info(f"✅ BD: Turno guardado - ID {nuevo_turno.id}, Código {codigo}")
+                
+                # INTEGRAR GOOGLE CALENDAR
+                try:
+                    logger.info(f"🔵 CALENDAR: Iniciando creación para turno {codigo}")
+                    
+                    exito_calendar, resultado = crear_evento_turno(
+                        nombre=nombre,
+                        cedula=cedula,
+                        fecha_hora=fecha_hora,
+                        codigo_turno=codigo,
+                        email_usuario=None
+                    )
+                    
+                    if exito_calendar:
+                        calendar_link = resultado
+                        logger.info(f"✅ CALENDAR: Evento creado - {calendar_link}")
+                    else:
+                        logger.warning(f"⚠️ CALENDAR: Fallo - {resultado}")
+                
+                except Exception as e:
+                    logger.error(f"❌ CALENDAR: Error crítico - {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                
+                mensaje = f"✅ **¡Turno agendado!**\n\n"
+                mensaje += f"🎫 **Código:** `{codigo}`\n"
                 mensaje += f"👤 **Nombre:** {nombre}\n"
                 
                 if cedula == "PRIMERA_VEZ":
                     mensaje += f"🆔 **Tipo:** Primera cédula\n"
-                    mensaje += f"📋 **Recordatorio:** Llevá partida de nacimiento original\n"
                 else:
                     mensaje += f"🆔 **Cédula:** {cedula}\n"
                 
-                mensaje += f"📅 **Fecha:** {fecha.strftime('%A %d de %B de %Y')}\n"
+                mensaje += f"📅 **Fecha:** {fecha.strftime('%d/%m/%Y')}\n"
                 mensaje += f"🕐 **Hora:** {hora.strftime('%H:%M')}\n"
-                mensaje += f"📍 **Lugar:** Oficina Central - Av. Pioneros del Este, Ciudad del Este\n\n"
-                mensaje += f"⚠️ **Importante:** Llegá 15 minutos antes con tu código `{codigo}` y los documentos requeridos."
+                mensaje += f"📍 **Lugar:** Av. Pioneros del Este, CDE\n"
+                
+                if calendar_link:
+                    mensaje += f"\n📅 **Google Calendar:** {calendar_link}\n"
+                else:
+                    mensaje += f"\n⚠️ **Nota:** Guardado en BD (Calendar no disponible)\n"
+                
+                mensaje += f"\n⚠️ Llegá 15 min antes con código `{codigo}`"
                 
                 dispatcher.utter_message(text=mensaje)
-                logger.info(f"Turno creado exitosamente: ID {nuevo_turno.id}, Código {codigo}")
                 
-                # Registrar turno exitoso para aprendizaje
                 if conversation_logger:
                     response_time_ms = int((time.time() - start_time) * 1000)
                     log_rasa_interaction(
                         conversation_logger,
                         tracker,
-                        f"Turno agendado exitosamente - Código: {codigo}",
+                        f"Turno {codigo} guardado",
                         response_time_ms
                     )
                 
-        except SQLAlchemyError as e:
-            dispatcher.utter_message(
-                text="Hubo un problema al agendar tu turno. Por favor, intentá de nuevo en unos minutos."
-            )
-            logger.error(f"Error guardando turno: {e}")
+        except Exception as e:
+            dispatcher.utter_message(text="Error al guardar el turno.")
+            logger.error(f"Error crítico: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
         
-        # Limpiar slots
         return [
             SlotSet("nombre", None),
             SlotSet("cedula", None),
             SlotSet("fecha", None),
             SlotSet("hora", None)
         ]
+
+class ActionRecomendarHorarioFuzzy(Action):
+    def name(self) -> Text:
+        return "action_recomendar_horario_fuzzy"
+
+    def run(self, dispatcher: CollectingDispatcher,
+            tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        
+        start_time = time.time()
+        logger.info("🔥 Motor difuso EJECUTÁNDOSE")
+        
+        fecha_slot = tracker.get_slot("fecha")
+        if fecha_slot:
+            try:
+                fecha = datetime.datetime.fromisoformat(fecha_slot).date()
+            except:
+                fecha = datetime.date.today() + datetime.timedelta(days=1)
+        else:
+            fecha = datetime.date.today() + datetime.timedelta(days=1)
+            logger.info(f"No hay fecha en slot, usando mañana: {fecha}")
+        
+        if FUZZY_AVAILABLE:
+            try:
+                from motor_difuso import analizar_disponibilidad_dia, obtener_mejor_recomendacion
+                
+                analisis = analizar_disponibilidad_dia(fecha)
+                mejor_franja, mejor_datos = obtener_mejor_recomendacion(fecha)
+                
+                mensaje = f"📊 **Análisis difuso para {fecha.strftime('%A %d de %B')}**\n\n"
+                mensaje += f"🏆 **Mejor recomendación:** {mejor_franja} ({mejor_datos['rango']})\n"
+                mensaje += f"📈 **Puntuación:** {mejor_datos['recomendacion']:.0f}/100\n"
+                mensaje += f"⏱️ **Espera estimada:** {mejor_datos['espera_estimada']:.0f} minutos\n"
+                mensaje += f"📊 **Ocupación:** {mejor_datos['ocupacion']:.0f}%\n"
+                mensaje += f"🕐 **Horarios sugeridos:** {', '.join(mejor_datos['horarios_sugeridos'])}\n\n"
+                
+                mensaje += "📋 **Todas las opciones disponibles:**\n"
+                for franja_nombre, franja_datos in sorted(analisis.items(), key=lambda x: x[1]['recomendacion'], reverse=True):
+                    emoji = "🟢" if franja_datos['recomendacion'] >= 75 else "🟡" if franja_datos['recomendacion'] >= 50 else "🔴"
+                    mensaje += f"{emoji} **{franja_nombre}** ({franja_datos['rango']}): "
+                    mensaje += f"Espera {franja_datos['espera_estimada']:.0f}min, "
+                    mensaje += f"Ocupación {franja_datos['ocupacion']:.0f}%\n"
+                
+                mensaje += "\n¿Cuál de estos horarios preferís?"
+                
+                dispatcher.utter_message(text=mensaje)
+                logger.info(f"✅ Motor difuso completado exitosamente")
+                
+                if conversation_logger:
+                    response_time_ms = int((time.time() - start_time) * 1000)
+                    log_rasa_interaction(
+                        conversation_logger,
+                        tracker,
+                        "Motor difuso activado - análisis completo generado",
+                        response_time_ms
+                    )
+                
+                return []
+                
+            except Exception as e:
+                logger.error(f"Error usando motor difuso avanzado: {e}")
+        
+        franjas = [
+            ("mañana temprano (07:00-09:00)", [7, 8, 9]),
+            ("media mañana (09:30-11:30)", [9.5, 10, 10.5, 11]),
+            ("tarde (14:30-16:30)", [14.5, 15, 15.5, 16])
+        ]
+        
+        recomendaciones = []
+        for nombre_franja, horas in franjas:
+            ocupacion_promedio = 0
+            for hora_decimal in horas:
+                hora = int(hora_decimal)
+                minuto = int((hora_decimal % 1) * 60)
+                fecha_hora = datetime.datetime.combine(fecha, datetime.time(hora, minuto))
+                ocupacion = obtener_ocupacion_simulada(fecha_hora)
+                ocupacion_promedio += ocupacion
+            
+            ocupacion_promedio /= len(horas)
+            urgencia = 5
+            
+            hora_promedio = sum(horas) / len(horas)
+            tiempo_espera = calcular_espera(ocupacion_promedio, urgencia)
+            
+            recomendaciones.append((nombre_franja, ocupacion_promedio, tiempo_espera, horas))
+        
+        recomendaciones.sort(key=lambda x: x[2])
+        
+        mejor_franja = recomendaciones[0]
+        nombre_franja, ocupacion, tiempo_espera, horas = mejor_franja
+        
+        horarios_disponibles = []
+        for hora_decimal in horas[:3]:
+            hora = int(hora_decimal)
+            minuto = int((hora_decimal % 1) * 60)
+            horarios_disponibles.append(f"{hora:02d}:{minuto:02d}")
+        
+        mensaje = f"📊 Según el análisis de disponibilidad, te recomiendo **{nombre_franja}**.\n"
+        mensaje += f"⏱️ Tiempo estimado de espera: **{tiempo_espera:.1f} minutos**\n"
+        mensaje += f"📊 Ocupación estimada: **{ocupacion:.0f}%**\n"
+        mensaje += f"🕐 Horarios disponibles: **{', '.join(horarios_disponibles)}**\n\n"
+        mensaje += "¿Cuál de estos horarios preferís?"
+        
+        dispatcher.utter_message(text=mensaje)
+        logger.info(f"✅ Motor difuso completado: {mensaje[:50]}...")
+        
+        if conversation_logger:
+            response_time_ms = int((time.time() - start_time) * 1000)
+            log_rasa_interaction(
+                conversation_logger,
+                tracker,
+                "Motor difuso básico activado - recomendaciones generadas",
+                response_time_ms
+            )
+        
+        return []
 
 class ActionConsultarDisponibilidad(Action):
     def name(self) -> Text:
@@ -843,14 +686,12 @@ class ActionConsultarDisponibilidad(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         
-        # Simular consulta de disponibilidad para próximos días
         hoy = datetime.date.today()
         disponibilidad = []
         
-        for i in range(1, 6):  # Próximos 5 días hábiles
+        for i in range(1, 6):
             fecha = hoy + datetime.timedelta(days=i)
-            if fecha.weekday() < 5:  # Solo días hábiles
-                # Simular ocupación
+            if fecha.weekday() < 5:
                 ocupacion = random.randint(20, 95)
                 if ocupacion < 50:
                     estado = "Alta disponibilidad"
@@ -869,7 +710,6 @@ class ActionConsultarDisponibilidad(Action):
         
         dispatcher.utter_message(text=mensaje)
         
-        # Registrar consulta para aprendizaje
         if conversation_logger:
             log_rasa_interaction(
                 conversation_logger,
@@ -888,7 +728,7 @@ class ActionTiempoEsperaActual(Action):
         
         ahora = datetime.datetime.now()
         ocupacion_actual = obtener_ocupacion_simulada(ahora)
-        urgencia = 5  # Nivel medio
+        urgencia = 5
         
         tiempo_espera = calcular_espera(ocupacion_actual, urgencia)
         
@@ -911,7 +751,6 @@ class ActionTiempoEsperaActual(Action):
         
         dispatcher.utter_message(text=mensaje)
         
-        # Registrar consulta para aprendizaje
         if conversation_logger:
             log_rasa_interaction(
                 conversation_logger,
@@ -958,7 +797,6 @@ class ActionCalcularSaturacion(Action):
         
         dispatcher.utter_message(text=mensaje)
         
-        # Registrar consulta para aprendizaje
         if conversation_logger:
             log_rasa_interaction(
                 conversation_logger,
@@ -968,9 +806,6 @@ class ActionCalcularSaturacion(Action):
         
         return []
 
-# =====================================================
-# ACCIONES DE SESIÓN
-# =====================================================
 class ActionSessionStart(Action):
     def name(self) -> Text:
         return "action_session_start"
@@ -978,7 +813,6 @@ class ActionSessionStart(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker, domain: Dict[Text, Any]) -> List[EventType]:
         
-        # Registrar inicio de sesión para aprendizaje
         if conversation_logger:
             try:
                 log_rasa_interaction(
