@@ -185,27 +185,86 @@ def normalizar_hora(texto: str) -> Optional[datetime.time]:
     return None
 
 def validar_horario_laboral(hora: datetime.time) -> bool:
-    """Valida que la hora esté en horario laboral (7:00-17:00)"""
+    """Valida que la hora esté en horario laboral (7:00-15:00, excepto 11:00)"""
     if not hora:
         return False
-    return datetime.time(7, 0) <= hora <= datetime.time(17, 0)
+    # Bloquear hora de almuerzo
+    if hora.hour == 11:
+        return False
+    # Horario de atención: 7:00 - 15:00
+    return datetime.time(7, 0) <= hora <= datetime.time(15, 0)
+
+def consultar_ocupacion_real_bd(fecha: datetime.date, hora_inicio: int, hora_fin: int, session) -> float:
+    """
+    Consulta la ocupación REAL de la base de datos para un rango de horas
+    Retorna el porcentaje de ocupación (0-100)
+    """
+    inicio = datetime.datetime.combine(fecha, datetime.time(hora_inicio, 0))
+    fin = datetime.datetime.combine(fecha, datetime.time(hora_fin, 0))
+    
+    # Contar turnos ocupados en la BD
+    turnos_ocupados = session.query(Turno).filter(
+        Turno.fecha_hora >= inicio,
+        Turno.fecha_hora < fin,
+        Turno.estado == 'activo'
+    ).count()
+    
+    # Calcular slots totales (4 por hora, cada 15 minutos)
+    horas_en_rango = hora_fin - hora_inicio
+    slots_totales = horas_en_rango * 4
+    
+    if slots_totales == 0:
+        return 0.0
+    
+    porcentaje_ocupacion = (turnos_ocupados / slots_totales) * 100
+    return round(porcentaje_ocupacion, 1)
 
 def consultar_disponibilidad_real(fecha: datetime.date, session) -> Dict[str, int]:
-    """Consulta disponibilidad real desde BD"""
-    ocupacion_franjas = {'temprano': 0, 'manana': 0, 'tarde': 0}
-    franjas_config = {'temprano': (7, 9), 'manana': (9, 11), 'tarde': (12, 15)}
+    """Consulta disponibilidad real desde BD por franjas horarias"""
+    ocupacion_franjas = {}
+    
+    franjas_config = {
+        'temprano': (7, 9),    # 7:00-9:00
+        'manana': (9, 11),     # 9:00-11:00 (antes de almuerzo)
+        'tarde': (12, 15)      # 12:00-15:00 (después de almuerzo)
+    }
     
     for franja, (hora_inicio, hora_fin) in franjas_config.items():
-        inicio = datetime.datetime.combine(fecha, datetime.time(hora_inicio, 0))
-        fin = datetime.datetime.combine(fecha, datetime.time(hora_fin, 0))
-        turnos_ocupados = session.query(Turno).filter(
-            Turno.fecha_hora >= inicio, Turno.fecha_hora < fin, Turno.estado == 'activo'
-        ).count()
-        horas_en_franja = hora_fin - hora_inicio
-        slots_totales = horas_en_franja * 4
-        if slots_totales > 0:
-            ocupacion_franjas[franja] = int((turnos_ocupados / slots_totales) * 100)
+        ocupacion = consultar_ocupacion_real_bd(fecha, hora_inicio, hora_fin, session)
+        ocupacion_franjas[franja] = int(ocupacion)
+    
     return ocupacion_franjas
+
+def obtener_horarios_disponibles_reales(fecha: datetime.date, session, limite: int = 10) -> List[str]:
+    """
+    Obtiene horarios REALMENTE disponibles de la BD
+    Retorna lista de horarios en formato HH:MM
+    """
+    horarios_disponibles = []
+    
+    # Generar todos los horarios posibles (7:00-15:00, cada 15 min, excepto 11:00)
+    for hora in range(7, 15):
+        if hora == 11:  # Saltar hora de almuerzo
+            continue
+        
+        for minuto in [0, 15, 30, 45]:
+            hora_dt = datetime.time(hora, minuto)
+            fecha_hora = datetime.datetime.combine(fecha, hora_dt)
+            
+            # Verificar si hay turno en este horario
+            turno_existente = session.query(Turno).filter(
+                Turno.fecha_hora == fecha_hora,
+                Turno.estado == 'activo'
+            ).first()
+            
+            if not turno_existente:
+                horarios_disponibles.append(f"{hora:02d}:{minuto:02d}")
+                
+                if len(horarios_disponibles) >= limite:
+                    return horarios_disponibles
+    
+    return horarios_disponibles
+
 # =====================================================
 # VALIDACIÓN DE FORMULARIO
 # =====================================================
@@ -228,8 +287,6 @@ class ValidateFormularioTurno(FormValidationAction):
         
         return {"nombre": slot_value.strip().title()}
 
-    
-    
     def validate_cedula(
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
@@ -311,14 +368,7 @@ class ValidateFormularioTurno(FormValidationAction):
         es_frase_ambigua = any(frase in texto_usuario for frase in frases_difusas)
         
         if es_frase_ambigua:
-            logger.info(f"Frase ambigua detectada en formulario: '{slot_value}'")
-            
-            if conversation_logger:
-                log_rasa_interaction(
-                    conversation_logger,
-                    tracker,
-                    "Motor difuso activado en formulario de validación"
-                )
+            logger.info(f"🔥 Frase ambigua detectada: '{slot_value}' - Consultando BD real")
             
             try:
                 fecha_slot = tracker.get_slot("fecha")
@@ -330,57 +380,65 @@ class ValidateFormularioTurno(FormValidationAction):
                 else:
                     fecha = datetime.date.today() + datetime.timedelta(days=1)
                 
-                if FUZZY_AVAILABLE:
-                    try:
-                        from motor_difuso import analizar_disponibilidad_dia, obtener_mejor_recomendacion
-                        
-                        analisis = analizar_disponibilidad_dia(fecha)
-                        mejor_franja, mejor_datos = obtener_mejor_recomendacion(fecha)
-                        
-                        mensaje = f"📊 **Análisis difuso para {fecha.strftime('%A %d de %B')}**\n\n"
-                        mensaje += f"🏆 **Mejor recomendación:** {mejor_franja} ({mejor_datos['rango']})\n"
-                        mensaje += f"📈 **Puntuación:** {mejor_datos['recomendacion']:.0f}/100\n"
-                        mensaje += f"⏱️ **Espera estimada:** {mejor_datos['espera_estimada']:.0f} minutos\n"
-                        mensaje += f"🕐 **Horarios sugeridos:** {', '.join(mejor_datos['horarios_sugeridos'])}\n\n"
-                        
-                        mensaje += "📋 **Opciones disponibles:**\n"
-                        for i, (franja_nombre, franja_datos) in enumerate(sorted(analisis.items(), key=lambda x: x[1]['recomendacion'], reverse=True), 1):
-                            emoji = "🟢" if franja_datos['recomendacion'] >= 75 else "🟡" if franja_datos['recomendacion'] >= 50 else "🔴"
-                            mensaje += f"{emoji} {i}. **{franja_nombre}**: {', '.join(franja_datos['horarios_sugeridos'][:2])}\n"
-                        
-                        mensaje += "\n¿Podés elegir una hora específica de las recomendadas? (ej: 08:00, 10:30, 15:00)"
-                        
-                        dispatcher.utter_message(text=mensaje)
-                        logger.info("✅ Motor difuso activado desde validador de formulario")
-                        
-                        return {"hora": None}
-                        
-                    except Exception as e:
-                        logger.error(f"Error en motor difuso desde formulario: {e}")
-                        
+                # CONSULTAR BD REAL
+                with get_db_session() as session:
+                    ocupacion_franjas = consultar_disponibilidad_real(fecha, session)
+                    horarios_libres = obtener_horarios_disponibles_reales(fecha, session, 15)
+                    
+                    # Determinar mejor franja (menor ocupación)
+                    mejor_franja = min(ocupacion_franjas.items(), key=lambda x: x[1])
+                    franja_nombre, ocupacion = mejor_franja
+                    
+                    franjas_info = {
+                        'temprano': '07:00-09:00',
+                        'manana': '09:00-11:00',
+                        'tarde': '12:00-15:00'
+                    }
+                    
+                    mensaje = f"📊 **Disponibilidad real para {fecha.strftime('%A %d de %B')}**\n\n"
+                    
+                    # Mostrar todas las franjas ordenadas por ocupación
+                    for franja, porcentaje in sorted(ocupacion_franjas.items(), key=lambda x: x[1]):
+                        rango = franjas_info[franja]
+                        emoji = "🟢" if porcentaje < 50 else "🟡" if porcentaje < 80 else "🔴"
+                        mensaje += f"{emoji} **{franja.title()}** ({rango}): {porcentaje}% ocupado\n"
+                    
+                    mensaje += f"\n🏆 **Mejor opción:** {franja_nombre.title()} ({franjas_info[franja_nombre]})\n"
+                    
+                    if horarios_libres:
+                        mensaje += f"\n🕐 **Horarios disponibles:** {', '.join(horarios_libres[:8])}\n"
+                    else:
+                        mensaje += f"\n⚠️ **No hay horarios disponibles** para esta fecha\n"
+                    
+                    mensaje += f"\n💡 Elegí una hora específica (ej: 08:00, 10:00, 14:00)"
+                    
+                    dispatcher.utter_message(text=mensaje)
+                    logger.info(f"✅ Recomendación basada en BD: {franja_nombre} con {ocupacion}% ocupación")
+                    
+                    return {"hora": None}
+                    
+            except Exception as e:
+                logger.error(f"❌ Error consultando BD: {e}")
                 mensaje = "📊 **Recomendaciones de horario:**\n\n"
                 mensaje += "🌅 **Mañana temprano (07:00-09:00):** Menos ocupado\n"
                 mensaje += "🕐 **Media mañana (09:00-11:00):** Disponibilidad moderada\n" 
                 mensaje += "🍽️ **Almuerzo (11:00):** CERRADO\n"
                 mensaje += "🌇 **Tarde (12:00-15:00):** Variable según el día\n\n"
-                
+                mensaje += "¿Podés elegir una hora específica? (ej: 08:00, 10:30, 14:00)"
                 dispatcher.utter_message(text=mensaje)
                 return {"hora": None}
-                
-            except Exception as e:
-                logger.error(f"Error procesando frase ambigua: {e}")
         
         hora_normalizada = normalizar_hora(slot_value)
         if not hora_normalizada:
             dispatcher.utter_message(
-                text="No pude entender la hora. Podés decir '15:00', '3 de la tarde', '9am', etc.\n\n"
+                text="No pude entender la hora. Podés decir '14:00', '2 de la tarde', '9am', etc.\n\n"
                      "💡 Si querés recomendaciones, decí 'recomendame un horario' o 'cuando haya menos gente'."
             )
             return {"hora": None}
         
         if not validar_horario_laboral(hora_normalizada):
             dispatcher.utter_message(
-                text="Solo atendemos de 07:00 a 15:00 horas.(cerrado 11:00 por almuerzo). Elegí una hora dentro de este rango."
+                text="Solo atendemos de 07:00 a 15:00 horas (cerrado 11:00 por almuerzo). Elegí una hora dentro de este rango."
             )
             return {"hora": None}
         
@@ -568,7 +626,7 @@ class ActionRecomendarHorarioFuzzy(Action):
             tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         
         start_time = time.time()
-        logger.info("🔥 Motor difuso EJECUTÁNDOSE")
+        logger.info("🔥 Motor difuso CON BD REAL ejecutándose")
         
         fecha_slot = tracker.get_slot("fecha")
         if fecha_slot:
@@ -578,143 +636,129 @@ class ActionRecomendarHorarioFuzzy(Action):
                 fecha = datetime.date.today() + datetime.timedelta(days=1)
         else:
             fecha = datetime.date.today() + datetime.timedelta(days=1)
-            logger.info(f"No hay fecha en slot, usando mañana: {fecha}")
         
-        if FUZZY_AVAILABLE:
-            try:
-                from motor_difuso import analizar_disponibilidad_dia, obtener_mejor_recomendacion
+        try:
+            with get_db_session() as session:
+                # CONSULTAR OCUPACIÓN REAL DE LA BD
+                ocupacion_franjas = consultar_disponibilidad_real(fecha, session)
+                horarios_libres = obtener_horarios_disponibles_reales(fecha, session, 20)
                 
-                analisis = analizar_disponibilidad_dia(fecha)
-                mejor_franja, mejor_datos = obtener_mejor_recomendacion(fecha)
+                franjas_info = {
+                    'temprano': ('07:00-09:00', (7, 9)),
+                    'manana': ('09:00-11:00', (9, 11)),
+                    'tarde': ('12:00-15:00', (12, 15))
+                }
                 
-                mensaje = f"📊 **Análisis difuso para {fecha.strftime('%A %d de %B')}**\n\n"
-                mensaje += f"🏆 **Mejor recomendación:** {mejor_franja} ({mejor_datos['rango']})\n"
-                mensaje += f"📈 **Puntuación:** {mejor_datos['recomendacion']:.0f}/100\n"
-                mensaje += f"⏱️ **Espera estimada:** {mejor_datos['espera_estimada']:.0f} minutos\n"
-                mensaje += f"📊 **Ocupación:** {mejor_datos['ocupacion']:.0f}%\n"
-                mensaje += f"🕐 **Horarios sugeridos:** {', '.join(mejor_datos['horarios_sugeridos'])}\n\n"
+                # Calcular tiempo de espera con motor difuso
+                recomendaciones_detalladas = {}
+                for franja, porcentaje_ocupacion in ocupacion_franjas.items():
+                    urgencia = 5  # Nivel medio
+                    tiempo_espera = calcular_espera(porcentaje_ocupacion, urgencia)
+                    
+                    rango, horas = franjas_info[franja]
+                    
+                    # Obtener horarios disponibles de esta franja
+                    horarios_franja = [h for h in horarios_libres if 
+                                      horas[0] <= int(h.split(':')[0]) < horas[1]]
+                    
+                    recomendaciones_detalladas[franja] = {
+                        'rango': rango,
+                        'ocupacion': porcentaje_ocupacion,
+                        'espera_estimada': tiempo_espera,
+                        'horarios_disponibles': horarios_franja[:5]
+                    }
                 
-                mensaje += "📋 **Todas las opciones disponibles:**\n"
-                for franja_nombre, franja_datos in sorted(analisis.items(), key=lambda x: x[1]['recomendacion'], reverse=True):
-                    emoji = "🟢" if franja_datos['recomendacion'] >= 75 else "🟡" if franja_datos['recomendacion'] >= 50 else "🔴"
-                    mensaje += f"{emoji} **{franja_nombre}** ({franja_datos['rango']}): "
-                    mensaje += f"Espera {franja_datos['espera_estimada']:.0f}min, "
-                    mensaje += f"Ocupación {franja_datos['ocupacion']:.0f}%\n"
+                # Ordenar por mejor (menor ocupación y espera)
+                franjas_ordenadas = sorted(
+                    recomendaciones_detalladas.items(),
+                    key=lambda x: (x[1]['ocupacion'], x[1]['espera_estimada'])
+                )
                 
-                mensaje += "\n¿Cuál de estos horarios preferís?"
+                mensaje = f"📊 **Análisis de disponibilidad REAL para {fecha.strftime('%A %d de %B')}**\n\n"
+                
+                mejor_franja_nombre, mejor_franja_datos = franjas_ordenadas[0]
+                mensaje += f"🏆 **Mejor opción:** {mejor_franja_nombre.title()} ({mejor_franja_datos['rango']})\n"
+                mensaje += f"📈 **Ocupación:** {mejor_franja_datos['ocupacion']:.0f}%\n"
+                mensaje += f"⏱️ **Espera estimada:** {mejor_franja_datos['espera_estimada']:.0f} minutos\n"
+                
+                if mejor_franja_datos['horarios_disponibles']:
+                    mensaje += f"🕐 **Horarios libres:** {', '.join(mejor_franja_datos['horarios_disponibles'])}\n\n"
+                
+                mensaje += "📋 **Todas las opciones:**\n"
+                for franja_nombre, datos in franjas_ordenadas:
+                    emoji = "🟢" if datos['ocupacion'] < 50 else "🟡" if datos['ocupacion'] < 80 else "🔴"
+                    mensaje += f"{emoji} **{franja_nombre.title()}** ({datos['rango']}): "
+                    mensaje += f"{datos['ocupacion']:.0f}% ocupado, "
+                    mensaje += f"espera {datos['espera_estimada']:.0f}min\n"
+                
+                if not horarios_libres:
+                    mensaje += "\n⚠️ **No hay horarios disponibles** para esta fecha. Probá con otra fecha."
+                else:
+                    mensaje += f"\n💡 Total de horarios libres: {len(horarios_libres)}"
+                
+                mensaje += "\n\n¿Cuál horario preferís?"
                 
                 dispatcher.utter_message(text=mensaje)
-                logger.info(f"✅ Motor difuso completado exitosamente")
+                logger.info(f"✅ Recomendación basada en BD real completada")
                 
                 if conversation_logger:
                     response_time_ms = int((time.time() - start_time) * 1000)
                     log_rasa_interaction(
                         conversation_logger,
                         tracker,
-                        "Motor difuso activado - análisis completo generado",
+                        "Motor difuso con BD real - análisis completado",
                         response_time_ms
                     )
                 
                 return []
                 
-            except Exception as e:
-                logger.error(f"Error usando motor difuso avanzado: {e}")
-        
-        franjas = [
-            ("mañana temprano (07:00-09:00)", [7, 8, 9]),
-            ("media mañana (09:30-11:30)", [9.5, 10, 10.5, 11]),
-            ("tarde (14:30-16:30)", [14.5, 15, 15.5, 16])
-        ]
-        
-        recomendaciones = []
-        for nombre_franja, horas in franjas:
-            ocupacion_promedio = 0
-            for hora_decimal in horas:
-                hora = int(hora_decimal)
-                minuto = int((hora_decimal % 1) * 60)
-                fecha_hora = datetime.datetime.combine(fecha, datetime.time(hora, minuto))
-                ocupacion = obtener_ocupacion_simulada(fecha_hora)
-                ocupacion_promedio += ocupacion
-            
-            ocupacion_promedio /= len(horas)
-            urgencia = 5
-            
-            hora_promedio = sum(horas) / len(horas)
-            tiempo_espera = calcular_espera(ocupacion_promedio, urgencia)
-            
-            recomendaciones.append((nombre_franja, ocupacion_promedio, tiempo_espera, horas))
-        
-        recomendaciones.sort(key=lambda x: x[2])
-        
-        mejor_franja = recomendaciones[0]
-        nombre_franja, ocupacion, tiempo_espera, horas = mejor_franja
-        
-        horarios_disponibles = []
-        for hora_decimal in horas[:3]:
-            hora = int(hora_decimal)
-            minuto = int((hora_decimal % 1) * 60)
-            horarios_disponibles.append(f"{hora:02d}:{minuto:02d}")
-        
-        mensaje = f"📊 Según el análisis de disponibilidad, te recomiendo **{nombre_franja}**.\n"
-        mensaje += f"⏱️ Tiempo estimado de espera: **{tiempo_espera:.1f} minutos**\n"
-        mensaje += f"📊 Ocupación estimada: **{ocupacion:.0f}%**\n"
-        mensaje += f"🕐 Horarios disponibles: **{', '.join(horarios_disponibles)}**\n\n"
-        mensaje += "¿Cuál de estos horarios preferís?"
-        
-        dispatcher.utter_message(text=mensaje)
-        logger.info(f"✅ Motor difuso completado: {mensaje[:50]}...")
-        
-        if conversation_logger:
-            response_time_ms = int((time.time() - start_time) * 1000)
-            log_rasa_interaction(
-                conversation_logger,
-                tracker,
-                "Motor difuso básico activado - recomendaciones generadas",
-                response_time_ms
-            )
-        
-        return []
+        except Exception as e:
+            logger.error(f"❌ Error consultando BD en motor difuso: {e}")
+            dispatcher.utter_message(text="No pude consultar la disponibilidad en este momento. Intentá de nuevo.")
+            return []
 
 class ActionConsultarDisponibilidad(Action):
     def name(self) -> Text:
         return "action_consultar_disponibilidad"
 
     def run(self, dispatcher: CollectingDispatcher,
-        tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-    
-            hoy = datetime.date.today()
-            disponibilidad = []
-            
-            try:
-                with get_db_session() as session:
-                    for i in range(1, 6):
-                        fecha = hoy + datetime.timedelta(days=i)
-                        if fecha.weekday() < 5:
-                            ocupacion_franjas = consultar_disponibilidad_real(fecha, session)
-                            ocupacion_promedio = sum(ocupacion_franjas.values()) / len(ocupacion_franjas)
-                            
-                            if ocupacion_promedio < 50:
-                                estado, emoji = "Alta disponibilidad", "🟢"
-                            elif ocupacion_promedio < 80:
-                                estado, emoji = "Disponibilidad media", "🟡"
-                            else:
-                                estado, emoji = "Poca disponibilidad", "🔴"
-                            
-                            disponibilidad.append(f"{emoji} {fecha.strftime('%A %d/%m')}: {estado}")
-            except Exception as e:
-                logger.error(f"Error consultando disponibilidad: {e}")
-                dispatcher.utter_message(text="No pude consultar la disponibilidad.")
-                return []
-            
-            mensaje = "📊 **Disponibilidad próximos días:**\n\n"
-            mensaje += "\n".join(disponibilidad)
-            mensaje += "\n\n🕐 **Horario:** 7:00 - 15:00\n🍽️ **Almuerzo:** 11:00 (cerrado)"
-            mensaje += "\n\n¿Para qué fecha querés agendar?"
-            
-            dispatcher.utter_message(text=mensaje)
-            if conversation_logger:
-                log_rasa_interaction(conversation_logger, tracker, "Consulta disponibilidad real")
+            tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        
+        hoy = datetime.date.today()
+        disponibilidad = []
+        
+        try:
+            with get_db_session() as session:
+                for i in range(1, 6):
+                    fecha = hoy + datetime.timedelta(days=i)
+                    if fecha.weekday() < 5:  # Solo días hábiles
+                        ocupacion_franjas = consultar_disponibilidad_real(fecha, session)
+                        ocupacion_promedio = sum(ocupacion_franjas.values()) / len(ocupacion_franjas)
+                        
+                        if ocupacion_promedio < 50:
+                            estado, emoji = "Alta disponibilidad", "🟢"
+                        elif ocupacion_promedio < 80:
+                            estado, emoji = "Disponibilidad media", "🟡"
+                        else:
+                            estado, emoji = "Poca disponibilidad", "🔴"
+                        
+                        disponibilidad.append(
+                            f"{emoji} {fecha.strftime('%A %d/%m')}: {estado} ({ocupacion_promedio:.0f}% ocupado)"
+                        )
+        except Exception as e:
+            logger.error(f"Error consultando disponibilidad: {e}")
+            dispatcher.utter_message(text="No pude consultar la disponibilidad.")
             return []
+        
+        mensaje = "📊 **Disponibilidad próximos días (basado en BD real):**\n\n"
+        mensaje += "\n".join(disponibilidad)
+        mensaje += "\n\n🕐 **Horario:** 7:00 - 15:00\n🍽️ **Almuerzo:** 11:00 (cerrado)"
+        mensaje += "\n\n¿Para qué fecha querés agendar?"
+        
+        dispatcher.utter_message(text=mensaje)
+        if conversation_logger:
+            log_rasa_interaction(conversation_logger, tracker, "Consulta disponibilidad real")
+        return []
 
 class ActionTiempoEsperaActual(Action):
     def name(self) -> Text:
@@ -724,36 +768,42 @@ class ActionTiempoEsperaActual(Action):
             tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         
         ahora = datetime.datetime.now()
-        ocupacion_actual = obtener_ocupacion_simulada(ahora)
-        urgencia = 5
+        hoy = ahora.date()
+        hora_actual = ahora.hour
         
-        tiempo_espera = calcular_espera(ocupacion_actual, urgencia)
+        try:
+            with get_db_session() as session:
+                # Consultar ocupación real de la hora actual
+                ocupacion_actual = consultar_ocupacion_real_bd(hoy, hora_actual, hora_actual + 1, session)
+                urgencia = 5
+                tiempo_espera = calcular_espera(ocupacion_actual, urgencia)
+                
+                if ocupacion_actual < 40:
+                    estado, emoji = "tranquila", "🟢"
+                elif ocupacion_actual < 70:
+                    estado, emoji = "moderada", "🟡"
+                else:
+                    estado, emoji = "ocupada", "🔴"
+                
+                mensaje = f"{emoji} **Estado actual de la oficina:** {estado}\n"
+                mensaje += f"📊 **Nivel de ocupación REAL:** {ocupacion_actual:.0f}%\n"
+                mensaje += f"⏱️ **Tiempo estimado de espera:** {tiempo_espera:.1f} minutos\n\n"
+                
+                if ocupacion_actual > 80:
+                    mensaje += "💡 Te recomiendo agendar para otro horario si es posible."
+                
+                dispatcher.utter_message(text=mensaje)
+                
+                if conversation_logger:
+                    log_rasa_interaction(
+                        conversation_logger,
+                        tracker,
+                        f"Consulta tiempo espera real: {tiempo_espera:.1f}min, ocupación: {ocupacion_actual}%"
+                    )
         
-        if ocupacion_actual < 40:
-            estado = "tranquila"
-            emoji = "🟢"
-        elif ocupacion_actual < 70:
-            estado = "moderada"
-            emoji = "🟡"
-        else:
-            estado = "ocupada"
-            emoji = "🔴"
-        
-        mensaje = f"{emoji} **Estado actual de la oficina:** {estado}\n"
-        mensaje += f"📊 **Nivel de ocupación:** {ocupacion_actual}%\n"
-        mensaje += f"⏱️ **Tiempo estimado de espera:** {tiempo_espera:.1f} minutos\n\n"
-        
-        if ocupacion_actual > 80:
-            mensaje += "💡 Te recomiendo agendar para otro horario si es posible."
-        
-        dispatcher.utter_message(text=mensaje)
-        
-        if conversation_logger:
-            log_rasa_interaction(
-                conversation_logger,
-                tracker,
-                f"Consulta tiempo espera: {tiempo_espera:.1f}min, ocupación: {ocupacion_actual}%"
-            )
+        except Exception as e:
+            logger.error(f"Error consultando estado actual: {e}")
+            dispatcher.utter_message(text="No pude consultar el estado actual.")
         
         return []
 
@@ -765,41 +815,41 @@ class ActionCalcularSaturacion(Action):
             tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         
         ahora = datetime.datetime.now()
-        ocupacion_actual = obtener_ocupacion_simulada(ahora)
+        hoy = ahora.date()
+        hora_actual = ahora.hour
         
-        if ocupacion_actual < 30:
-            estado = "muy baja"
-            emoji = "🟢"
-            descripcion = "La oficina está muy tranquila"
-        elif ocupacion_actual < 50:
-            estado = "baja"
-            emoji = "🟢"
-            descripcion = "Poca gente esperando"
-        elif ocupacion_actual < 70:
-            estado = "media"
-            emoji = "🟡"
-            descripcion = "Nivel normal de ocupación"
-        elif ocupacion_actual < 85:
-            estado = "alta"
-            emoji = "🟠"
-            descripcion = "Bastante gente esperando"
-        else:
-            estado = "muy alta"
-            emoji = "🔴"
-            descripcion = "La oficina está muy llena"
+        try:
+            with get_db_session() as session:
+                # Consultar ocupación real
+                ocupacion_actual = consultar_ocupacion_real_bd(hoy, hora_actual, hora_actual + 1, session)
+                
+                if ocupacion_actual < 30:
+                    estado, emoji, descripcion = "muy baja", "🟢", "La oficina está muy tranquila"
+                elif ocupacion_actual < 50:
+                    estado, emoji, descripcion = "baja", "🟢", "Poca gente esperando"
+                elif ocupacion_actual < 70:
+                    estado, emoji, descripcion = "media", "🟡", "Nivel normal de ocupación"
+                elif ocupacion_actual < 85:
+                    estado, emoji, descripcion = "alta", "🟠", "Bastante gente esperando"
+                else:
+                    estado, emoji, descripcion = "muy alta", "🔴", "La oficina está muy llena"
+                
+                mensaje = f"{emoji} **Saturación actual (BD real):** {estado}\n"
+                mensaje += f"📊 **Porcentaje de ocupación:** {ocupacion_actual:.0f}%\n"
+                mensaje += f"📝 **Estado:** {descripcion}"
+                
+                dispatcher.utter_message(text=mensaje)
+                
+                if conversation_logger:
+                    log_rasa_interaction(
+                        conversation_logger,
+                        tracker,
+                        f"Consulta saturación real: {estado} ({ocupacion_actual}%)"
+                    )
         
-        mensaje = f"{emoji} **Saturación actual:** {estado}\n"
-        mensaje += f"📊 **Porcentaje de ocupación:** {ocupacion_actual}%\n"
-        mensaje += f"📝 **Estado:** {descripcion}"
-        
-        dispatcher.utter_message(text=mensaje)
-        
-        if conversation_logger:
-            log_rasa_interaction(
-                conversation_logger,
-                tracker,
-                f"Consulta saturación: {estado} ({ocupacion_actual}%)"
-            )
+        except Exception as e:
+            logger.error(f"Error consultando saturación: {e}")
+            dispatcher.utter_message(text="No pude consultar la saturación actual.")
         
         return []
 

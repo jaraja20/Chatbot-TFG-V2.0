@@ -1,9 +1,7 @@
 """
-Script para poblar la base de datos con turnos simulados
+Script para poblar la base de datos con turnos simulados con integración Google Calendar
 Genera turnos de octubre 2025 con horarios cada 15 minutos
 Horario: 7:00 - 15:00 (excepto 11:00 por almuerzo)
-Cada hora tiene 4 slots: :00, :15, :30, :45
-Deja 1 slot libre por horario (3 de 4 ocupados)
 """
 
 from sqlalchemy import create_engine, Column, String, Integer, DateTime
@@ -11,6 +9,8 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 import datetime
 import random
 import string
+from calendar_utils import crear_evento_turno
+import time
 
 DATABASE_URL = 'postgresql://botuser:root@localhost:5432/chatbotdb'
 
@@ -27,6 +27,7 @@ class Turno(Base):
     fecha_hora = Column(DateTime, nullable=False)
     codigo = Column(String(10), unique=True, nullable=False)
     estado = Column(String(20), default='activo')
+    event_id = Column(String(255))  # <- NUEVA COLUMNA
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 NOMBRES = [
@@ -65,30 +66,29 @@ def generar_horarios_disponibles():
             horarios.append(datetime.time(hora, minuto))
     return horarios
 
-def poblar_base_datos(limpiar_existentes=False):
+def poblar_base_datos(limpiar_existentes=False, sincronizar_calendar=True):
     session = Session()
     
     try:
         if limpiar_existentes:
-            print("🗑️  Eliminando turnos existentes...")
+            print("Eliminando turnos existentes...")
             session.query(Turno).delete()
             session.commit()
-            print("✅ Turnos existentes eliminados")
+            print("Turnos existentes eliminados")
         
-        print("\n📅 Generando turnos para octubre 2025...")
-        print("⏰ Horario: 7:00 - 15:00 (pausa 11:00)")
-        print("📊 4 slots por hora, ocupando 3 de 4 (dejando 1 libre)\n")
+        print("\nGenerando turnos para octubre 2025...")
+        print("Horario: 7:00 - 15:00 (pausa 11:00)")
+        
+        if sincronizar_calendar:
+            print("ADVERTENCIA: Esto creara eventos en Google Calendar")
+            print("Tiempo estimado: 15-20 minutos\n")
         
         dias_laborables = obtener_dias_laborables_octubre_2025()
         horarios = generar_horarios_disponibles()
         
         turnos_creados = 0
-        turnos_totales = len(dias_laborables) * len(horarios)
-        
-        print(f"📈 Días laborables: {len(dias_laborables)}")
-        print(f"🕐 Horarios por día: {len(horarios)}")
-        print(f"📊 Capacidad total: {turnos_totales} slots")
-        print(f"🎯 Turnos a crear: {int(turnos_totales * 0.75)} (75% ocupación)\n")
+        eventos_creados = 0
+        eventos_fallidos = 0
         
         for fecha in dias_laborables:
             print(f"Procesando {fecha.strftime('%A %d/%m/%Y')}...")
@@ -105,12 +105,37 @@ def poblar_base_datos(limpiar_existentes=False):
                     while session.query(Turno).filter_by(codigo=codigo).first():
                         codigo = generar_codigo_unico()
                     
+                    event_id = None
+                    
+                    # Crear evento en Google Calendar si está habilitado
+                    if sincronizar_calendar:
+                        try:
+                            exito, resultado = crear_evento_turno(
+                                nombre=nombre,
+                                cedula=cedula,
+                                fecha_hora=fecha_hora,
+                                codigo_turno=codigo
+                            )
+                            
+                            if exito and 'eid=' in resultado:
+                                event_id = resultado.split('eid=')[1].split('&')[0]
+                                eventos_creados += 1
+                            else:
+                                eventos_fallidos += 1
+                            
+                            time.sleep(0.3)  # Pausa para no saturar API
+                            
+                        except Exception as e:
+                            print(f"  Error creando evento para {codigo}: {e}")
+                            eventos_fallidos += 1
+                    
                     turno = Turno(
                         nombre=nombre,
                         cedula=cedula,
                         fecha_hora=fecha_hora,
                         codigo=codigo,
                         estado='activo',
+                        event_id=event_id,
                         created_at=datetime.datetime.utcnow()
                     )
                     
@@ -119,72 +144,27 @@ def poblar_base_datos(limpiar_existentes=False):
                     
                     if turnos_creados % 50 == 0:
                         session.commit()
-                        print(f"  ✓ {turnos_creados} turnos creados...")
+                        if sincronizar_calendar:
+                            print(f"  {turnos_creados} turnos creados ({eventos_creados} en Calendar)...")
+                        else:
+                            print(f"  {turnos_creados} turnos creados...")
         
         session.commit()
         
-        print(f"\n✅ Proceso completado exitosamente")
-        print(f"📊 Total de turnos creados: {turnos_creados}")
-        print(f"📈 Ocupación promedio: ~75%")
-        print(f"🎯 Slots libres: ~{turnos_totales - turnos_creados}")
+        print(f"\nProceso completado exitosamente")
+        print(f"Total de turnos creados: {turnos_creados}")
         
-        print("\n📊 Estadísticas por horario:")
-        for hora in range(7, 15):
-            if hora == 11:
-                continue
-            count = session.query(Turno).filter(
-                Turno.fecha_hora >= datetime.datetime(2025, 10, 1, hora, 0),
-                Turno.fecha_hora < datetime.datetime(2025, 10, 1, hora + 1, 0)
-            ).count()
-            print(f"  {hora:02d}:00 - {hora:02d}:59 → {count} turnos")
+        if sincronizar_calendar:
+            print(f"Eventos en Google Calendar: {eventos_creados}")
+            print(f"Eventos fallidos: {eventos_fallidos}")
         
+    except KeyboardInterrupt:
+        print("\n\nProceso interrumpido por el usuario")
+        session.rollback()
     except Exception as e:
         session.rollback()
-        print(f"\n❌ Error: {e}")
+        print(f"\nError: {e}")
         raise
-    finally:
-        session.close()
-
-def verificar_disponibilidad_ejemplo():
-    session = Session()
-    
-    try:
-        print("\n🔍 Verificando disponibilidad de ejemplo...")
-        fecha_ejemplo = datetime.date(2025, 10, 1)
-        print(f"\n📅 Disponibilidad para {fecha_ejemplo.strftime('%A %d de octubre')}:\n")
-        
-        for hora in range(7, 15):
-            if hora == 11:
-                print(f"  {hora:02d}:00 - CERRADO (Hora de almuerzo)")
-                continue
-            
-            inicio = datetime.datetime.combine(fecha_ejemplo, datetime.time(hora, 0))
-            fin = datetime.datetime.combine(fecha_ejemplo, datetime.time(hora, 59))
-            
-            turnos_ocupados = session.query(Turno).filter(
-                Turno.fecha_hora >= inicio,
-                Turno.fecha_hora <= fin,
-                Turno.estado == 'activo'
-            ).count()
-            
-            slots_totales = 4
-            slots_libres = slots_totales - turnos_ocupados
-            porcentaje = (turnos_ocupados / slots_totales) * 100
-            
-            if porcentaje >= 75:
-                emoji = "🔴"
-                estado = "Poca disponibilidad"
-            elif porcentaje >= 50:
-                emoji = "🟡"
-                estado = "Disponibilidad media"
-            else:
-                emoji = "🟢"
-                estado = "Alta disponibilidad"
-            
-            print(f"  {emoji} {hora:02d}:00 - {turnos_ocupados}/{slots_totales} ocupados → {estado}")
-        
-    except Exception as e:
-        print(f"❌ Error verificando disponibilidad: {e}")
     finally:
         session.close()
 
@@ -193,55 +173,45 @@ def limpiar_base_datos():
     try:
         count = session.query(Turno).delete()
         session.commit()
-        print(f"✅ {count} turnos eliminados de la base de datos")
+        print(f"{count} turnos eliminados de la base de datos")
     except Exception as e:
         session.rollback()
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
     finally:
         session.close()
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("🤖 SCRIPT DE POBLACIÓN DE TURNOS - OCTUBRE 2025")
+    print("SCRIPT DE POBLACION DE TURNOS - OCTUBRE 2025")
     print("=" * 60)
     
     print("\nOpciones:")
-    print("1. Poblar base de datos (sin eliminar existentes)")
-    print("2. Limpiar y poblar base de datos (elimina turnos actuales)")
-    print("3. Solo limpiar base de datos")
-    print("4. Verificar disponibilidad de ejemplo")
-    print("5. Salir")
+    print("1. Poblar BD + Google Calendar (LENTO, 15-20 min)")
+    print("2. Poblar solo BD (RAPIDO, sin Calendar)")
+    print("3. Limpiar base de datos")
+    print("4. Salir")
     
-    opcion = input("\nSelecciona una opción (1-5): ").strip()
+    opcion = input("\nSelecciona una opcion (1-4): ").strip()
     
     if opcion == "1":
-        print("\n📝 Poblando base de datos (conservando turnos existentes)...\n")
-        poblar_base_datos(limpiar_existentes=False)
-        verificar_disponibilidad_ejemplo()
+        confirmacion = input("\nEsto creara ~1932 eventos en Calendar. Continuar? (si/no): ").lower()
+        if confirmacion == 'si':
+            poblar_base_datos(limpiar_existentes=True, sincronizar_calendar=True)
     
     elif opcion == "2":
-        confirmacion = input("\n⚠️  ¿Estás seguro de eliminar TODOS los turnos existentes? (si/no): ").lower()
+        confirmacion = input("\nEsto eliminara turnos existentes. Continuar? (si/no): ").lower()
         if confirmacion == 'si':
-            print("\n🗑️  Limpiando y poblando base de datos...\n")
-            poblar_base_datos(limpiar_existentes=True)
-            verificar_disponibilidad_ejemplo()
-        else:
-            print("❌ Operación cancelada")
+            poblar_base_datos(limpiar_existentes=True, sincronizar_calendar=False)
     
     elif opcion == "3":
-        confirmacion = input("\n⚠️  ¿Estás seguro de eliminar TODOS los turnos? (si/no): ").lower()
+        confirmacion = input("\nEliminar TODOS los turnos? (si/no): ").lower()
         if confirmacion == 'si':
             limpiar_base_datos()
-        else:
-            print("❌ Operación cancelada")
     
     elif opcion == "4":
-        verificar_disponibilidad_ejemplo()
-    
-    elif opcion == "5":
-        print("👋 Saliendo...")
+        print("Saliendo...")
     
     else:
-        print("❌ Opción inválida")
+        print("Opcion invalida")
     
     print("\n" + "=" * 60)
