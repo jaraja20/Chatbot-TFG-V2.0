@@ -190,28 +190,22 @@ def validar_horario_laboral(hora: datetime.time) -> bool:
         return False
     return datetime.time(7, 0) <= hora <= datetime.time(17, 0)
 
-def obtener_ocupacion_simulada(fecha_hora: datetime.datetime) -> int:
-    """Simula ocupación basada en fecha y hora"""
-    hora = fecha_hora.hour
-    dia_semana = fecha_hora.weekday()
+def consultar_disponibilidad_real(fecha: datetime.date, session) -> Dict[str, int]:
+    """Consulta disponibilidad real desde BD"""
+    ocupacion_franjas = {'temprano': 0, 'manana': 0, 'tarde': 0}
+    franjas_config = {'temprano': (7, 9), 'manana': (9, 11), 'tarde': (12, 15)}
     
-    factor_hora = 50
-    if 8 <= hora <= 10 or 14 <= hora <= 16:
-        factor_hora = 85
-    elif 11 <= hora <= 13:
-        factor_hora = 95
-    elif hora < 8 or hora > 16:
-        factor_hora = 30
-    
-    factor_dia = 70
-    if dia_semana in [0, 4]:
-        factor_dia = 90
-    elif dia_semana in [1, 2, 3]:
-        factor_dia = 60
-    
-    ocupacion = int((factor_hora + factor_dia) / 2)
-    return min(100, max(0, ocupacion + random.randint(-15, 15)))
-
+    for franja, (hora_inicio, hora_fin) in franjas_config.items():
+        inicio = datetime.datetime.combine(fecha, datetime.time(hora_inicio, 0))
+        fin = datetime.datetime.combine(fecha, datetime.time(hora_fin, 0))
+        turnos_ocupados = session.query(Turno).filter(
+            Turno.fecha_hora >= inicio, Turno.fecha_hora < fin, Turno.estado == 'activo'
+        ).count()
+        horas_en_franja = hora_fin - hora_inicio
+        slots_totales = horas_en_franja * 4
+        if slots_totales > 0:
+            ocupacion_franjas[franja] = int((turnos_ocupados / slots_totales) * 100)
+    return ocupacion_franjas
 # =====================================================
 # VALIDACIÓN DE FORMULARIO
 # =====================================================
@@ -234,6 +228,8 @@ class ValidateFormularioTurno(FormValidationAction):
         
         return {"nombre": slot_value.strip().title()}
 
+    
+    
     def validate_cedula(
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
@@ -364,9 +360,9 @@ class ValidateFormularioTurno(FormValidationAction):
                         
                 mensaje = "📊 **Recomendaciones de horario:**\n\n"
                 mensaje += "🌅 **Mañana temprano (07:00-09:00):** Menos ocupado\n"
-                mensaje += "🕐 **Media mañana (09:30-11:30):** Disponibilidad moderada\n" 
-                mensaje += "🌇 **Tarde (14:30-16:30):** Variable según el día\n\n"
-                mensaje += "¿Podés elegir una hora específica? (ej: 08:00, 10:30, 15:00)"
+                mensaje += "🕐 **Media mañana (09:00-11:00):** Disponibilidad moderada\n" 
+                mensaje += "🍽️ **Almuerzo (11:00):** CERRADO\n"
+                mensaje += "🌇 **Tarde (12:00-15:00):** Variable según el día\n\n"
                 
                 dispatcher.utter_message(text=mensaje)
                 return {"hora": None}
@@ -384,7 +380,7 @@ class ValidateFormularioTurno(FormValidationAction):
         
         if not validar_horario_laboral(hora_normalizada):
             dispatcher.utter_message(
-                text="Solo atendemos de 07:00 a 17:00 horas. Elegí una hora dentro de este rango."
+                text="Solo atendemos de 07:00 a 15:00 horas.(cerrado 11:00 por almuerzo). Elegí una hora dentro de este rango."
             )
             return {"hora": None}
         
@@ -684,40 +680,41 @@ class ActionConsultarDisponibilidad(Action):
         return "action_consultar_disponibilidad"
 
     def run(self, dispatcher: CollectingDispatcher,
-            tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-        
-        hoy = datetime.date.today()
-        disponibilidad = []
-        
-        for i in range(1, 6):
-            fecha = hoy + datetime.timedelta(days=i)
-            if fecha.weekday() < 5:
-                ocupacion = random.randint(20, 95)
-                if ocupacion < 50:
-                    estado = "Alta disponibilidad"
-                elif ocupacion < 80:
-                    estado = "Disponibilidad media"
-                else:
-                    estado = "Poca disponibilidad"
-                
-                disponibilidad.append(
-                    f"📅 {fecha.strftime('%A %d/%m')}: {estado}"
-                )
-        
-        mensaje = "📊 **Disponibilidad próximos días:**\n\n"
-        mensaje += "\n".join(disponibilidad)
-        mensaje += "\n\n¿Para qué fecha querés agendar tu turno?"
-        
-        dispatcher.utter_message(text=mensaje)
-        
-        if conversation_logger:
-            log_rasa_interaction(
-                conversation_logger,
-                tracker,
-                "Consulta de disponibilidad general realizada"
-            )
-        
-        return []
+        tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+    
+            hoy = datetime.date.today()
+            disponibilidad = []
+            
+            try:
+                with get_db_session() as session:
+                    for i in range(1, 6):
+                        fecha = hoy + datetime.timedelta(days=i)
+                        if fecha.weekday() < 5:
+                            ocupacion_franjas = consultar_disponibilidad_real(fecha, session)
+                            ocupacion_promedio = sum(ocupacion_franjas.values()) / len(ocupacion_franjas)
+                            
+                            if ocupacion_promedio < 50:
+                                estado, emoji = "Alta disponibilidad", "🟢"
+                            elif ocupacion_promedio < 80:
+                                estado, emoji = "Disponibilidad media", "🟡"
+                            else:
+                                estado, emoji = "Poca disponibilidad", "🔴"
+                            
+                            disponibilidad.append(f"{emoji} {fecha.strftime('%A %d/%m')}: {estado}")
+            except Exception as e:
+                logger.error(f"Error consultando disponibilidad: {e}")
+                dispatcher.utter_message(text="No pude consultar la disponibilidad.")
+                return []
+            
+            mensaje = "📊 **Disponibilidad próximos días:**\n\n"
+            mensaje += "\n".join(disponibilidad)
+            mensaje += "\n\n🕐 **Horario:** 7:00 - 15:00\n🍽️ **Almuerzo:** 11:00 (cerrado)"
+            mensaje += "\n\n¿Para qué fecha querés agendar?"
+            
+            dispatcher.utter_message(text=mensaje)
+            if conversation_logger:
+                log_rasa_interaction(conversation_logger, tracker, "Consulta disponibilidad real")
+            return []
 
 class ActionTiempoEsperaActual(Action):
     def name(self) -> Text:
