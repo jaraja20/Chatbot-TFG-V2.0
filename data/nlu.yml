@@ -529,6 +529,16 @@ nlu:
     - gente esperando
     - cola larga
 
+- intent: proporcionar_email
+  examples: |
+    - mi correo es juan@gmail.com
+    - [juan.perez@outlook.com](email)
+    - te paso mi email: [maria@hotmail.com](email)
+    - quiero recibirlo en [carlos@yahoo.com](email)
+    - mi email es pepito@hotmail.com
+    - enviame a [test@test.com](email)
+    - [usuario123@gmail.com](email)
+
 # =========================
 # REGEX PATTERNS PARA ENTITIES
 # =========================

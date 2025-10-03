@@ -37,12 +37,14 @@ intents:
   - ayuda_tecnica
   - consulta_tiempo_espera
   - calcular_saturacion
+  - proporcionar_email
 
 entities:
   - nombre
   - cedula
   - fecha
   - hora
+  - email
 
 slots:
   nombre:
@@ -88,6 +90,15 @@ slots:
         conditions:
           - active_loop: turno_form
             requested_slot: hora
+  
+  email:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_entity
+        entity: email
+      - type: from_text
+        intent: proporcionar_email
 
   turno_confirmado:
     type: bool
@@ -151,6 +162,10 @@ responses:
   utter_ask_hora:
     - text: "¿A qué hora preferís el turno? Nuestro horario es de 07:00 a 17:00."
     - text: "¿Qué horario te viene bien? Si no estás seguro/a, podés preguntarme por disponibilidad."
+
+  utter_ask_email:
+    - text: "¿Querés recibir una invitación en tu calendario personal? Es opcional. Podés darme tu email o decir 'no' para continuar sin email."
+    - text: "Opcionalmente, puedo enviarte una invitación de calendario a tu email. ¿Cuál es tu correo? O decí 'no' si preferís no recibirlo."
 
   utter_confirmar_turno:
     - text: "Perfecto! Voy a mostrarte un resumen de tu turno para que lo confirmes."

@@ -534,3 +534,33 @@ stories:
     - action: utter_agradecimiento
     - intent: goodbye
     - action: utter_goodbye
+
+- story: Agendamiento con email opcional
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: email
+    - intent: proporcionar_email
+      entities:
+        - email: "usuario@gmail.com"
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: confirmar_turno
+    - action: action_guardar_turno
+
+- story: Agendamiento sin email
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: email
+    - intent: deny
+    - action: turno_form
+    - active_loop: null
+    - action: action_confirmar_datos_turno
+    - intent: confirmar_turno
+    - action: action_guardar_turno
