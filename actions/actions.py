@@ -643,7 +643,7 @@ class ValidateFormularioTurno(FormValidationAction):
             return {"email": None}
         
         # Validar formato email básico
-        patron_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}
+        patron_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if re.match(patron_email, slot_value):
             dispatcher.utter_message(
                 text=f"Perfecto, te enviaremos la invitación a {slot_value}"
