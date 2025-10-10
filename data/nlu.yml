@@ -163,29 +163,29 @@ nlu:
 
 - intent: informar_nombre
   examples: |
-    - mi nombre es Juan Carlos Pérez
-    - me llamo María López
-    - soy Ana Ruiz García
-    - Pedro González
-    - Carmen Silva Rodríguez
-    - José Antonio Martínez
-    - Lucía Fernández
-    - Carlos Eduardo Benítez
-    - Rosa María Duarte
-    - Miguel Ángel Torres
+    - mi nombre es [Juan Carlos Pérez](nombre)
+    - me llamo [María López](nombre)
+    - soy [Ana Ruiz García](nombre)
+    - [Pedro González](nombre)
+    - [Carmen Silva Rodríguez](nombre)
+    - [José Antonio Martínez](nombre)
+    - [Lucía Fernández](nombre)
+    - [Carlos Eduardo Benítez](nombre)
+    - [Rosa María Duarte](nombre)
+    - [Miguel Ángel Torres](nombre)
 
 - intent: informar_cedula
   examples: |
-    - mi cédula es 1234567
-    - documento 2345678
-    - número 3456789
-    - ci 4567890
-    - cédula 5678901
-    - mi número es 6789012
-    - documento de identidad 7890123
-    - 1234567
-    - 2345678
-    - 987654
+    - mi cédula es [1234567](cedula)
+    - documento [2345678](cedula)
+    - número [3456789](cedula)
+    - ci [4567890](cedula)
+    - cédula [5678901](cedula)
+    - mi número es [6789012](cedula)
+    - documento de identidad [7890123](cedula)
+    - [1234567](cedula)
+    - [2345678](cedula)
+    - [987654](cedula)
 
 - intent: informar_cedula_primera_vez
   examples: |
@@ -289,6 +289,19 @@ nlu:
     - ya no necesito
     - cambié de idea
     - mejor no
+
+- intent: consultar_turno
+  examples: |
+    - quiero consultar mi turno
+    - tengo un turno agendado
+    - ver mi turno
+    - consultar cita
+    - revisar mi reserva
+    - qué turno tengo
+    - cuándo es mi turno
+    - mostrar mi turno
+    - verificar mi cita
+    - qué día tengo el turno
 
 - intent: frase_ambigua
   examples: |
@@ -531,13 +544,51 @@ nlu:
 
 - intent: proporcionar_email
   examples: |
-    - mi correo es juan@gmail.com
+    - mi correo es [juan@gmail.com](email)
     - [juan.perez@outlook.com](email)
     - te paso mi email: [maria@hotmail.com](email)
     - quiero recibirlo en [carlos@yahoo.com](email)
-    - mi email es pepito@hotmail.com
+    - mi email es [pepito@hotmail.com](email)
     - enviame a [test@test.com](email)
     - [usuario123@gmail.com](email)
+
+# =========================
+# FALLBACK / OUT OF SCOPE
+# =========================
+- intent: restart
+  examples: |
+    - reiniciar
+    - comenzar de nuevo
+    - restart
+    - empezar otra vez
+    - borrar todo
+    - reset
+    - volver a empezar
+    - iniciar nuevamente
+    - limpiar conversación
+
+- intent: nlu_fallback
+  examples: |
+    - dsadasd
+    - 123456789
+    - asdfghjkl
+    - ???
+    - ...
+    - !!!
+    - qwerty
+    - random text
+    - no entiendo nada
+
+- intent: out_of_scope
+  examples: |
+    - quiero pedir una pizza
+    - cuál es el clima hoy
+    - quién ganó el partido
+    - cómo cocino pasta
+    - qué películas hay en el cine
+    - necesito un taxi
+    - quiero comprar un auto
+    - dónde está el baño
 
 # =========================
 # REGEX PATTERNS PARA ENTITIES
@@ -558,6 +609,10 @@ nlu:
     - \d{1,2}/\d{1,2}/\d{4}
     - \d{1,2}-\d{1,2}-\d{4}
     - \d{1,2}\s?de\s?\w+
+
+- regex: email
+  examples: |
+    - [a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}
 
 # =========================
 # LOOKUP TABLES

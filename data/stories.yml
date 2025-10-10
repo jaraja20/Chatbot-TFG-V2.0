@@ -283,19 +283,11 @@ stories:
 # ===============================
 - story: Usuario corrige datos en confirmación
   steps:
-    - intent: agendar_turno
-    - action: turno_form
-    - active_loop: turno_form
-    - action: turno_form
-    - active_loop: null
     - action: action_confirmar_datos_turno
     - intent: deny
     - action: utter_datos_incorrectos
     - action: turno_form
     - active_loop: turno_form
-    - slot_was_set:
-        - requested_slot: nombre
-    - intent: informar_nombre
     - action: turno_form
     - active_loop: null
     - action: action_confirmar_datos_turno
@@ -464,49 +456,6 @@ stories:
     - active_loop: turno_form
 
 # ===============================
-# CASOS EDGE Y MANEJO DE ERRORES
-# ===============================
-- story: Datos inválidos en formulario
-  steps:
-    - intent: agendar_turno
-    - action: turno_form
-    - active_loop: turno_form
-    - slot_was_set:
-        - requested_slot: nombre
-    - intent: informar_nombre
-    - action: validate_turno_form
-    - action: turno_form
-    - slot_was_set:
-        - requested_slot: nombre
-    - intent: informar_nombre
-    - action: turno_form
-
-- story: Usuario indeciso con múltiples cambios
-  steps:
-    - intent: agendar_turno
-    - action: turno_form
-    - active_loop: turno_form
-    - action: turno_form
-    - active_loop: null
-    - action: action_confirmar_datos_turno
-    - intent: deny
-    - action: utter_datos_incorrectos
-    - action: turno_form
-    - active_loop: turno_form
-    - action: turno_form
-    - active_loop: null
-    - action: action_confirmar_datos_turno
-    - intent: deny
-    - action: utter_datos_incorrectos
-    - action: turno_form
-    - active_loop: turno_form
-    - action: turno_form
-    - active_loop: null
-    - action: action_confirmar_datos_turno
-    - intent: affirm
-    - action: action_guardar_turno
-
-# ===============================
 # FLUJOS CONVERSACIONALES MIXTOS
 # ===============================
 - story: Conversación compleja con múltiples intents
@@ -540,8 +489,6 @@ stories:
     - intent: agendar_turno
     - action: turno_form
     - active_loop: turno_form
-    - slot_was_set:
-        - requested_slot: email
     - intent: proporcionar_email
       entities:
         - email: "usuario@gmail.com"
@@ -556,8 +503,6 @@ stories:
     - intent: agendar_turno
     - action: turno_form
     - active_loop: turno_form
-    - slot_was_set:
-        - requested_slot: email
     - intent: deny
     - action: turno_form
     - active_loop: null

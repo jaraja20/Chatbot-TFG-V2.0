@@ -38,6 +38,10 @@ intents:
   - consulta_tiempo_espera
   - calcular_saturacion
   - proporcionar_email
+  - consultar_turno
+  - restart
+  - nlu_fallback
+  - out_of_scope
 
 entities:
   - nombre
@@ -97,12 +101,35 @@ slots:
     mappings:
       - type: from_entity
         entity: email
+      - type: from_intent
+        intent: deny
+        value: "no_email"
       - type: from_text
         intent: proporcionar_email
+
+  requested_slot:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: custom
 
   turno_confirmado:
     type: bool
     initial_value: false
+    influence_conversation: false
+    mappings:
+      - type: custom
+
+  turno_guardado:
+    type: bool
+    initial_value: false
+    influence_conversation: false
+    mappings:
+      - type: custom
+
+  horario_disponible:
+    type: bool
+    initial_value: true
     influence_conversation: false
     mappings:
       - type: custom
@@ -174,10 +201,12 @@ responses:
     - text: "Algunos datos no están completos o son incorrectos. Vamos a corregirlos:"
 
   utter_turno_guardado_exitosamente:
-    - text: "¡Excelente! Tu turno fue agendado correctamente."
+    - text: "¡Excelente! Tu turno fue agendado correctamente. ✅"
+    - text: "¡Listo! Tu turno quedó confirmado. No olvides llegar 15 minutos antes."
 
   utter_error_guardando_turno:
     - text: "Hubo un problema al guardar tu turno. Por favor intentá de nuevo en unos minutos o contactá al soporte."
+    - text: "No pude guardar tu turno por un error técnico. Intentá nuevamente o llamá al (061) 500-XXX"
 
   utter_consultar_disponibilidad:
     - text: "Te voy a mostrar la disponibilidad actualizada para los próximos días:"
@@ -362,12 +391,15 @@ responses:
 
   utter_out_of_scope:
     - text: "Esa consulta está fuera de mi especialidad. Me enfoco únicamente en trámites de cédula de identidad. ¿Te puedo ayudar con algo relacionado?"
+    - text: "No puedo ayudarte con eso ya que solo manejo temas de cédulas. ¿Necesitás información sobre turnos o requisitos?"
 
   utter_rephrase:
     - text: "No logré entender tu mensaje. ¿Podrías decirlo de otra manera? Recordá que te ayudo con turnos y consultas sobre cédulas."
+    - text: "¿Podrías reformular tu pregunta? Estoy aquí para ayudarte con trámites de cédula."
 
   utter_restart:
     - text: "Reiniciemos la conversación. ¿En qué puedo ayudarte con tu trámite de cédula?"
+    - text: "Comencemos de nuevo. ¿Qué necesitás para tu cédula de identidad?"
 
 actions:
   - validate_turno_form
@@ -378,6 +410,9 @@ actions:
   - action_tiempo_espera_actual
   - action_calcular_saturacion
   - action_session_start
+  - action_consultar_turno_existente
+  - action_deactivate_loop
+  - action_restart
 
 session_config:
   session_expiration_time: 60

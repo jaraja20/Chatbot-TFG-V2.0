@@ -62,12 +62,20 @@ rules:
     - active_loop: turno_form
 
 # ===============================
-# MOTOR DIFUSO - REGLA ÚNICA
+# MOTOR DIFUSO - REGLAS
 # ===============================
-- rule: Activar motor difuso
+- rule: Activar motor difuso sin utterance
   steps:
     - intent: frase_ambigua
     - action: action_recomendar_horario_fuzzy
+
+# ===============================
+# CONSULTA DE TURNO EXISTENTE
+# ===============================
+- rule: Consultar turno existente
+  steps:
+    - intent: consultar_turno
+    - action: action_consultar_turno_existente
 
 # ===============================
 # OTRAS CONSULTAS
@@ -76,12 +84,19 @@ rules:
   steps:
     - intent: consultar_disponibilidad
     - action: action_consultar_disponibilidad
+    - action: utter_consultar_disponibilidad
 
 - rule: Procesar datos completos de turno
   steps:
     - intent: proporcionar_datos_turno
     - action: turno_form
     - active_loop: turno_form
+
+- rule: Responder a frase ambigua
+  steps:
+    - intent: frase_ambigua
+    - action: utter_frase_ambigua
+    - action: action_recomendar_horario_fuzzy
 
 # ===============================
 # CANCELACIÓN DE TURNOS
@@ -201,9 +216,107 @@ rules:
     - action: utter_did_that_help
 
 # ===============================
+# FALLBACK Y OUT OF SCOPE
+# ===============================
+- rule: Respuesta fallback
+  steps:
+    - intent: nlu_fallback
+    - action: utter_default
+    - action: utter_rephrase
+
+- rule: Respuesta fuera de alcance
+  steps:
+    - intent: out_of_scope
+    - action: utter_out_of_scope
+
+# ===============================
 # REGLAS DE SESIÓN
 # ===============================
 - rule: Inicialización de sesión
   conversation_start: true
   steps:
     - action: action_session_start
+
+# ===============================
+# MANEJO DE INTERRUPCIONES EN FORMULARIO
+# ===============================
+- rule: Interrupción con frase ambigua durante formulario
+  condition:
+    - active_loop: turno_form
+  steps:
+    - intent: frase_ambigua
+    - action: action_recomendar_horario_fuzzy
+    - action: turno_form
+    - active_loop: turno_form
+
+- rule: Interrupción con consulta disponibilidad durante formulario
+  condition:
+    - active_loop: turno_form
+  steps:
+    - intent: consultar_disponibilidad
+    - action: action_consultar_disponibilidad
+    - action: turno_form
+    - active_loop: turno_form
+
+- rule: Interrupción con consulta requisitos durante formulario
+  condition:
+    - active_loop: turno_form
+  steps:
+    - intent: consultar_requisitos
+    - action: utter_consultar_requisitos
+    - action: turno_form
+    - active_loop: turno_form
+
+- rule: Interrupción con consulta requisitos primera vez durante formulario
+  condition:
+    - active_loop: turno_form
+  steps:
+    - intent: consultar_requisitos_primera_vez
+    - action: utter_consultar_requisitos_primera_vez
+    - action: turno_form
+    - active_loop: turno_form
+
+# ===============================
+# ACCIONES POSTERIORES A GUARDAR TURNO
+# ===============================
+- rule: Mostrar mensaje exitoso después de guardar
+  steps:
+    - action: action_guardar_turno
+    - action: utter_turno_guardado_exitosamente
+
+- rule: Manejar error al guardar turno
+  steps:
+    - action: action_guardar_turno
+    - slot_was_set:
+        - turno_guardado: false
+    - action: utter_error_guardando_turno
+
+# ===============================
+# MANEJO DE HORARIOS NO DISPONIBLES
+# ===============================
+- rule: Horario no disponible
+  condition:
+    - slot_was_set:
+        - horario_disponible: false
+  steps:
+    - action: utter_horario_no_disponible
+    - action: utter_recomendar_horario
+
+# ===============================
+# CONFIRMACIÓN DE TURNO ALTERNATIVAS
+# ===============================
+- rule: Mostrar confirmación de turno
+  condition:
+    - slot_was_set:
+        - turno_confirmado: pending
+  steps:
+    - action: utter_confirmar_turno
+
+# ===============================
+# RESTART CONVERSATION
+# ===============================
+- rule: Restart conversation
+  steps:
+    - intent: restart
+    - action: utter_restart
+    - action: action_restart
