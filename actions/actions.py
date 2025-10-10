@@ -194,79 +194,133 @@ def validar_horario_laboral(hora: datetime.time) -> bool:
     # Horario de atención: 7:00 - 15:00
     return datetime.time(7, 0) <= hora <= datetime.time(15, 0)
 
+# ✅ FUNCIÓN CORREGIDA: Consulta BD real con debug detallado
 def consultar_ocupacion_real_bd(fecha: datetime.date, hora_inicio: int, hora_fin: int, session) -> float:
     """
     Consulta la ocupación REAL de la base de datos para un rango de horas
-    Retorna el porcentaje de ocupación (0-100)
+    Retorna el porcentaje de ocupación (0-100) con debug detallado
     """
-    inicio = datetime.datetime.combine(fecha, datetime.time(hora_inicio, 0))
-    fin = datetime.datetime.combine(fecha, datetime.time(hora_fin, 0))
-    
-    # Contar turnos ocupados en la BD
-    turnos_ocupados = session.query(Turno).filter(
-        Turno.fecha_hora >= inicio,
-        Turno.fecha_hora < fin,
-        Turno.estado == 'activo'
-    ).count()
-    
-    # Calcular slots totales considerando 3 mesas simultáneas
-    horas_en_rango = hora_fin - hora_inicio
-    slots_por_hora = 4  # Cada 15 minutos: :00, :15, :30, :45
-    mesas_simultaneas = 3  # 3 personas atendidas al mismo tiempo
-    slots_totales = horas_en_rango * slots_por_hora * mesas_simultaneas
-    
-    if slots_totales == 0:
-        return 0.0
-    
-    porcentaje_ocupacion = (turnos_ocupados / slots_totales) * 100
-    return round(porcentaje_ocupacion, 1)
+    try:
+        inicio = datetime.datetime.combine(fecha, datetime.time(hora_inicio, 0))
+        fin = datetime.datetime.combine(fecha, datetime.time(hora_fin, 0))
+        
+        # DEBUG: Log de consulta
+        logger.info(f"🔍 DEBUG BD: Consultando ocupación desde {inicio} hasta {fin}")
+        
+        # Contar turnos ocupados en la BD
+        turnos_ocupados = session.query(Turno).filter(
+            Turno.fecha_hora >= inicio,
+            Turno.fecha_hora < fin,
+            Turno.estado == 'activo'
+        ).count()
+        
+        # DEBUG: Mostrar turnos encontrados
+        turnos_detalle = session.query(Turno).filter(
+            Turno.fecha_hora >= inicio,
+            Turno.fecha_hora < fin,
+            Turno.estado == 'activo'
+        ).all()
+        
+        logger.info(f"🔍 DEBUG BD: Turnos encontrados: {turnos_ocupados}")
+        for turno in turnos_detalle:
+            logger.info(f"  - {turno.nombre} el {turno.fecha_hora} (código: {turno.codigo})")
+        
+        # Calcular slots totales considerando 3 mesas simultáneas
+        horas_en_rango = hora_fin - hora_inicio
+        slots_por_hora = 4  # Cada 15 minutos: :00, :15, :30, :45
+        mesas_simultaneas = 3  # 3 personas atendidas al mismo tiempo
+        slots_totales = horas_en_rango * slots_por_hora * mesas_simultaneas
+        
+        logger.info(f"🔍 DEBUG BD: Slots totales calculados: {slots_totales} (horas: {horas_en_rango}, slots/hora: {slots_por_hora}, mesas: {mesas_simultaneas})")
+        
+        if slots_totales == 0:
+            logger.warning("🔍 DEBUG BD: Slots totales = 0, retornando 0% ocupación")
+            return 0.0
+        
+        porcentaje_ocupacion = (turnos_ocupados / slots_totales) * 100
+        logger.info(f"🔍 DEBUG BD: Ocupación calculada: {porcentaje_ocupacion:.1f}% ({turnos_ocupados}/{slots_totales})")
+        
+        return round(porcentaje_ocupacion, 1)
+        
+    except Exception as e:
+        logger.error(f"❌ ERROR consultar_ocupacion_real_bd: {e}")
+        return 0.0  # En caso de error, asumir 0% ocupación
 
-def consultar_disponibilidad_real(fecha: datetime.date, session) -> Dict[str, int]:
-    """Consulta disponibilidad real desde BD por franjas horarias"""
-    ocupacion_franjas = {}
-    
-    franjas_config = {
-        'temprano': (7, 9),    # 7:00-9:00
-        'manana': (9, 11),     # 9:00-11:00 (antes de almuerzo)
-        'tarde': (12, 15)      # 12:00-15:00 (después de almuerzo)
-    }
-    
-    for franja, (hora_inicio, hora_fin) in franjas_config.items():
-        ocupacion = consultar_ocupacion_real_bd(fecha, hora_inicio, hora_fin, session)
-        ocupacion_franjas[franja] = int(ocupacion)
-    
-    return ocupacion_franjas
-
-def obtener_horarios_disponibles_reales(fecha: datetime.date, session, limite: int = 10) -> List[str]:
+# ✅ FUNCIÓN CORREGIDA: Obtener horarios disponibles reales
+def obtener_horarios_disponibles_reales(fecha: datetime.date, session, limite: int = 20) -> List[str]:
     """
-    Obtiene horarios REALMENTE disponibles de la BD
+    Obtiene horarios REALMENTE disponibles de la BD con debug detallado
     Retorna lista de horarios en formato HH:MM
     """
-    horarios_disponibles = []
-    
-    # Generar todos los horarios posibles (7:00-15:00, cada 15 min, excepto 11:00)
-    for hora in range(7, 15):
-        if hora == 11:  # Saltar hora de almuerzo
-            continue
+    try:
+        logger.info(f"🔍 DEBUG: Buscando horarios disponibles para {fecha}")
+        horarios_disponibles = []
         
-        for minuto in [0, 15, 30, 45]:
-            hora_dt = datetime.time(hora, minuto)
-            fecha_hora = datetime.datetime.combine(fecha, hora_dt)
+        # Total de turnos para esta fecha (para debug)
+        total_turnos_fecha = session.query(Turno).filter(
+            func.date(Turno.fecha_hora) == fecha,
+            Turno.estado == 'activo'
+        ).count()
+        logger.info(f"🔍 DEBUG: Total turnos ya agendados para {fecha}: {total_turnos_fecha}")
+        
+        # Generar todos los horarios posibles (7:00-15:00, cada 15 min, excepto 11:00-11:59)
+        for hora in range(7, 15):
+            if hora == 11:  # Saltar hora de almuerzo
+                logger.info(f"🔍 DEBUG: Saltando hora {hora}:XX (almuerzo)")
+                continue
             
-            # Contar turnos en este horario (máximo 3 simultáneos)
-            turnos_en_horario = session.query(Turno).filter(
-                Turno.fecha_hora == fecha_hora,
-                Turno.estado == 'activo'
-            ).count()
-            
-            # Si hay menos de 3 turnos, hay disponibilidad
-            if turnos_en_horario < 3:
-                horarios_disponibles.append(f"{hora:02d}:{minuto:02d}")
+            for minuto in [0, 15, 30, 45]:
+                hora_dt = datetime.time(hora, minuto)
+                fecha_hora = datetime.datetime.combine(fecha, hora_dt)
+                
+                # Contar turnos en este horario exacto (máximo 3 simultáneos)
+                turnos_en_horario = session.query(Turno).filter(
+                    Turno.fecha_hora == fecha_hora,
+                    Turno.estado == 'activo'
+                ).count()
+                
+                # Si hay menos de 3 turnos, hay disponibilidad
+                if turnos_en_horario < 3:
+                    horario_str = f"{hora:02d}:{minuto:02d}"
+                    horarios_disponibles.append(horario_str)
+                    logger.info(f"🔍 DEBUG: {horario_str} disponible ({turnos_en_horario}/3 ocupado)")
+                else:
+                    logger.info(f"🔍 DEBUG: {hora:02d}:{minuto:02d} ocupado ({turnos_en_horario}/3)")
                 
                 if len(horarios_disponibles) >= limite:
+                    logger.info(f"🔍 DEBUG: Límite alcanzado ({limite}), retornando horarios")
                     return horarios_disponibles
-    
-    return horarios_disponibles
+        
+        logger.info(f"🔍 DEBUG: Total horarios disponibles encontrados: {len(horarios_disponibles)}")
+        return horarios_disponibles
+        
+    except Exception as e:
+        logger.error(f"❌ ERROR obtener_horarios_disponibles_reales: {e}")
+        return []
+
+# ✅ FUNCIÓN CORREGIDA: Consultar disponibilidad con debug
+def consultar_disponibilidad_real(fecha: datetime.date, session) -> Dict[str, int]:
+    """Consulta disponibilidad real desde BD por franjas horarias con debug"""
+    try:
+        logger.info(f"🔍 DEBUG: Consultando disponibilidad real para {fecha}")
+        ocupacion_franjas = {}
+        
+        franjas_config = {
+            'temprano': (7, 9),    # 7:00-9:00
+            'manana': (9, 11),     # 9:00-11:00 (antes de almuerzo)
+            'tarde': (12, 15)      # 12:00-15:00 (después de almuerzo)
+        }
+        
+        for franja, (hora_inicio, hora_fin) in franjas_config.items():
+            ocupacion = consultar_ocupacion_real_bd(fecha, hora_inicio, hora_fin, session)
+            ocupacion_franjas[franja] = int(ocupacion)
+            logger.info(f"🔍 DEBUG: Franja {franja} ({hora_inicio}-{hora_fin}): {ocupacion}% ocupado")
+        
+        return ocupacion_franjas
+        
+    except Exception as e:
+        logger.error(f"❌ ERROR consultar_disponibilidad_real: {e}")
+        return {'temprano': 0, 'manana': 0, 'tarde': 0}
 
 # ✅ CORREGIDO: Detectar frases ambiguas ANTES de procesarlas
 def es_frase_ambigua(texto: str) -> bool:
@@ -312,6 +366,11 @@ def es_frase_ambigua(texto: str) -> bool:
         "a la tarde",
         "temprano",
         "cualquier horario",
+        "que horarios hay",
+        "que horarios",
+        "horarios disponibles",
+        "esta disponible",
+        "está disponible",
     ]
     
     todas_frases = frases_fecha_ambigua + frases_hora_ambigua
@@ -330,7 +389,7 @@ class ValidateFormularioTurno(FormValidationAction):
         tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
         if not slot_value or len(slot_value.strip()) < 3:
-            dispatcher.utter_message(text="Por favor, proporcioná tu nombre completo (mínimo 3 caracteres).")
+            dispatcher.utter_message(text="Por favor, proporciona tu nombre completo (mínimo 3 caracteres).")
             return {"nombre": None}
         
         partes = slot_value.strip().split()
@@ -352,7 +411,7 @@ class ValidateFormularioTurno(FormValidationAction):
         frases_primera_vez = ["primera vez", "no tengo", "nunca tuve", "primera", "no tengo cedula"]
         if any(frase in texto for frase in frases_primera_vez):
             dispatcher.utter_message(
-                text="Entendido, es tu primera cédula. Recordá que necesitarás partida de nacimiento original."
+                text="Entendido, es tu primera cédula. Recorda que necesitarás partida de nacimiento original."
             )
             return {"cedula": "PRIMERA_VEZ"}
         
@@ -448,7 +507,7 @@ class ValidateFormularioTurno(FormValidationAction):
         )
         return {"fecha": fecha_normalizada.isoformat()}
 
-    # ✅ CORREGIDO: validate_hora mejorado
+    # ✅ CORREGIDO: validate_hora con mejor debug y lógica
     def validate_hora(
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
@@ -457,25 +516,33 @@ class ValidateFormularioTurno(FormValidationAction):
             return {"hora": None}
         
         texto_usuario = str(slot_value).strip()
+        logger.info(f"🔍 DEBUG: Validando hora: '{texto_usuario}'")
         
         # ✅ MEJOR DETECCIÓN: Usar función centralizada
         if es_frase_ambigua(texto_usuario):
-            logger.info(f"Frase ambigua detectada en hora: '{texto_usuario}' - Consultando BD real")
+            logger.info(f"🔍 DEBUG: Frase ambigua detectada en hora: '{texto_usuario}' - Consultando BD real")
             
             try:
                 fecha_slot = tracker.get_slot("fecha")
                 if fecha_slot:
                     try:
                         fecha = datetime.datetime.fromisoformat(fecha_slot).date()
+                        logger.info(f"🔍 DEBUG: Fecha del slot: {fecha}")
                     except:
                         fecha = datetime.date.today() + datetime.timedelta(days=1)
+                        logger.info(f"🔍 DEBUG: Error parseando fecha del slot, usando: {fecha}")
                 else:
                     fecha = datetime.date.today() + datetime.timedelta(days=1)
+                    logger.info(f"🔍 DEBUG: No hay fecha en slot, usando: {fecha}")
                 
                 # CONSULTAR BD REAL
                 with get_db_session() as session:
+                    logger.info(f"🔍 DEBUG: Iniciando consulta BD para motor difuso")
                     ocupacion_franjas = consultar_disponibilidad_real(fecha, session)
-                    horarios_libres = obtener_horarios_disponibles_reales(fecha, session, 15)
+                    horarios_libres = obtener_horarios_disponibles_reales(fecha, session, 20)
+                    
+                    logger.info(f"🔍 DEBUG: Ocupación franjas: {ocupacion_franjas}")
+                    logger.info(f"🔍 DEBUG: Horarios libres encontrados: {len(horarios_libres)}")
                     
                     franjas_info = {
                         'temprano': '07:00-09:00',
@@ -483,7 +550,7 @@ class ValidateFormularioTurno(FormValidationAction):
                         'tarde': '12:00-15:00'
                     }
                     
-                    # ✅ CORREGIDO: Mensaje coherente sin contradicciones
+                    # ✅ MENSAJE MEJORADO: Más claro y útil
                     mensaje = f"📊 **Disponibilidad para {fecha.strftime('%A %d de %B')}**\n\n"
                     
                     # Ordenar franjas por ocupación
@@ -505,22 +572,37 @@ class ValidateFormularioTurno(FormValidationAction):
                     mejor_franja, mejor_ocupacion = franjas_ordenadas[0]
                     mensaje += f"\n🏆 **Mejor opción:** {mejor_franja.title()} ({franjas_info[mejor_franja]})\n"
                     
-                    # ✅ CORREGIDO: Solo mostrar horarios si HAY disponibilidad
+                    # ✅ MOSTRAR HORARIOS ESPECÍFICOS
                     if horarios_libres:
-                        mensaje += f"\n🕐 **Horarios disponibles:** {', '.join(horarios_libres[:8])}\n"
-                        mensaje += f"\n💡 Total de horarios libres: {len(horarios_libres)}"
+                        mensaje += f"\n🕐 **Horarios específicos disponibles:**\n"
+                        
+                        # Agrupar por franjas
+                        horarios_temprano = [h for h in horarios_libres if 7 <= int(h.split(':')[0]) < 9]
+                        horarios_manana = [h for h in horarios_libres if 9 <= int(h.split(':')[0]) < 11]
+                        horarios_tarde = [h for h in horarios_libres if 12 <= int(h.split(':')[0]) < 15]
+                        
+                        if horarios_temprano:
+                            mensaje += f"🌅 **Temprano:** {', '.join(horarios_temprano[:6])}\n"
+                        if horarios_manana:
+                            mensaje += f"☀️ **Mañana:** {', '.join(horarios_manana[:6])}\n"
+                        if horarios_tarde:
+                            mensaje += f"🌇 **Tarde:** {', '.join(horarios_tarde[:6])}\n"
+                        
+                        mensaje += f"\n💡 **Total disponibles:** {len(horarios_libres)} horarios"
                         mensaje += "\n\n¿Qué hora preferís? (ej: 08:00, 10:30, 14:00)"
                     else:
                         mensaje += "\n\n⚠️ **No hay horarios disponibles para esta fecha.**"
                         mensaje += "\nProbá con otra fecha o elegí otro día."
                     
                     dispatcher.utter_message(text=mensaje)
-                    logger.info(f"Recomendación: {mejor_franja} con {mejor_ocupacion}% ocupación")
+                    logger.info(f"🔍 DEBUG: Mensaje enviado al usuario")
                     
                     return {"hora": None}
                     
             except Exception as e:
-                logger.error(f"Error consultando BD: {e}")
+                logger.error(f"❌ ERROR en motor difuso: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
                 dispatcher.utter_message(
                     text="Atendemos de 07:00 a 15:00 (cerrado 11:00). ¿Qué hora preferís?"
                 )
@@ -541,6 +623,7 @@ class ValidateFormularioTurno(FormValidationAction):
             )
             return {"hora": None}
         
+        logger.info(f"🔍 DEBUG: Hora validada exitosamente: {hora_normalizada.strftime('%H:%M')}")
         return {"hora": hora_normalizada.strftime("%H:%M")}
 
     def validate_email(
@@ -560,7 +643,7 @@ class ValidateFormularioTurno(FormValidationAction):
             return {"email": None}
         
         # Validar formato email básico
-        patron_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        patron_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}
         if re.match(patron_email, slot_value):
             dispatcher.utter_message(
                 text=f"Perfecto, te enviaremos la invitación a {slot_value}"
@@ -573,7 +656,7 @@ class ValidateFormularioTurno(FormValidationAction):
         return {"email": None}
 
 # =====================================================
-# ACCIONES PRINCIPALES
+# ACCIONES PRINCIPALES CORREGIDAS
 # =====================================================
 class ActionConfirmarDatosTurno(Action):
     def name(self) -> Text:
@@ -752,6 +835,7 @@ class ActionGuardarTurno(Action):
             SlotSet("email", None)
         ]
 
+# ✅ ACTION CORREGIDO: Motor difuso mejorado con debug
 class ActionRecomendarHorarioFuzzy(Action):
     def name(self) -> Text:
         return "action_recomendar_horario_fuzzy"
@@ -760,22 +844,30 @@ class ActionRecomendarHorarioFuzzy(Action):
             tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         
         start_time = time.time()
-        logger.info("🔥 Motor difuso CON BD REAL ejecutándose")
+        logger.info("🔥 MOTOR DIFUSO: Iniciando análisis con BD REAL")
         
         fecha_slot = tracker.get_slot("fecha")
         if fecha_slot:
             try:
                 fecha = datetime.datetime.fromisoformat(fecha_slot).date()
+                logger.info(f"🔥 MOTOR DIFUSO: Fecha del slot: {fecha}")
             except:
                 fecha = datetime.date.today() + datetime.timedelta(days=1)
+                logger.info(f"🔥 MOTOR DIFUSO: Error parseando fecha, usando: {fecha}")
         else:
             fecha = datetime.date.today() + datetime.timedelta(days=1)
+            logger.info(f"🔥 MOTOR DIFUSO: No hay fecha en slot, usando: {fecha}")
         
         try:
             with get_db_session() as session:
-                # CONSULTAR OCUPACIÓN REAL DE LA BD
+                logger.info(f"🔥 MOTOR DIFUSO: Conectado a BD, consultando disponibilidad")
+                
+                # CONSULTAR OCUPACIÓN REAL DE LA BD CON DEBUG
                 ocupacion_franjas = consultar_disponibilidad_real(fecha, session)
-                horarios_libres = obtener_horarios_disponibles_reales(fecha, session, 20)
+                horarios_libres = obtener_horarios_disponibles_reales(fecha, session, 25)
+                
+                logger.info(f"🔥 MOTOR DIFUSO: Ocupación franjas: {ocupacion_franjas}")
+                logger.info(f"🔥 MOTOR DIFUSO: Horarios libres: {len(horarios_libres)}")
                 
                 franjas_info = {
                     'temprano': ('07:00-09:00', (7, 9)),
@@ -799,8 +891,10 @@ class ActionRecomendarHorarioFuzzy(Action):
                         'rango': rango,
                         'ocupacion': porcentaje_ocupacion,
                         'espera_estimada': tiempo_espera,
-                        'horarios_disponibles': horarios_franja[:5]
+                        'horarios_disponibles': horarios_franja[:8]  # Más horarios
                     }
+                    
+                    logger.info(f"🔥 MOTOR DIFUSO: {franja} - {porcentaje_ocupacion}% ocupado, {tiempo_espera}min espera, {len(horarios_franja)} horarios")
                 
                 # Ordenar por mejor (menor ocupación y espera)
                 franjas_ordenadas = sorted(
@@ -808,47 +902,57 @@ class ActionRecomendarHorarioFuzzy(Action):
                     key=lambda x: (x[1]['ocupacion'], x[1]['espera_estimada'])
                 )
                 
-                mensaje = f"📊 **Análisis de disponibilidad REAL para {fecha.strftime('%A %d de %B')}**\n\n"
+                mensaje = f"🤖 **Motor Difuso - Análisis Inteligente para {fecha.strftime('%A %d de %B')}**\n\n"
                 
                 mejor_franja_nombre, mejor_franja_datos = franjas_ordenadas[0]
-                mensaje += f"🏆 **Mejor opción:** {mejor_franja_nombre.title()} ({mejor_franja_datos['rango']})\n"
+                mensaje += f"🏆 **Recomendación principal:** {mejor_franja_nombre.title()} ({mejor_franja_datos['rango']})\n"
                 mensaje += f"📈 **Ocupación:** {mejor_franja_datos['ocupacion']:.0f}%\n"
                 mensaje += f"⏱️ **Espera estimada:** {mejor_franja_datos['espera_estimada']:.0f} minutos\n"
                 
                 if mejor_franja_datos['horarios_disponibles']:
-                    mensaje += f"🕐 **Horarios libres:** {', '.join(mejor_franja_datos['horarios_disponibles'])}\n\n"
+                    mensaje += f"🕐 **Horarios recomendados:** {', '.join(mejor_franja_datos['horarios_disponibles'])}\n\n"
                 
-                mensaje += "📋 **Todas las opciones:**\n"
+                mensaje += "📊 **Análisis completo por franjas:**\n"
                 for franja_nombre, datos in franjas_ordenadas:
                     emoji = "🟢" if datos['ocupacion'] < 50 else "🟡" if datos['ocupacion'] < 80 else "🔴"
                     mensaje += f"{emoji} **{franja_nombre.title()}** ({datos['rango']}): "
                     mensaje += f"{datos['ocupacion']:.0f}% ocupado, "
-                    mensaje += f"espera {datos['espera_estimada']:.0f}min\n"
+                    mensaje += f"espera {datos['espera_estimada']:.0f}min"
+                    
+                    if datos['horarios_disponibles']:
+                        mensaje += f" | Disponibles: {', '.join(datos['horarios_disponibles'][:4])}"
+                        if len(datos['horarios_disponibles']) > 4:
+                            mensaje += f" (+{len(datos['horarios_disponibles'])-4} más)"
+                    
+                    mensaje += "\n"
                 
                 if not horarios_libres:
                     mensaje += "\n⚠️ **No hay horarios disponibles** para esta fecha. Probá con otra fecha."
                 else:
-                    mensaje += f"\n💡 Total de horarios libres: {len(horarios_libres)}"
+                    mensaje += f"\n💡 **Total de horarios disponibles:** {len(horarios_libres)}"
+                    mensaje += f"\n🎯 **Mi recomendación:** {mejor_franja_datos['horarios_disponibles'][0] if mejor_franja_datos['horarios_disponibles'] else 'Elegí otra fecha'}"
                 
                 mensaje += "\n\n¿Cuál horario preferís?"
                 
                 dispatcher.utter_message(text=mensaje)
-                logger.info(f"✅ Recomendación basada en BD real completada")
+                logger.info(f"🔥 MOTOR DIFUSO: Análisis completado y enviado al usuario")
                 
                 if conversation_logger:
                     response_time_ms = int((time.time() - start_time) * 1000)
                     log_rasa_interaction(
                         conversation_logger,
                         tracker,
-                        "Motor difuso con BD real - análisis completado",
+                        "Motor difuso - análisis inteligente completado",
                         response_time_ms
                     )
                 
                 return []
                 
         except Exception as e:
-            logger.error(f"❌ Error consultando BD en motor difuso: {e}")
-            dispatcher.utter_message(text="No pude consultar la disponibilidad en este momento. Intentá de nuevo.")
+            logger.error(f"❌ ERROR CRÍTICO en motor difuso: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            dispatcher.utter_message(text="No pude consultar la disponibilidad inteligente en este momento. Intentá de nuevo o decime una hora específica.")
             return []
 
 class ActionConsultarDisponibilidad(Action):
@@ -858,16 +962,19 @@ class ActionConsultarDisponibilidad(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         
+        logger.info("📊 DISPONIBILIDAD: Consultando próximos días")
         hoy = datetime.date.today()
         disponibilidad = []
         
         try:
             with get_db_session() as session:
-                for i in range(1, 6):
+                for i in range(1, 8):  # Próximos 7 días
                     fecha = hoy + datetime.timedelta(days=i)
                     if fecha.weekday() < 5:  # Solo días hábiles
                         ocupacion_franjas = consultar_disponibilidad_real(fecha, session)
                         ocupacion_promedio = sum(ocupacion_franjas.values()) / len(ocupacion_franjas)
+                        
+                        horarios_dia = obtener_horarios_disponibles_reales(fecha, session, 50)
                         
                         if ocupacion_promedio < 50:
                             estado, emoji = "Alta disponibilidad", "🟢"
@@ -877,23 +984,27 @@ class ActionConsultarDisponibilidad(Action):
                             estado, emoji = "Poca disponibilidad", "🔴"
                         
                         disponibilidad.append(
-                            f"{emoji} {fecha.strftime('%A %d/%m')}: {estado} ({ocupacion_promedio:.0f}% ocupado)"
+                            f"{emoji} {fecha.strftime('%A %d/%m')}: {estado} ({ocupacion_promedio:.0f}% ocupado) - {len(horarios_dia)} horarios libres"
                         )
+                        
+                        logger.info(f"📊 DISPONIBILIDAD: {fecha} - {ocupacion_promedio:.0f}% ocupado, {len(horarios_dia)} horarios")
+                        
         except Exception as e:
-            logger.error(f"Error consultando disponibilidad: {e}")
-            dispatcher.utter_message(text="No pude consultar la disponibilidad.")
+            logger.error(f"❌ ERROR consultando disponibilidad: {e}")
+            dispatcher.utter_message(text="No pude consultar la disponibilidad. Intentá de nuevo.")
             return []
         
-        mensaje = "📊 **Disponibilidad próximos días (basado en BD real):**\n\n"
+        mensaje = "📊 **Disponibilidad próximos días (datos reales de BD):**\n\n"
         mensaje += "\n".join(disponibilidad)
-        mensaje += "\n\n🕐 **Horario:** 7:00 - 15:00\n🍽️ **Almuerzo:** 11:00 (cerrado)"
-        mensaje += "\n\n¿Para qué fecha querés agendar?"
+        mensaje += "\n\n🕐 **Horario:** 7:00 - 15:00 (cada 15 min, máximo 3 personas por horario)\n🍽️ **Almuerzo:** 11:00 (cerrado)"
+        mensaje += "\n\n¿Para qué fecha querés agendar? O decí 'recomendame' para análisis inteligente."
         
         dispatcher.utter_message(text=mensaje)
         if conversation_logger:
-            log_rasa_interaction(conversation_logger, tracker, "Consulta disponibilidad real")
+            log_rasa_interaction(conversation_logger, tracker, "Consulta disponibilidad real - múltiples días")
         return []
 
+# ✅ RESTO DE LAS ACCIONES (sin cambios mayores)
 class ActionTiempoEsperaActual(Action):
     def name(self) -> Text:
         return "action_tiempo_espera_actual"
@@ -987,7 +1098,6 @@ class ActionCalcularSaturacion(Action):
         
         return []
 
-# ✅ NUEVO: Action para consultar turno existente
 class ActionConsultarTurnoExistente(Action):
     def name(self) -> Text:
         return "action_consultar_turno_existente"
@@ -1037,7 +1147,6 @@ class ActionConsultarTurnoExistente(Action):
         
         return []
 
-# ✅ CORREGIDO: ActionSessionStart mejorado
 class ActionSessionStart(Action):
     def name(self) -> Text:
         return "action_session_start"
@@ -1057,12 +1166,6 @@ class ActionSessionStart(Action):
             except Exception as e:
                 logger.error(f"Error logging inicio de sesión: {e}")
         
-        # ✅ CORREGIDO: Enviar mensaje de bienvenida ANTES de los eventos
-        dispatcher.utter_message(
-            text="¡Hola! Soy tu asistente virtual para gestión de cédulas en Ciudad del Este. ¿En qué puedo ayudarte hoy?"
-        )
-        
-        # ✅ IMPORTANTE: Retornar eventos en el orden correcto
         return [
             SessionStarted(),
             SlotSet("session_started_metadata", {

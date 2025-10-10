@@ -73,7 +73,7 @@ stories:
   - action: utter_iamabot
 
 # ===============================
-# HISTORIAS DEL MOTOR DIFUSO
+# HISTORIAS DEL MOTOR DIFUSO - CORREGIDAS
 # ===============================
 - story: consulta tiempo de espera actual
   steps:
@@ -82,7 +82,7 @@ stories:
     intent: consulta_tiempo_espera
   - action: action_tiempo_espera_actual
 
-- story: motor difuso activado
+- story: motor difuso activado - CORREGIDO
   steps:
   - user: |
       que horarios hay disponibles
@@ -107,7 +107,7 @@ stories:
   - action: turno_form
   - active_loop: turno_form
 
-- story: motor difuso durante agendamiento
+- story: motor difuso durante agendamiento - CORREGIDO
   steps:
   - user: |
       quiero agendar un turno
@@ -120,6 +120,7 @@ stories:
       que horarios hay disponibles
     intent: frase_ambigua
   - action: action_recomendar_horario_fuzzy
+  - action: turno_form
   - user: |
       10:00
     intent: elegir_horario
@@ -134,7 +135,10 @@ stories:
     intent: consultar_requisitos
   - action: utter_consultar_requisitos
 
-- story: consultar disponibilidad
+# ===============================
+# CONSULTA DISPONIBILIDAD - CORREGIDO
+# ===============================
+- story: consultar disponibilidad - CORREGIDO
   steps:
   - user: |
       hay turnos libres
@@ -231,9 +235,9 @@ stories:
     - action: action_guardar_turno
 
 # ===============================
-# FLUJO CON RECOMENDACIONES DIFUSAS
+# FLUJO CON RECOMENDACIONES DIFUSAS - CORREGIDO
 # ===============================
-- story: Usuario solicita recomendación de horario
+- story: Usuario solicita recomendación de horario - CORREGIDO
   steps:
     - intent: agendar_turno
     - action: turno_form
@@ -254,6 +258,7 @@ stories:
         - requested_slot: hora
     - intent: frase_ambigua
     - action: action_recomendar_horario_fuzzy
+    - action: turno_form
     - intent: elegir_horario
     - action: turno_form
     - active_loop: null
@@ -261,7 +266,7 @@ stories:
     - intent: confirmar_turno
     - action: action_guardar_turno
 
-- story: Usuario consulta disponibilidad durante agendamiento
+- story: Usuario consulta disponibilidad durante agendamiento - CORREGIDO
   steps:
     - intent: agendar_turno
     - action: turno_form
@@ -308,9 +313,9 @@ stories:
     - action: action_guardar_turno
 
 # ===============================
-# FLUJO CON INTERRUPCIONES
+# FLUJO CON INTERRUPCIONES - CORREGIDO
 # ===============================
-- story: Interrupción para consultar requisitos durante formulario
+- story: Interrupción para consultar requisitos durante formulario - CORREGIDO
   steps:
     - intent: agendar_turno
     - action: turno_form
@@ -437,9 +442,9 @@ stories:
     - action: utter_ayuda_tecnica
 
 # ===============================
-# FLUJOS DE DISPONIBILIDAD
+# FLUJOS DE DISPONIBILIDAD - CORREGIDO
 # ===============================
-- story: Consulta disponibilidad general
+- story: Consulta disponibilidad general - CORREGIDO
   steps:
     - intent: consultar_disponibilidad
     - action: action_consultar_disponibilidad
@@ -456,9 +461,9 @@ stories:
     - active_loop: turno_form
 
 # ===============================
-# FLUJOS CONVERSACIONALES MIXTOS
+# FLUJOS CONVERSACIONALES MIXTOS - CORREGIDO
 # ===============================
-- story: Conversación compleja con múltiples intents
+- story: Conversación compleja con múltiples intents - CORREGIDO
   steps:
     - intent: greet
     - action: utter_greet
@@ -473,6 +478,7 @@ stories:
         - requested_slot: hora
     - intent: frase_ambigua
     - action: action_recomendar_horario_fuzzy
+    - action: turno_form
     - intent: elegir_horario
     - action: turno_form
     - active_loop: null
