@@ -105,6 +105,14 @@ rules:
     - active_loop: null
     - action: utter_cancelar_turno
 
+- rule: Gestionar cambios de datos
+  steps:
+    - intent: solicitar_cambio_datos
+    - action: action_gestionar_cambio_datos
+
+
+
+
 # ===============================
 # CONSULTAS FRECUENTES
 # ===============================
@@ -269,3 +277,4 @@ rules:
   steps:
     - intent: restart
     - action: action_restart
+

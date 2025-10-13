@@ -1,9 +1,14 @@
-# Configuración de Rasa para español paraguayo
+# ============================================
+# CONFIGURACIÓN DE RASA PARA CHATBOT CÉDULAS
+# Español (Paraguay) - Asistente Inteligente
+# ============================================
+
 recipe: default.v1
 assistant_id: chatbot-cedula-cde
 language: es
+
 # ===============================
-# PIPELINE DE NLU
+# PIPELINE DE NLU (ENTENDIMIENTO)
 # ===============================
 pipeline:
   - name: WhitespaceTokenizer
@@ -15,85 +20,66 @@ pipeline:
     min_ngram: 1
     max_ngram: 4
   - name: DIETClassifier
-    epochs: 100
+    epochs: 120
     constrain_similarities: true
+    entity_recognition: true
   - name: EntitySynonymMapper
   - name: FallbackClassifier
-    threshold: 0.3
+    threshold: 0.25        # sensibilidad para entender frases
     ambiguity_threshold: 0.1
+
 # ===============================
-# POLÍTICAS DE DIÁLOGO
+# POLÍTICAS DE DIÁLOGO (GESTIÓN)
 # ===============================
 policies:
   - name: MemoizationPolicy
+
+  # política principal basada en reglas
   - name: RulePolicy
+    core_fallback_action_name: "action_fallback_contexto"   # tu acción de fallback personalizada
+    core_fallback_threshold: 0.3
+    enable_fallback_prediction: true
+
+  # aprendizaje conversacional (manejo de contexto)
   - name: UnexpecTEDIntentPolicy
     max_history: 5
     epochs: 100
+
+  # política de transformador de diálogo
   - name: TEDPolicy
     max_history: 5
-    epochs: 100
+    epochs: 150
     constrain_similarities: true
 
-# This file contains the credentials for the voice & chat platforms
-# which your bot is using.
-# https://rasa.com/docs/rasa/messaging-and-voice-channels
+
+# ===============================
+# CANALES DE COMUNICACIÓN
+# ===============================
 rest:
-#  # you don't need to provide anything here - this channel doesn't
-#  # require any credentials
-#facebook:
-#  verify: "<verify>"
-#  secret: "<your secret>"
-#  page-access-token: "<your page access token>"
-#slack:
-#  slack_token: "<your slack token>"
-#  slack_channel: "<the slack channel>"
-#  slack_signing_secret: "<your slack signing secret>"
-#socketio:
-#  user_message_evt: <event name for user message>
-#  bot_message_evt: <event name for bot messages>
-#  session_persistence: <true/false>
-#mattermost:
-#  url: "https://<mattermost instance>/api/v4"
-#  token: "<bot token>"
-#  webhook_url: "<callback URL>"
-# This entry is needed if you are using Rasa Enterprise. The entry represents credentials
-# for the Rasa Enterprise "channel", i.e. Talk to your bot and Share with guest testers.
+
 rasa:
   url: "http://localhost:5002/api"
 
-# This file contains the different endpoints your bot can use.
+# ===============================
+# ENDPOINT DE ACCIONES
+# ===============================
 action_endpoint:
   url: "http://localhost:5055/webhook"
-# Server where the models are pulled from.
-# https://rasa.com/docs/rasa/model-storage#fetching-models-from-a-server
-#models:
-#  url: http://my-server.com/models/default_core@latest
-#  wait_time_between_pulls:  10   # [optional](default: 100)
-# Server which runs your custom actions.
-# https://rasa.com/docs/rasa/custom-actions
-#action_endpoint:
-#  url: "http://localhost:5055/webhook"
-# Tracker store which is used to store the conversations.
-# By default the conversations are stored in memory.
-# https://rasa.com/docs/rasa/tracker-stores
-#tracker_store:
-#    type: redis
-#    url: <host of the redis instance, e.g. localhost>
-#    port: <port of your redis instance, usually 6379>
-#    db: <number of your database within redis, e.g. 0>
-#    password: <password used for authentication>
-#    use_ssl: <whether or not the communication is encrypted, default false>
-#tracker_store:
-#    type: mongod
-#    url: <url to your mongo instance, e.g. mongodb://localhost:27017>
-#    db: <name of the db within your mongo instance, e.g. rasa>
-#    username: <username used for authentication>
-#    password: <password used for authentication>
-# Event broker which all conversation events should be streamed to.
-# https://rasa.com/docs/rasa/event-brokers
-#event_broker:
-#  url: localhost
-#  username: username
-#  password: password
-#  queue: queue
+
+# ===============================
+# OPCIONAL: TRACKER / EVENTOS
+# ===============================
+# tracker_store:
+#   type: sql
+#   dialect: "postgresql"
+#   url: "postgresql://botuser:root@localhost:5432/chatbotdb"
+#   username: "botuser"
+#   password: "root"
+#   db: "chatbotdb"
+#   driver: "psycopg2"
+
+# event_broker:
+#   url: localhost
+#   username: username
+#   password: password
+#   queue: queue

@@ -6,6 +6,7 @@ from rasa_sdk.forms import FormValidationAction
 from calendar_utils import crear_evento_turno, consultar_disponibilidad
 from sqlalchemy import create_engine, Column, String, Integer, DateTime, UniqueConstraint, func
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import cast, Date
 from sqlalchemy.exc import SQLAlchemyError
 import datetime
 import random
@@ -19,6 +20,31 @@ from contextlib import contextmanager
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# =====================================================
+# FORMATO DE FECHAS EN ESPAÑOL
+# =====================================================
+_DIAS_ES = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+_MESES_ES = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+]
+
+def format_fecha_es(fecha: datetime.date, con_anio: bool = False) -> str:
+    """Devuelve una fecha en formato español, manejando errores y capitalización."""
+    try:
+        dia_nombre = _DIAS_ES[fecha.weekday()]
+        mes_nombre = _MESES_ES[fecha.month - 1]
+        if con_anio:
+            texto = f"{dia_nombre} {fecha.day} de {mes_nombre} de {fecha.year}"
+        else:
+            texto = f"{dia_nombre} {fecha.day} de {mes_nombre}"
+        return texto.capitalize()
+    except Exception as e:
+        logger.error(f"Error formateando fecha {fecha}: {e}")
+        return fecha.strftime("%d/%m/%Y")
+
+
 
 # Motor difuso
 try:
@@ -80,6 +106,8 @@ class Turno(Base):
     codigo = Column(String(10), unique=True, nullable=False)
     estado = Column(String(20), default='activo')
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    event_id = Column(String(255), nullable=True)
+    email = Column(String(120), nullable=True)
     
     __table_args__ = (
         UniqueConstraint('fecha_hora', 'cedula', name='unique_turno_persona_fecha'),
@@ -97,26 +125,51 @@ except Exception as e:
 # =====================================================
 @contextmanager
 def get_db_session():
-    """Context manager para manejo seguro de sesiones de BD"""
+    """Context manager robusto con autorecuperación de sesiones fallidas"""
     session = Session()
     try:
         yield session
         session.commit()
     except Exception as e:
-        session.rollback()
-        logger.error(f"Error en sesión de BD: {e}")
+        logger.error(f"⚠️ Error en sesión de BD: {e}")
+        try:
+            session.rollback()
+        except Exception:
+            logger.warning("No se pudo hacer rollback; reiniciando sesión.")
+        finally:
+            try:
+                session.close()
+            except Exception:
+                pass
+        # 🔁 recrear conexión limpia
+        session = Session()
         raise
     finally:
-        session.close()
+        try:
+            session.close()
+        except Exception:
+            pass
+
 
 def generar_codigo_unico(longitud=6):
     """Genera un código único alfanumérico"""
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=longitud))
 
 def normalizar_fecha(texto: str) -> Optional[datetime.date]:
-    """Convierte texto natural a fecha"""
+    """Convierte texto natural a fecha robusta en español (maneja expresiones ambiguas)."""
     if not texto:
         return None
+    
+    texto = texto.lower().strip()
+    hoy = datetime.date.today()
+
+    # Casos simples sin usar parser
+    if texto in ["hoy", "el día de hoy"]:
+        return hoy
+    if "mañana" in texto:
+        return hoy + datetime.timedelta(days=1)
+    if "pasado mañana" in texto:
+        return hoy + datetime.timedelta(days=2)
     
     settings = {
         'PREFER_DATES_FROM': 'future',
@@ -126,12 +179,7 @@ def normalizar_fecha(texto: str) -> Optional[datetime.date]:
     }
     
     try:
-        fecha_parseada = dateparser.parse(
-            texto.lower(),
-            languages=['es'],
-            settings=settings
-        )
-        
+        fecha_parseada = dateparser.parse(texto, languages=['es'], settings=settings)
         if fecha_parseada:
             return fecha_parseada.date()
     except Exception as e:
@@ -258,7 +306,7 @@ def obtener_horarios_disponibles_reales(fecha: datetime.date, session, limite: i
         
         # Total de turnos para esta fecha (para debug)
         total_turnos_fecha = session.query(Turno).filter(
-            func.date(Turno.fecha_hora) == fecha,
+            cast(Turno.fecha_hora, Date) == fecha,
             Turno.estado == 'activo'
         ).count()
         logger.info(f"🔍 DEBUG: Total turnos ya agendados para {fecha}: {total_turnos_fecha}")
@@ -298,6 +346,7 @@ def obtener_horarios_disponibles_reales(fecha: datetime.date, session, limite: i
         logger.error(f"❌ ERROR obtener_horarios_disponibles_reales: {e}")
         return []
 
+
 # ✅ FUNCIÓN CORREGIDA: Consultar disponibilidad con debug
 def consultar_disponibilidad_real(fecha: datetime.date, session) -> Dict[str, int]:
     """Consulta disponibilidad real desde BD por franjas horarias con debug"""
@@ -324,58 +373,48 @@ def consultar_disponibilidad_real(fecha: datetime.date, session) -> Dict[str, in
 
 # ✅ CORREGIDO: Detectar frases ambiguas ANTES de procesarlas
 def es_frase_ambigua(texto: str) -> bool:
-    """
-    Detecta si el texto contiene frases ambiguas que requieren lógica difusa
-    """
+    """Detecta si el texto contiene frases ambiguas que requieren lógica difusa"""
     if not texto:
         return False
     
     texto_lower = texto.lower().strip()
-    
-    # Frases para FECHA ambigua
+
     frases_fecha_ambigua = [
-        "lo antes posible",
-        "lo más rápido",
-        "cuando antes",
-        "cuanto antes",
-        "urgente",
-        "primer turno",
-        "primera fecha",
-        "el primer día",
-        "cuando tengas",
-        "cuando haya",
-        "lo que tengas",
+        "lo antes posible", "lo más rápido", "cuando antes", "cuanto antes", "urgente",
+        "primer turno", "primera fecha", "el primer día", "cuando tengas", "cuando haya",
+        "lo que tengas", "qué día", "que dia", "qué fecha", "que fecha", 
+        "día disponible", "dia disponible", "fecha disponible",
+        "qué día tenes disponible", "que dia tenes disponible",
+        # Nuevas combinaciones naturales
+        "para el lunes", "para el martes", "para el miércoles", "para el jueves", "para el viernes",
+        "entonces", "para ese día", "para esa fecha", "ese día", "ese lunes", "ese martes"
     ]
-    
-    # Frases para HORA ambigua
+
     frases_hora_ambigua = [
-        "cuando haya menos gente",
-        "cuando esté tranquilo",
-        "el mejor horario",
-        "recomendame",
-        "recomiendame",
-        "sugerime",
-        "que horario",
-        "horario libre",
-        "cuando convenga",
-        "lo mas temprano",
-        "lo más temprano",
-        "lo mas tarde",
-        "lo más tarde",
-        "a la mañana",
-        "a la tarde",
-        "temprano",
-        "cualquier horario",
-        "que horarios hay",
-        "que horarios",
-        "horarios disponibles",
-        "esta disponible",
-        "está disponible",
+        "cuando haya menos gente", "cuando esté tranquilo", "el mejor horario", "recomendame",
+        "recomiendame", "sugerime", "que horario", "horario libre", "cuando convenga",
+        "lo mas temprano", "lo más temprano", "lo mas tarde", "lo más tarde", "a la mañana",
+        "a la tarde", "temprano", "cualquier horario", "que horarios hay", "que horarios",
+        "horarios disponibles", "esta disponible", "está disponible"
     ]
-    
+
     todas_frases = frases_fecha_ambigua + frases_hora_ambigua
-    
     return any(frase in texto_lower for frase in todas_frases)
+
+# ✅ NUEVO: Detección de frases de corrección de datos
+def detectar_correccion(texto: str) -> Optional[str]:
+    """Detecta si el usuario quiere cambiar o corregir un dato y cuál."""
+    texto = texto.lower().strip()
+    if any(p in texto for p in ["cambiar nombre", "corregir nombre", "me equivoqué en mi nombre"]):
+        return "nombre"
+    if any(p in texto for p in ["cambiar cedula", "corregir cedula", "me equivoqué en mi cédula", "editar cedula", "editar cédula"]):
+        return "cedula"
+    if any(p in texto for p in ["cambiar fecha", "otra fecha", "modificar fecha", "reagendar", "reprogramar", "nueva fecha"]):
+        return "fecha"
+    if any(p in texto for p in ["cambiar hora", "otra hora", "modificar hora", "más temprano", "más tarde", "hora diferente"]):
+        return "hora"
+    return None
+
 
 # =====================================================
 # VALIDACIÓN DE FORMULARIO
@@ -388,6 +427,12 @@ class ValidateFormularioTurno(FormValidationAction):
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
+        texto_usuario = str(slot_value).strip().lower()
+        correccion = detectar_correccion(texto_usuario)
+        if correccion:
+            dispatcher.utter_message(text=f"Perfecto, corregiremos tu {correccion}.")
+            return {correccion: None}
+        
         if not slot_value or len(slot_value.strip()) < 3:
             dispatcher.utter_message(text="Por favor, proporciona tu nombre completo (mínimo 3 caracteres).")
             return {"nombre": None}
@@ -399,23 +444,28 @@ class ValidateFormularioTurno(FormValidationAction):
         
         return {"nombre": slot_value.strip().title()}
 
+
     def validate_cedula(
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
+        texto_usuario = str(slot_value).strip().lower()
+        correccion = detectar_correccion(texto_usuario)
+        if correccion:
+            dispatcher.utter_message(text=f"Perfecto, corregiremos tu {correccion}.")
+            return {correccion: None}
+        
         if not slot_value:
             return {"cedula": None}
         
-        texto = slot_value.lower().strip()
-        
         frases_primera_vez = ["primera vez", "no tengo", "nunca tuve", "primera", "no tengo cedula"]
-        if any(frase in texto for frase in frases_primera_vez):
+        if any(frase in texto_usuario for frase in frases_primera_vez):
             dispatcher.utter_message(
-                text="Entendido, es tu primera cédula. Recorda que necesitarás partida de nacimiento original."
+                text="Entendido, es tu primera cédula. Recordá que necesitarás partida de nacimiento original."
             )
             return {"cedula": "PRIMERA_VEZ"}
         
-        cedula_limpia = re.sub(r'[^\d]', '', texto)
+        cedula_limpia = re.sub(r'[^\d]', '', texto_usuario)
         if cedula_limpia and 1 <= len(cedula_limpia) <= 8:
             return {"cedula": cedula_limpia}
         
@@ -424,196 +474,195 @@ class ValidateFormularioTurno(FormValidationAction):
         )
         return {"cedula": None}
 
+
     # ✅ CORREGIDO: validate_fecha ahora detecta frases ambiguas
     def validate_fecha(
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
+        texto_usuario = str(slot_value).strip().lower()
+        correccion = detectar_correccion(texto_usuario)
+        if correccion:
+            dispatcher.utter_message(text=f"Perfecto, corregiremos tu {correccion}.")
+            return {correccion: None}
+
         if not slot_value:
             return {"fecha": None}
         
-        texto_usuario = str(slot_value).strip()
+        texto_usuario = str(slot_value).strip().lower()
         
-        # ✅ NUEVO: Detectar frases ambiguas para FECHA
+        # 🔍 Detección de frases ambiguas
         if es_frase_ambigua(texto_usuario):
             logger.info(f"Frase ambigua detectada en fecha: '{texto_usuario}'")
-            
-            try:
-                with get_db_session() as session:
-                    # Buscar primer día disponible
-                    dias_futuros = []
-                    for i in range(1, 8):  # Próximos 7 días
-                        fecha_futura = datetime.date.today() + datetime.timedelta(days=i)
-                        if fecha_futura.weekday() < 5:  # Solo días hábiles
-                            ocupacion_franjas = consultar_disponibilidad_real(fecha_futura, session)
-                            ocupacion_promedio = sum(ocupacion_franjas.values()) / len(ocupacion_franjas)
-                            
-                            dias_futuros.append({
-                                'fecha': fecha_futura,
-                                'ocupacion': ocupacion_promedio,
-                                'dia_nombre': fecha_futura.strftime('%A %d/%m')
-                            })
-                    
-                    # Ordenar por menor ocupación
-                    dias_ordenados = sorted(dias_futuros, key=lambda x: x['ocupacion'])
-                    
-                    mensaje = "📅 **Fechas recomendadas (menor ocupación):**\n\n"
-                    for i, dia in enumerate(dias_ordenados[:5], 1):
-                        emoji = "🟢" if dia['ocupacion'] < 50 else "🟡" if dia['ocupacion'] < 80 else "🔴"
-                        mensaje += f"{i}. {emoji} {dia['dia_nombre']}: {dia['ocupacion']:.0f}% ocupado\n"
-                    
-                    mensaje += "\n💡 Te recomiendo: " + dias_ordenados[0]['dia_nombre']
-                    mensaje += "\n\nDecime para qué fecha querés (ej: 'mañana', 'viernes', '15 de octubre')"
-                    
-                    dispatcher.utter_message(text=mensaje)
-                    return {"fecha": None}
-                    
-            except Exception as e:
-                logger.error(f"Error consultando fechas disponibles: {e}")
-                dispatcher.utter_message(
-                    text="Podés agendar de lunes a viernes. ¿Para qué fecha necesitás el turno?"
-                )
+
+            dias_futuros = []
+            for i in range(1, 31):
+                fecha_futura = datetime.date.today() + datetime.timedelta(days=i)
+                if fecha_futura.weekday() >= 5:
+                    continue  # saltar sábado y domingo
+
+                try:
+                    # ✅ abrir una sesión limpia por cada día consultado
+                    with get_db_session() as session:
+                        ocupacion_franjas = consultar_disponibilidad_real(fecha_futura, session)
+                        ocupacion_promedio = sum(ocupacion_franjas.values()) / len(ocupacion_franjas)
+                        dias_futuros.append({
+                            'fecha': fecha_futura,
+                            'ocupacion': ocupacion_promedio,
+                            'dia_nombre': format_fecha_es(fecha_futura)
+                        })
+                except Exception as e:
+                    logger.error(f"❌ Error consultando ocupación para {fecha_futura}: {e}")
+                    # seguir con el siguiente día sin romper el loop
+                    continue
+
+            # ✅ después del loop, procesar los resultados
+            if dias_futuros:
+                dias_ordenados = sorted(dias_futuros, key=lambda x: x['ocupacion'])
+                mensaje = "📅 **Fechas recomendadas (menor ocupación):**\n\n"
+                for i, dia in enumerate(dias_ordenados[:5], 1):
+                    emoji = "🟢" if dia['ocupacion'] < 50 else "🟡" if dia['ocupacion'] < 80 else "🔴"
+                    mensaje += f"{i}. {emoji} {dia['dia_nombre']}: {dia['ocupacion']:.0f}% ocupado\n"
+                mensaje += f"\n💡 Te recomiendo: {dias_ordenados[0]['dia_nombre']}"
+                mensaje += "\n\nDecime para qué fecha querés (ej: 'mañana', 'viernes', '15 de octubre')"
+                dispatcher.utter_message(text=mensaje)
                 return {"fecha": None}
-        
-        # ✅ Intentar parsear fecha normal
+            else:
+                dispatcher.utter_message(text="⚠️ No pude obtener disponibilidad de fechas en este momento.")
+                return {"fecha": None}
+
+        # 🔍 Intentar parsear fecha
         fecha_normalizada = normalizar_fecha(texto_usuario)
-        if not fecha_normalizada:
-            dispatcher.utter_message(
-                text="No pude entender la fecha. Podés decir 'mañana', 'lunes 25', '15 de octubre', etc."
-            )
-            return {"fecha": None}
-        
         hoy = datetime.date.today()
+        if not fecha_normalizada:
+            dispatcher.utter_message(text="No pude entender la fecha. Podés decir 'mañana', 'lunes 25', '15 de octubre', etc.")
+            return {"fecha": None}
+
+        # 🔁 Si el usuario dice “lunes 3” y ya pasó, tomar siguiente mes
         if fecha_normalizada < hoy:
-            dispatcher.utter_message(
-                text="La fecha debe ser de hoy en adelante. ¿Para qué fecha necesitás el turno?"
-            )
-            return {"fecha": None}
-        
+            try:
+                nueva_fecha = fecha_normalizada.replace(month=hoy.month + 1)
+                if nueva_fecha > hoy:
+                    fecha_normalizada = nueva_fecha
+            except ValueError:
+                dispatcher.utter_message(text="La fecha debe ser de hoy en adelante. ¿Para qué fecha necesitás el turno?")
+                return {"fecha": None}
+
+        # ⚠️ Limitar rango y días hábiles
         if (fecha_normalizada - hoy).days > 30:
-            dispatcher.utter_message(
-                text="Solo podemos agendar turnos hasta 30 días adelante. Elegí una fecha más cercana."
-            )
+            dispatcher.utter_message(text="Solo podemos agendar turnos hasta 30 días adelante. Elegí una fecha más cercana.")
             return {"fecha": None}
-        
         if fecha_normalizada.weekday() > 4:
-            dispatcher.utter_message(
-                text="Solo atendemos de lunes a viernes. Elegí un día hábil."
-            )
+            dispatcher.utter_message(text="Solo atendemos de lunes a viernes. Elegí un día hábil.")
             return {"fecha": None}
-        
+
+        # ✅ Verificar disponibilidad real
+        with get_db_session() as session:
+            horarios_libres = obtener_horarios_disponibles_reales(fecha_normalizada, session)
+            if not horarios_libres:
+                proxima_fecha = None
+                for i in range(1, 15):
+                    futura = fecha_normalizada + datetime.timedelta(days=i)
+                    if futura.weekday() < 5:
+                        libres_futura = obtener_horarios_disponibles_reales(futura, session)
+                        if libres_futura:
+                            proxima_fecha = futura
+                            break
+                if proxima_fecha:
+                    dispatcher.utter_message(
+                        text=f"⚠️ En {format_fecha_es(fecha_normalizada)} no hay horarios disponibles.\n"
+                            f"💡 Te recomiendo {format_fecha_es(proxima_fecha)}."
+                    )
+                else:
+                    dispatcher.utter_message(
+                        text="⚠️ No hay horarios disponibles próximamente. Probá más adelante."
+                    )
+                return {"fecha": None}
+
         dispatcher.utter_message(
-            text=f"Perfecto, registré la fecha para el {fecha_normalizada.strftime('%A %d de %B de %Y')}."
+            text=f"Perfecto, registré la fecha para el {format_fecha_es(fecha_normalizada, True)}."
         )
         return {"fecha": fecha_normalizada.isoformat()}
+
 
     # ✅ CORREGIDO: validate_hora con mejor debug y lógica
     def validate_hora(
         self, slot_value: Any, dispatcher: CollectingDispatcher,
         tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
+        texto_usuario = str(slot_value).strip().lower()
+        correccion = detectar_correccion(texto_usuario)
+        if correccion:
+            dispatcher.utter_message(text=f"Perfecto, corregiremos tu {correccion}.")
+            return {correccion: None}
+
         if not slot_value:
             return {"hora": None}
         
-        texto_usuario = str(slot_value).strip()
+        texto_usuario = str(slot_value).strip().lower()
         logger.info(f"🔍 DEBUG: Validando hora: '{texto_usuario}'")
         
-        # ✅ MEJOR DETECCIÓN: Usar función centralizada
+        # ✅ DETECTAR FRASES AMBIGUAS / URGENTES
         if es_frase_ambigua(texto_usuario):
-            logger.info(f"🔍 DEBUG: Frase ambigua detectada en hora: '{texto_usuario}' - Consultando BD real")
-            
+            logger.info(f"🔍 DEBUG: Frase ambigua detectada: '{texto_usuario}' - buscando turno más próximo disponible")
+
             try:
                 fecha_slot = tracker.get_slot("fecha")
                 if fecha_slot:
                     try:
-                        fecha = datetime.datetime.fromisoformat(fecha_slot).date()
-                        logger.info(f"🔍 DEBUG: Fecha del slot: {fecha}")
+                        fecha_base = datetime.datetime.fromisoformat(fecha_slot).date()
                     except:
-                        fecha = datetime.date.today() + datetime.timedelta(days=1)
-                        logger.info(f"🔍 DEBUG: Error parseando fecha del slot, usando: {fecha}")
+                        fecha_base = datetime.date.today()
                 else:
-                    fecha = datetime.date.today() + datetime.timedelta(days=1)
-                    logger.info(f"🔍 DEBUG: No hay fecha en slot, usando: {fecha}")
-                
-                # CONSULTAR BD REAL
+                    fecha_base = datetime.date.today()
+
                 with get_db_session() as session:
-                    logger.info(f"🔍 DEBUG: Iniciando consulta BD para motor difuso")
-                    ocupacion_franjas = consultar_disponibilidad_real(fecha, session)
-                    horarios_libres = obtener_horarios_disponibles_reales(fecha, session, 20)
-                    
-                    logger.info(f"🔍 DEBUG: Ocupación franjas: {ocupacion_franjas}")
-                    logger.info(f"🔍 DEBUG: Horarios libres encontrados: {len(horarios_libres)}")
-                    
-                    franjas_info = {
-                        'temprano': '07:00-09:00',
-                        'manana': '09:00-11:00',
-                        'tarde': '12:00-15:00'
-                    }
-                    
-                    # ✅ MENSAJE MEJORADO: Más claro y útil
-                    mensaje = f"📊 **Disponibilidad para {fecha.strftime('%A %d de %B')}**\n\n"
-                    
-                    # Ordenar franjas por ocupación
-                    franjas_ordenadas = sorted(ocupacion_franjas.items(), key=lambda x: x[1])
-                    
-                    for franja, porcentaje in franjas_ordenadas:
-                        rango = franjas_info[franja]
-                        emoji = "🟢" if porcentaje < 50 else "🟡" if porcentaje < 80 else "🔴"
+                    fecha_final = None
+                    primer_horario_libre = None
+
+                    # 🔎 Buscar el primer día hábil con horarios disponibles
+                    for i in range(0, 30):
+                        fecha_busqueda = fecha_base + datetime.timedelta(days=i)
+                        if fecha_busqueda.weekday() > 4:
+                            continue  # saltar fines de semana
                         
-                        if porcentaje < 50:
-                            estado = "Alta disponibilidad ✅"
-                        elif porcentaje < 80:
-                            estado = "Disponibilidad media"
-                        else:
-                            estado = "Poca disponibilidad"
-                        
-                        mensaje += f"{emoji} **{franja.title()}** ({rango}): {porcentaje}% ocupado - {estado}\n"
-                    
-                    mejor_franja, mejor_ocupacion = franjas_ordenadas[0]
-                    mensaje += f"\n🏆 **Mejor opción:** {mejor_franja.title()} ({franjas_info[mejor_franja]})\n"
-                    
-                    # ✅ MOSTRAR HORARIOS ESPECÍFICOS
-                    if horarios_libres:
-                        mensaje += f"\n🕐 **Horarios específicos disponibles:**\n"
-                        
-                        # Agrupar por franjas
-                        horarios_temprano = [h for h in horarios_libres if 7 <= int(h.split(':')[0]) < 9]
-                        horarios_manana = [h for h in horarios_libres if 9 <= int(h.split(':')[0]) < 11]
-                        horarios_tarde = [h for h in horarios_libres if 12 <= int(h.split(':')[0]) < 15]
-                        
-                        if horarios_temprano:
-                            mensaje += f"🌅 **Temprano:** {', '.join(horarios_temprano[:6])}\n"
-                        if horarios_manana:
-                            mensaje += f"☀️ **Mañana:** {', '.join(horarios_manana[:6])}\n"
-                        if horarios_tarde:
-                            mensaje += f"🌇 **Tarde:** {', '.join(horarios_tarde[:6])}\n"
-                        
-                        mensaje += f"\n💡 **Total disponibles:** {len(horarios_libres)} horarios"
-                        mensaje += "\n\n¿Qué hora preferís? (ej: 08:00, 10:30, 14:00)"
+                        horarios_libres = obtener_horarios_disponibles_reales(fecha_busqueda, session)
+                        if horarios_libres:
+                            fecha_final = fecha_busqueda
+                            primer_horario_libre = horarios_libres[0]
+                            break
+
+                    # ✅ Si encontró una fecha y hora libre, asignar automáticamente
+                    if fecha_final and primer_horario_libre:
+                        dispatcher.utter_message(
+                            text=f"📅 Te asigné el turno más próximo disponible:\n"
+                                f"🗓️ {format_fecha_es(fecha_final, True)}\n"
+                                f"🕐 {primer_horario_libre}\n\n"
+                                f"¿Confirmás?"
+                        )
+                        return {
+                            "fecha": fecha_final.isoformat(),
+                            "hora": primer_horario_libre
+                        }
                     else:
-                        mensaje += "\n\n⚠️ **No hay horarios disponibles para esta fecha.**"
-                        mensaje += "\nProbá con otra fecha o elegí otro día."
-                    
-                    dispatcher.utter_message(text=mensaje)
-                    logger.info(f"🔍 DEBUG: Mensaje enviado al usuario")
-                    
-                    return {"hora": None}
-                    
+                        dispatcher.utter_message(
+                            text="⚠️ No encontré horarios disponibles próximamente. Intentá más adelante."
+                        )
+                        return {"hora": None}
+
             except Exception as e:
-                logger.error(f"❌ ERROR en motor difuso: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
+                logger.error(f"❌ ERROR en búsqueda de turno más próximo: {e}")
                 dispatcher.utter_message(
-                    text="Atendemos de 07:00 a 15:00 (cerrado 11:00). ¿Qué hora preferís?"
+                    text="No pude consultar el turno más cercano en este momento. Probá indicando una hora concreta (por ejemplo: '08:00')."
                 )
                 return {"hora": None}
-        
+
         # ✅ Intentar parsear hora normal
         hora_normalizada = normalizar_hora(texto_usuario)
         if not hora_normalizada:
             dispatcher.utter_message(
                 text="No pude entender la hora. Podés decir '14:00', '2 de la tarde', '9am', etc.\n\n"
-                     "💡 Si querés recomendaciones, decí 'recomendame un horario'."
+                    "💡 Si querés recomendaciones, decí 'recomendame un horario'."
             )
             return {"hora": None}
         
@@ -623,8 +672,28 @@ class ValidateFormularioTurno(FormValidationAction):
             )
             return {"hora": None}
         
+        # ✅ Verificar si ese horario está lleno
+        with get_db_session() as session:
+            fecha_slot = tracker.get_slot("fecha")
+            if fecha_slot:
+                try:
+                    fecha = datetime.datetime.fromisoformat(fecha_slot).date()
+                    fecha_hora = datetime.datetime.combine(fecha, hora_normalizada)
+                    ocupados = session.query(Turno).filter(
+                        Turno.fecha_hora == fecha_hora,
+                        Turno.estado == 'activo'
+                    ).count()
+                    if ocupados >= 3:
+                        dispatcher.utter_message(
+                            text=f"⚠️ El horario {hora_normalizada.strftime('%H:%M')} ya está lleno. Probá otro horario disponible."
+                        )
+                        return {"hora": None}
+                except Exception as e:
+                    logger.error(f"Error validando ocupación del horario: {e}")
+        
         logger.info(f"🔍 DEBUG: Hora validada exitosamente: {hora_normalizada.strftime('%H:%M')}")
         return {"hora": hora_normalizada.strftime("%H:%M")}
+
 
     def validate_email(
         self, slot_value: Any, dispatcher: CollectingDispatcher,
@@ -658,6 +727,23 @@ class ValidateFormularioTurno(FormValidationAction):
 # =====================================================
 # ACCIONES PRINCIPALES CORREGIDAS
 # =====================================================
+# ✅ NUEVA ACCIÓN: Permite corregir solo un campo sin reiniciar todo
+class ActionReiniciarCampo(Action):
+    def name(self) -> Text:
+        return "action_reiniciar_campo"
+
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        ultimo_mensaje = tracker.latest_message.get("text", "").lower()
+        campo = detectar_correccion(ultimo_mensaje)
+        
+        if campo:
+            dispatcher.utter_message(text=f"Entendido, vamos a corregir tu {campo}.")
+            return [SlotSet(campo, None), FollowupAction("turno_form")]
+        else:
+            dispatcher.utter_message(text="Podés decir qué querés cambiar: nombre, cédula, fecha u hora.")
+            return []
+
+
 class ActionConfirmarDatosTurno(Action):
     def name(self) -> Text:
         return "action_confirmar_datos_turno"
@@ -677,7 +763,7 @@ class ActionConfirmarDatosTurno(Action):
         try:
             fecha = datetime.datetime.fromisoformat(fecha_slot).date()
             hora = datetime.datetime.strptime(hora_slot, "%H:%M").time()
-            fecha_formateada = fecha.strftime("%A %d de %B de %Y")
+            fecha_formateada = format_fecha_es(fecha, True)
             hora_formateada = hora.strftime("%H:%M")
         except:
             dispatcher.utter_message(text="Hubo un problema con la fecha u hora. Intentemos de nuevo.")
@@ -739,6 +825,7 @@ class ActionGuardarTurno(Action):
         
         try:
             with get_db_session() as session:
+                # Verificar si ya existe un turno para esa fecha y cédula
                 turno_existente = session.query(Turno).filter(
                     Turno.fecha_hora == fecha_hora,
                     Turno.cedula == cedula,
@@ -751,19 +838,31 @@ class ActionGuardarTurno(Action):
                     )
                     return []
                 
+                turnos_mismo_horario = session.query(Turno).filter(
+                    Turno.fecha_hora == fecha_hora,
+                    Turno.estado == 'activo'
+                ).count()
+                
+                if turnos_mismo_horario >= 3:
+                    dispatcher.utter_message(
+                        text="⚠️ Este horario ya tiene todos los cupos ocupados. Elegí otro horario disponible."
+                    )
+                    return []
+                
+                # Crear turno inicial sin event_id (todavía no se genera el evento)
                 nuevo_turno = Turno(
                     nombre=nombre,
                     cedula=cedula if cedula != "PRIMERA_VEZ" else None,
                     fecha_hora=fecha_hora,
-                    codigo=codigo
+                    codigo=codigo,
+                    email=email
                 )
                 
                 session.add(nuevo_turno)
                 session.flush()
-                
                 logger.info(f"✅ BD: Turno guardado - ID {nuevo_turno.id}, Código {codigo}")
                 
-                # INTEGRAR GOOGLE CALENDAR
+                # Intentar crear evento en Google Calendar
                 try:
                     logger.info(f"📅 CALENDAR: Creando evento (email: {email if email else 'sin email'})")
                     
@@ -777,6 +876,8 @@ class ActionGuardarTurno(Action):
                     
                     if exito_calendar:
                         calendar_link = resultado
+                        nuevo_turno.event_id = resultado  # ✅ guardar ID del evento
+                        session.commit()
                         logger.info(f"✅ CALENDAR: Evento creado - {calendar_link}")
                     else:
                         logger.warning(f"⚠️ CALENDAR: Fallo - {resultado}")
@@ -786,6 +887,7 @@ class ActionGuardarTurno(Action):
                     import traceback
                     logger.error(traceback.format_exc())
                 
+                # Mensaje final al usuario
                 mensaje = f"✅ **¡Turno agendado exitosamente!**\n\n"
                 mensaje += f"🎫 **Código de turno:** `{codigo}`\n"
                 mensaje += f"👤 **Nombre:** {nombre}\n"
@@ -795,7 +897,7 @@ class ActionGuardarTurno(Action):
                 else:
                     mensaje += f"🆔 **Cédula:** {cedula}\n"
                 
-                mensaje += f"📅 **Fecha:** {fecha.strftime('%d/%m/%Y')}\n"
+                mensaje += f"📅 **Fecha:** {format_fecha_es(fecha, True)}\n"
                 mensaje += f"🕐 **Hora:** {hora.strftime('%H:%M')}\n"
                 mensaje += f"📍 **Lugar:** Av. Pioneros del Este, CDE\n"
                 
@@ -803,7 +905,7 @@ class ActionGuardarTurno(Action):
                     mensaje += f"\n📅 **Google Calendar:** {calendar_link}\n"
                     if email and email.lower() not in ['no', 'skip', 'omitir']:
                         mensaje += f"📧 **Invitación enviada a:** {email}\n"
-                        mensaje += f"💡 **Tip:** Revisa tu correo y acepta la invitación\n"
+                        mensaje += f"💡 **Tip:** Revisá tu correo y aceptá la invitación\n"
                 else:
                     mensaje += f"\n💾 **Guardado en base de datos**\n"
                 
@@ -811,6 +913,7 @@ class ActionGuardarTurno(Action):
                 
                 dispatcher.utter_message(text=mensaje)
                 
+                # Registrar interacción en el sistema de aprendizaje
                 if conversation_logger:
                     response_time_ms = int((time.time() - start_time) * 1000)
                     log_rasa_interaction(
@@ -834,6 +937,7 @@ class ActionGuardarTurno(Action):
             SlotSet("hora", None),
             SlotSet("email", None)
         ]
+
 
 # ✅ ACTION CORREGIDO: Motor difuso mejorado con debug
 class ActionRecomendarHorarioFuzzy(Action):
@@ -902,7 +1006,7 @@ class ActionRecomendarHorarioFuzzy(Action):
                     key=lambda x: (x[1]['ocupacion'], x[1]['espera_estimada'])
                 )
                 
-                mensaje = f"🤖 **Motor Difuso - Análisis Inteligente para {fecha.strftime('%A %d de %B')}**\n\n"
+                mensaje = f"🤖 **Motor Difuso - Análisis Inteligente para {format_fecha_es(fecha)}**\n\n"
                 
                 mejor_franja_nombre, mejor_franja_datos = franjas_ordenadas[0]
                 mensaje += f"🏆 **Recomendación principal:** {mejor_franja_nombre.title()} ({mejor_franja_datos['rango']})\n"
@@ -984,7 +1088,7 @@ class ActionConsultarDisponibilidad(Action):
                             estado, emoji = "Poca disponibilidad", "🔴"
                         
                         disponibilidad.append(
-                            f"{emoji} {fecha.strftime('%A %d/%m')}: {estado} ({ocupacion_promedio:.0f}% ocupado) - {len(horarios_dia)} horarios libres"
+                            f"{emoji} { _DIAS_ES[fecha.weekday()] } {fecha.strftime('%d/%m')}: {estado} ({ocupacion_promedio:.0f}% ocupado) - {len(horarios_dia)} horarios libres"
                         )
                         
                         logger.info(f"📊 DISPONIBILIDAD: {fecha} - {ocupacion_promedio:.0f}% ocupado, {len(horarios_dia)} horarios")
@@ -1168,9 +1272,68 @@ class ActionSessionStart(Action):
         
         return [
             SessionStarted(),
+            # 🔹 Limpieza completa de slots
+            SlotSet("nombre", None),
+            SlotSet("cedula", None),
+            SlotSet("fecha", None),
+            SlotSet("hora", None),
+            SlotSet("email", None),
             SlotSet("session_started_metadata", {
                 "started_at": datetime.datetime.now().isoformat(),
                 "sender_id": tracker.sender_id
             }),
             ActionExecuted("action_listen")
         ]
+        
+# ✅ NUEVA ACCIÓN: Fallback inteligente para confusiones o interrupciones
+class ActionFallbackContexto(Action):
+    def name(self) -> Text:
+        return "action_fallback_contexto"
+
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        ultimo = tracker.latest_message.get("text", "").lower()
+        campo = detectar_correccion(ultimo)
+        
+        if campo:
+            dispatcher.utter_message(text=f"Entendido, cambiamos tu {campo}.")
+            return [SlotSet(campo, None), FollowupAction("turno_form")]
+        
+        dispatcher.utter_message(text="Perdón, no entendí bien. Continuemos con tu turno.")
+        return [FollowupAction("turno_form")]
+    
+class ActionGestionarCambioDatos(Action):
+    def name(self) -> Text:
+        return "action_gestionar_cambio_datos"
+
+    def run(self, dispatcher: CollectingDispatcher,
+            tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        
+        ultimo = tracker.latest_message.get("text", "").lower()
+        campos_detectados = []
+
+        # Detectar qué campos mencionó el usuario
+        if "nombre" in ultimo:
+            campos_detectados.append("nombre")
+        if "cédula" in ultimo or "cedula" in ultimo:
+            campos_detectados.append("cedula")
+        if "fecha" in ultimo or "día" in ultimo or "dia" in ultimo:
+            campos_detectados.append("fecha")
+        if "hora" in ultimo:
+            campos_detectados.append("hora")
+
+        # Si no menciona campos, preguntar cuáles quiere cambiar
+        if not campos_detectados:
+            dispatcher.utter_message(
+                text="Por supuesto 😊 ¿qué querés cambiar? Podés decir por ejemplo: 'fecha', 'hora', 'nombre' o 'cédula'."
+            )
+            return [SlotSet("paso_formulario", "confirmacion")]
+
+        # Si menciona uno o varios campos
+        dispatcher.utter_message(
+            text=f"Entendido 👍 Vamos a corregir {', '.join(campos_detectados)}. Escribí los nuevos valores:"
+        )
+
+        # Limpiar solo los slots mencionados
+        eventos = [SlotSet(c, None) for c in campos_detectados]
+        eventos.append(FollowupAction("turno_form"))
+        return eventos

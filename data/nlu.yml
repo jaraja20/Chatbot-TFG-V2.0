@@ -275,6 +275,25 @@ nlu:
     - está mal
     - hay un error
     - quiero corregir
+    - cambiar fecha
+    - hice mal quiero cambiar
+    - puedo modificar?
+    - me equivoqué en la fecha
+    - quiero cambiar mi cédula
+    - quiero modificar mi nombre
+    - quiero otra hora
+    - necesito editar mis datos
+    - quiero corregir mi información
+    - quiero cambiar algo
+    - me equivoqué en mis datos
+    - quiero modificar mi turno
+    - cambiar nombre
+    - quiero cambiar la fecha y la hora
+    - quiero corregir fecha y hora
+    - modificar nombre y cédula
+    - cambiar dos cosas
+    - cambiar día y hora
+
 
 - intent: cancelar_turno
   examples: |

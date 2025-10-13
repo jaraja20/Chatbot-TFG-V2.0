@@ -401,6 +401,29 @@ responses:
     - text: "Reiniciemos la conversación. ¿En qué puedo ayudarte con tu trámite de cédula?"
     - text: "Comencemos de nuevo. ¿Qué necesitás para tu cédula de identidad?"
 
+  utter_confirmar_cambio_dato:
+    - text: "Perfecto, podemos corregir tu {campo}. Decime el nuevo valor por favor."
+    - text: "De acuerdo, vamos a actualizar tu {campo}. ¿Cuál sería el correcto?"
+    - text: "Entendido, ¿cuál es el nuevo {campo}?"
+
+  utter_solicitar_cambio_dato:
+    - text: "¿Qué dato querés modificar? Podés decir por ejemplo 'cambiar fecha', 'cambiar hora', 'corregir nombre' o 'editar cédula'."
+    - text: "Decime qué querés corregir: nombre, cédula, fecha u hora."
+    - text: "Podés indicarme qué dato está mal y lo corregimos enseguida."
+
+  utter_cambio_confirmado:
+    - text: "✅ Listo, tu {campo} fue actualizado correctamente."
+    - text: "Perfecto, el cambio de {campo} quedó guardado."
+    - text: "Se corrigió tu {campo}. Continuemos con el resto del formulario."
+
+  utter_cancelar_cambio:
+    - text: "No te preocupes, no se realizaron cambios."
+    - text: "Cancelé la corrección, seguimos donde estábamos."
+
+  utter_preguntar_cambio_datos:
+    - text: "Por supuesto 😊 ¿qué querés cambiar? (nombre, cédula, fecha u hora)"
+
+
 actions:
   - validate_turno_form
   - action_confirmar_datos_turno
@@ -413,6 +436,10 @@ actions:
   - action_consultar_turno_existente
   - action_deactivate_loop
   - action_restart
+  - action_reiniciar_campo
+  - action_fallback_contexto
+  - action_gestionar_cambio_datos
+
 
 session_config:
   session_expiration_time: 60
