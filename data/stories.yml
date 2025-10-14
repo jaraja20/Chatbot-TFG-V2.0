@@ -75,7 +75,7 @@ stories:
 # ===============================
 # HISTORIAS DEL MOTOR DIFUSO - CORREGIDAS
 # ===============================
-- story: consulta tiempo de espera actual
+- story: consulta tiempo de espera actual (difuso)
   steps:
   - user: |
       ¿Cuánto voy a esperar?
