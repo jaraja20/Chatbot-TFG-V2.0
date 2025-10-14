@@ -161,10 +161,6 @@ rules:
     - intent: consultar_sin_qr
     - action: utter_consultar_sin_qr
 
-- rule: Consultar horarios de atención
-  steps:
-    - intent: consultar_horarios
-    - action: utter_consultar_horarios
 
 - rule: Consultar ubicación
   steps:

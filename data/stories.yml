@@ -299,17 +299,7 @@ stories:
     - intent: confirmar_turno
     - action: action_guardar_turno
 
-- story: Usuario solicita cambio específico
-  steps:
-    - action: action_confirmar_datos_turno
-    - intent: solicitar_cambio_datos
-    - action: turno_form
-    - active_loop: turno_form
-    - action: turno_form
-    - active_loop: null
-    - action: action_confirmar_datos_turno
-    - intent: affirm
-    - action: action_guardar_turno
+
 
 # ===============================
 # FLUJO CON INTERRUPCIONES - CORREGIDO
@@ -425,10 +415,6 @@ stories:
     - intent: consulta_tiempo_espera
     - action: action_tiempo_espera_actual
 
-- story: Consulta saturación
-  steps:
-    - intent: calcular_saturacion
-    - action: action_calcular_saturacion
 
 - story: Estado de trámite
   steps:
