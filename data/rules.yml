@@ -220,12 +220,13 @@ rules:
   steps:
     - intent: nlu_fallback
     - action: utter_default
-    - action: utter_rephrase
+    - action: action_fallback_contexto
 
 - rule: Respuesta fuera de alcance
   steps:
     - intent: out_of_scope
     - action: utter_out_of_scope
+
 
 # ===============================
 # REGLAS DE SESIÓN
@@ -277,4 +278,12 @@ rules:
   steps:
     - intent: restart
     - action: action_restart
+
+- rule: Interrupción con consulta de horarios durante formulario
+  condition:
+    - active_loop: turno_form
+  steps:
+    - intent: consultar_horarios
+    - action: action_recomendar_horario_fuzzy
+    - action: turno_form
 

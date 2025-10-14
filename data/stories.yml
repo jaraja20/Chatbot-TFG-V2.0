@@ -303,7 +303,6 @@ stories:
   steps:
     - action: action_confirmar_datos_turno
     - intent: solicitar_cambio_datos
-    - action: utter_datos_incorrectos
     - action: turno_form
     - active_loop: turno_form
     - action: turno_form

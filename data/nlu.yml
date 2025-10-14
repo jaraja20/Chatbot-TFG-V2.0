@@ -242,6 +242,11 @@ nlu:
     - [dentro de dos días](fecha)
     - [el 25](fecha)
     - [septiembre 30](fecha)
+    - el jueves
+    - para el jueves
+    - este jueves
+    - el viernes que viene
+    - para el martes próximo
 
 - intent: confirmar_turno
   examples: |

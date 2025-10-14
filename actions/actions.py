@@ -373,33 +373,32 @@ def consultar_disponibilidad_real(fecha: datetime.date, session) -> Dict[str, in
 
 # ✅ CORREGIDO: Detectar frases ambiguas ANTES de procesarlas
 def es_frase_ambigua(texto: str) -> bool:
-    """Detecta si el texto contiene frases ambiguas que requieren lógica difusa"""
+    """Detecta si el texto contiene frases ambiguas que requieren lógica difusa (sin días explícitos)."""
     if not texto:
         return False
-    
+
     texto_lower = texto.lower().strip()
 
-    frases_fecha_ambigua = [
+    frases_genericas = [
         "lo antes posible", "lo más rápido", "cuando antes", "cuanto antes", "urgente",
-        "primer turno", "primera fecha", "el primer día", "cuando tengas", "cuando haya",
-        "lo que tengas", "qué día", "que dia", "qué fecha", "que fecha", 
+        "primer turno", "primera fecha", "el primer horario que tengas",
+        "cuando tengas", "cuando haya", "lo que tengas",
+        "qué día", "que dia", "qué fecha", "que fecha",
         "día disponible", "dia disponible", "fecha disponible",
-        "qué día tenes disponible", "que dia tenes disponible",
-        # Nuevas combinaciones naturales
-        "para el lunes", "para el martes", "para el miércoles", "para el jueves", "para el viernes",
-        "entonces", "para ese día", "para esa fecha", "ese día", "ese lunes", "ese martes"
+        "cuando haya menos gente", "cuando esté tranquilo",
+        "el mejor horario", "recomendame", "recomiendame", "sugerime",
+        "que horario", "horario libre", "cuando convenga",
+        "lo mas temprano", "lo más temprano", "lo mas tarde", "lo más tarde",
+        "a la mañana", "a la tarde", "temprano", "cualquier horario",
+        "que horarios hay", "que horarios", "horarios disponibles",
+        "está disponible", "esta disponible", "qué hora hay", "que hora hay",
+        "qué hora está disponible", "que hora esta disponible",
+        "qué horario está disponible", "que horario esta disponible"
     ]
 
-    frases_hora_ambigua = [
-        "cuando haya menos gente", "cuando esté tranquilo", "el mejor horario", "recomendame",
-        "recomiendame", "sugerime", "que horario", "horario libre", "cuando convenga",
-        "lo mas temprano", "lo más temprano", "lo mas tarde", "lo más tarde", "a la mañana",
-        "a la tarde", "temprano", "cualquier horario", "que horarios hay", "que horarios",
-        "horarios disponibles", "esta disponible", "está disponible"
-    ]
+    # ⚠️ Importante: NO considerar "lunes", "martes", "jueves", etc. como ambiguo
+    return any(frase in texto_lower for frase in frases_genericas)
 
-    todas_frases = frases_fecha_ambigua + frases_hora_ambigua
-    return any(frase in texto_lower for frase in todas_frases)
 
 # ✅ NUEVO: Detección de frases de corrección de datos
 def detectar_correccion(texto: str) -> Optional[str]:
@@ -604,7 +603,7 @@ class ValidateFormularioTurno(FormValidationAction):
         
         # ✅ DETECTAR FRASES AMBIGUAS / URGENTES
         if es_frase_ambigua(texto_usuario):
-            logger.info(f"🔍 DEBUG: Frase ambigua detectada: '{texto_usuario}' - buscando turno más próximo disponible")
+            logger.info(f"🔍 DEBUG: Frase ambigua detectada: '{texto_usuario}' - listar horarios en vez de asignar")
 
             try:
                 fecha_slot = tracker.get_slot("fecha")
@@ -617,38 +616,37 @@ class ValidateFormularioTurno(FormValidationAction):
                     fecha_base = datetime.date.today()
 
                 with get_db_session() as session:
-                    fecha_final = None
-                    primer_horario_libre = None
+                    horarios_libres = obtener_horarios_disponibles_reales(fecha_base, session, limite=40)
 
-                    # 🔎 Buscar el primer día hábil con horarios disponibles
-                    for i in range(0, 30):
-                        fecha_busqueda = fecha_base + datetime.timedelta(days=i)
-                        if fecha_busqueda.weekday() > 4:
-                            continue  # saltar fines de semana
-                        
-                        horarios_libres = obtener_horarios_disponibles_reales(fecha_busqueda, session)
-                        if horarios_libres:
-                            fecha_final = fecha_busqueda
-                            primer_horario_libre = horarios_libres[0]
-                            break
-
-                    # ✅ Si encontró una fecha y hora libre, asignar automáticamente
-                    if fecha_final and primer_horario_libre:
+                    if not horarios_libres:
                         dispatcher.utter_message(
-                            text=f"📅 Te asigné el turno más próximo disponible:\n"
-                                f"🗓️ {format_fecha_es(fecha_final, True)}\n"
-                                f"🕐 {primer_horario_libre}\n\n"
-                                f"¿Confirmás?"
-                        )
-                        return {
-                            "fecha": fecha_final.isoformat(),
-                            "hora": primer_horario_libre
-                        }
-                    else:
-                        dispatcher.utter_message(
-                            text="⚠️ No encontré horarios disponibles próximamente. Intentá más adelante."
+                            text=f"⚠️ Para {format_fecha_es(fecha_base, True)} no hay horarios libres. "
+                                f"Decime otra fecha o escribí una hora exacta (ej: '08:15')."
                         )
                         return {"hora": None}
+
+                    tempr = [h for h in horarios_libres if 7 <= int(h.split(':')[0]) < 9]
+                    mana  = [h for h in horarios_libres if 9 <= int(h.split(':')[0]) < 11]
+                    tarde = [h for h in horarios_libres if 12 <= int(h.split(':')[0]) < 15]
+
+                    def preview(arr): return ", ".join(arr[:6]) + (f" (+{len(arr)-6} más)" if len(arr) > 6 else "")
+
+                    msg = f"📅 **Horarios disponibles para {format_fecha_es(fecha_base, True)}**\n"
+                    if tempr: msg += f"🟢 Temprano (07:00-09:00): {preview(tempr)}\n"
+                    if mana:  msg += f"🟡 Mañana (09:00-11:00): {preview(mana)}\n"
+                    if tarde: msg += f"🟢 Tarde (12:00-15:00): {preview(tarde)}\n"
+
+                    msg += "\n✍️ Escribí la hora exacta que preferís (ej: '07:15' o '2 de la tarde')."
+                    dispatcher.utter_message(text=msg)
+                    return {"hora": None}
+
+            except Exception as e:
+                logger.error(f"❌ ERROR listando horarios: {e}")
+                dispatcher.utter_message(
+                    text="No pude listar los horarios ahora. Indicá una hora concreta (p.ej., '08:00')."
+                )
+                return {"hora": None}
+
 
             except Exception as e:
                 logger.error(f"❌ ERROR en búsqueda de turno más próximo: {e}")

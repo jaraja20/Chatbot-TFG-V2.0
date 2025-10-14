@@ -183,12 +183,12 @@ responses:
     - text: "Proporcioná tu número de cédula. Si nunca tramitaste una, escribí 'primera vez'."
 
   utter_ask_fecha:
-    - text: "¿Para qué fecha necesitás el turno? Podés decir 'mañana', 'viernes 15', '20 de octubre', etc."
-    - text: "¿Qué día te conviene para el turno? Recordá que atendemos de lunes a viernes."
+    - text: "¿Para qué fecha? Podés decir 'mañana', 'jueves', 'viernes 15', '20 de octubre', etc."
+
 
   utter_ask_hora:
-    - text: "¿A qué hora preferís el turno? Nuestro horario es de 07:00 a 17:00."
-    - text: "¿Qué horario te viene bien? Si no estás seguro/a, podés preguntarme por disponibilidad."
+    - text: "¿A qué hora preferís el turno? Atendemos de 07:00 a 15:00 (cerrado 11:00 por almuerzo)."
+
 
   utter_ask_email:
     - text: "¿Querés recibir una invitación en tu calendario personal? Es opcional. Podés darme tu email o decir 'no' para continuar sin email."
