@@ -343,6 +343,47 @@ class ConversationLogger:
             self.logger.error(f"❌ Error obteniendo mensajes con feedback: {e}")
             return []
     
+    def update_feedback_by_details(self, session_id: str, bot_response: str, 
+                                  feedback_thumbs: int, feedback_comment: str = None) -> bool:
+        """
+        Actualiza feedback buscando por session_id y bot_response
+        
+        Args:
+            session_id: ID de la sesión
+            bot_response: Respuesta exacta del bot
+            feedback_thumbs: 1 para 👍, -1 para 👎
+            feedback_comment: Comentario opcional
+        
+        Returns:
+            bool: True si se actualizó correctamente
+        """
+        try:
+            with self.get_db_session() as session:
+                # Buscar el registro más reciente que coincida
+                log_entry = session.query(ConversationLog).filter(
+                    ConversationLog.session_id == session_id,
+                    ConversationLog.bot_response == bot_response
+                ).order_by(ConversationLog.timestamp.desc()).first()
+                
+                if not log_entry:
+                    self.logger.warning(f"⚠️ No se encontró registro para session {session_id}")
+                    return False
+                
+                log_entry.feedback_thumbs = feedback_thumbs
+                log_entry.feedback_comment = feedback_comment
+                
+                # Si es feedback negativo, marcar para revisión
+                if feedback_thumbs == -1:
+                    log_entry.needs_review = True
+                
+                session.commit()
+                self.logger.info(f"✅ Feedback actualizado para sesión {session_id}: {'👍' if feedback_thumbs == 1 else '👎'}")
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error actualizando feedback por detalles: {e}")
+            return False
+    
     def log_fuzzy_analysis(self, session_id: str, user_query: str, 
                           analysis_type: str, analysis_data: Dict, 
                           processing_time_ms: int = None) -> bool:
