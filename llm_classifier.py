@@ -99,6 +99,8 @@ KEYWORD_MAPPING = {
     "necesito turno": "agendar_turno",
     "quiero agendar": "agendar_turno",
     "quiero sacar": "agendar_turno",
+    "quiero marcar": "agendar_turno",
+    "marcar turno": "agendar_turno",
     "kmiero": "agendar_turno",  # error ortográfico común
     
     # Información personal
@@ -110,10 +112,15 @@ KEYWORD_MAPPING = {
     "para mañana": "informar_fecha",
     "mañana": "informar_fecha",
     "para el": "informar_fecha",
+    "ese martes": "informar_fecha",
+    "ese dia": "informar_fecha",
+    "esa fecha": "informar_fecha",
     
-    # Hora
+    # Hora - ✅ NUEVAS FRASES AGREGADAS
     "a las": "elegir_horario",
     "las ": "elegir_horario",
+    "primera hora": "elegir_horario",
+    "a primera hora": "elegir_horario",
     
     # Requisitos
     "requisitos": "consultar_requisitos",
@@ -134,14 +141,16 @@ KEYWORD_MAPPING = {
     "costo": "consultar_costo",
     "kuesta": "consultar_costo",  # error ortográfico
     
-    # Horarios ambiguos
+    # Horarios ambiguos - ✅ AMPLIADO
     "que horarios": "frase_ambigua",
     "horarios disponible": "frase_ambigua",
     "recomenda": "frase_ambigua",
     "mejor horario": "frase_ambigua",
-    "mas temprano": "frase_ambigua",
+    "mas temprano posible": "frase_ambigua",
+    "lo mas temprano": "frase_ambigua",
     "lo antes posible": "frase_ambigua",
     "cuando puedo": "frase_ambigua",
+    "horario temprano": "frase_ambigua",
     
     # Tiempo de espera
     "cuanto voy a esperar": "consulta_tiempo_espera",
