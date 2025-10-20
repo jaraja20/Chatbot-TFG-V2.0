@@ -30,6 +30,50 @@ _MESES_ES = [
     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
 ]
 
+PALABRAS_PROHIBIDAS_NOMBRE = [
+    "amor", "corazon", "test", "prueba", "xxx", "asdf", "qwerty",
+    "hola", "chau", "bot", "chatbot", "admin", "root", "user"
+]
+
+def validar_nombre_real(nombre: str) -> tuple[bool, str]:
+    """
+    Valida que el nombre sea realista
+    
+    Returns:
+        (es_valido, mensaje_error)
+    """
+    if not nombre or len(nombre.strip()) < 3:
+        return False, "El nombre es demasiado corto"
+    
+    nombre_limpio = nombre.strip().lower()
+    partes = nombre_limpio.split()
+    
+    # Debe tener al menos 2 palabras (nombre y apellido)
+    if len(partes) < 2:
+        return False, "Necesito tu nombre completo (nombre y apellido)"
+    
+    # Cada parte debe tener al menos 2 letras
+    for parte in partes:
+        if len(parte) < 2:
+            return False, "Cada parte del nombre debe tener al menos 2 letras"
+        
+        # Solo letras (permitir tildes y ñ)
+        if not re.match(r'^[a-záéíóúñü]+$', parte, re.IGNORECASE):
+            return False, f"El nombre solo puede contener letras (sin números ni símbolos)"
+    
+    # Verificar palabras prohibidas
+    for palabra in PALABRAS_PROHIBIDAS_NOMBRE:
+        if palabra in nombre_limpio:
+            return False, "Por favor, ingresá tu nombre real completo"
+    
+    # Verificar que no sea una frase o expresión
+    if len(partes) > 4:
+        return False, "Por favor, solo nombre y apellido(s)"
+    
+    return True, ""
+
+
+
 def format_fecha_es(fecha: datetime.date, con_anio: bool = False) -> str:
     """Devuelve una fecha en formato español, manejando errores y capitalización."""
     try:
@@ -60,11 +104,25 @@ except ImportError:
 
 # Sistema de aprendizaje
 try:
+    from improved_conversation_logger import (
+        setup_improved_logging_system, 
+        log_rasa_interaction_improved,
+        get_improved_conversation_logger,
+        set_improved_conversation_logger
+    )
+    IMPROVED_LOGGING_AVAILABLE = True
+    logger.info("✅ Sistema de logging mejorado cargado exitosamente")
+except ImportError:
+    IMPROVED_LOGGING_AVAILABLE = False
+    logger.warning("❌ Sistema de logging mejorado no disponible")
+
+# Fallback al sistema anterior
+try:
     from conversation_logger import setup_learning_system, log_rasa_interaction
     LEARNING_AVAILABLE = True
-    logger.info("✅ Sistema de aprendizaje cargado exitosamente")
+    logger.info("✅ Sistema de aprendizaje fallback cargado")
 except ImportError as e:
-    logger.warning(f"❌ Sistema de aprendizaje no disponible: {e}")
+    logger.warning(f"❌ Sistema de aprendizaje fallback no disponible: {e}")
     LEARNING_AVAILABLE = False
     def log_rasa_interaction(*args, **kwargs):
         pass
@@ -84,13 +142,24 @@ except Exception as e:
     raise
 
 # Configurar sistema de aprendizaje
+improved_logger = None
+if IMPROVED_LOGGING_AVAILABLE:
+    try:
+        improved_logger = setup_improved_logging_system(DATABASE_URL)
+        set_improved_conversation_logger(improved_logger)
+        logger.info("✅ Sistema de logging mejorado inicializado correctamente")
+    except Exception as e:
+        logger.error(f"❌ Error inicializando sistema mejorado: {e}")
+        improved_logger = None
+
+# Fallback al sistema anterior
 conversation_logger = None
-if LEARNING_AVAILABLE:
+if not improved_logger and LEARNING_AVAILABLE:
     try:
         conversation_logger = setup_learning_system(DATABASE_URL)
-        logger.info("✅ Sistema de aprendizaje inicializado correctamente")
+        logger.info("✅ Sistema de aprendizaje fallback inicializado")
     except Exception as e:
-        logger.error(f"❌ Error inicializando sistema de aprendizaje: {e}")
+        logger.error(f"❌ Error inicializando sistema fallback: {e}")
         conversation_logger = None
 
 # =====================================================
@@ -419,6 +488,22 @@ def detectar_correccion(texto: str) -> Optional[str]:
         return "hora"
     return None
 
+# ✅ NUEVO: Función auxiliar para logging con sistema mejorado
+def log_interaction_improved(tracker, bot_response, additional_data=None):
+    """
+    Función auxiliar para registrar interacciones usando el sistema mejorado
+    """
+    try:
+        improved_logger = get_improved_conversation_logger()
+        if improved_logger:
+            # Preparar datos LLM si están disponibles
+            llm_classification = additional_data if additional_data else {}
+            log_rasa_interaction_improved(improved_logger, tracker, bot_response, llm_classification)
+        elif conversation_logger:
+            # Fallback al sistema anterior
+            log_rasa_interaction(conversation_logger, tracker, bot_response)
+    except Exception as e:
+        logger.error(f"❌ Error en logging mejorado: {e}")
 
 # =====================================================
 # VALIDACIÓN DE FORMULARIO
@@ -432,21 +517,31 @@ class ValidateFormularioTurno(FormValidationAction):
         tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
         texto_usuario = str(slot_value).strip().lower()
+        
+        # Detectar corrección
         correccion = detectar_correccion(texto_usuario)
         if correccion:
-            dispatcher.utter_message(text=f"Perfecto, corregiremos tu {correccion}.")
+            bot_response = f"Perfecto, corregiremos tu {correccion}."
+            dispatcher.utter_message(text=bot_response)
+            log_interaction_improved(tracker, bot_response)
             return {correccion: None}
         
-        if not slot_value or len(slot_value.strip()) < 3:
-            dispatcher.utter_message(text="Por favor, proporciona tu nombre completo (mínimo 3 caracteres).")
+        # Validar que sea un nombre real
+        es_valido, mensaje_error = validar_nombre_real(slot_value)
+        
+        if not es_valido:
+            bot_response = f"⚠️ {mensaje_error}\n\nEjemplo: 'Juan Carlos Pérez' o 'María González'"
+            dispatcher.utter_message(text=bot_response)
+            log_interaction_improved(tracker, bot_response, {"feedback_type": "validation_error", "field": "nombre"})
             return {"nombre": None}
         
-        partes = slot_value.strip().split()
-        if len(partes) < 2:
-            dispatcher.utter_message(text="Necesito tu nombre completo (nombre y apellido).")
-            return {"nombre": None}
+        # Capitalizar correctamente
+        nombre_formateado = slot_value.strip().title()
         
-        return {"nombre": slot_value.strip().title()}
+        bot_response = f"Perfecto, {nombre_formateado.split()[0]} 👍"
+        dispatcher.utter_message(text=bot_response)
+        log_interaction_improved(tracker, bot_response, {"validation_success": True, "field": "nombre"})
+        return {"nombre": nombre_formateado}
 
 
     def validate_cedula(
@@ -456,7 +551,9 @@ class ValidateFormularioTurno(FormValidationAction):
         texto_usuario = str(slot_value).strip().lower()
         correccion = detectar_correccion(texto_usuario)
         if correccion:
-            dispatcher.utter_message(text=f"Perfecto, corregiremos tu {correccion}.")
+            bot_response = f"Perfecto, corregiremos tu {correccion}."
+            dispatcher.utter_message(text=bot_response)
+            log_interaction_improved(tracker, bot_response)
             return {correccion: None}
         
         if not slot_value:
@@ -464,18 +561,19 @@ class ValidateFormularioTurno(FormValidationAction):
         
         frases_primera_vez = ["primera vez", "no tengo", "nunca tuve", "primera", "no tengo cedula"]
         if any(frase in texto_usuario for frase in frases_primera_vez):
-            dispatcher.utter_message(
-                text="Entendido, es tu primera cédula. Recordá que necesitarás partida de nacimiento original."
-            )
+            bot_response = "Entendido, es tu primera cédula. Recordá que necesitarás partida de nacimiento original."
+            dispatcher.utter_message(text=bot_response)
+            log_interaction_improved(tracker, bot_response, {"cedula_type": "primera_vez"})
             return {"cedula": "PRIMERA_VEZ"}
         
         cedula_limpia = re.sub(r'[^\d]', '', texto_usuario)
         if cedula_limpia and 1 <= len(cedula_limpia) <= 8:
+            log_interaction_improved(tracker, f"Cédula {cedula_limpia} registrada", {"validation_success": True, "field": "cedula"})
             return {"cedula": cedula_limpia}
         
-        dispatcher.utter_message(
-            text="La cédula debe tener entre 1 y 8 dígitos, o decime si es tu primera vez."
-        )
+        bot_response = "La cédula debe tener entre 1 y 8 dígitos, o decime si es tu primera vez."
+        dispatcher.utter_message(text=bot_response)
+        log_interaction_improved(tracker, bot_response, {"feedback_type": "validation_error", "field": "cedula"})
         return {"cedula": None}
 
 
@@ -499,7 +597,9 @@ class ValidateFormularioTurno(FormValidationAction):
         # Detectar corrección
         correccion = detectar_correccion(texto_usuario)
         if correccion:
-            dispatcher.utter_message(text=f"Perfecto, corregiremos tu {correccion}.")
+            bot_response = f"Perfecto, corregiremos tu {correccion}."
+            dispatcher.utter_message(text=bot_response)
+            log_interaction_improved(tracker, bot_response)
             return {correccion: None}
         
         if not slot_value:
@@ -531,9 +631,9 @@ class ValidateFormularioTurno(FormValidationAction):
                             pass
             
             if ultima_fecha_mencionada:
-                dispatcher.utter_message(
-                    text=f"Perfecto, confirmo la fecha: {format_fecha_es(ultima_fecha_mencionada, True)}"
-                )
+                bot_response = f"Perfecto, confirmo la fecha: {format_fecha_es(ultima_fecha_mencionada, True)}"
+                dispatcher.utter_message(text=bot_response)
+                log_interaction_improved(tracker, bot_response, {"fecha_confirmada_contexto": True})
                 return {"fecha": ultima_fecha_mencionada.isoformat()}
         
         # 🔍 Detección de frases ambiguas
@@ -568,6 +668,7 @@ class ValidateFormularioTurno(FormValidationAction):
                 mensaje += f"\n💡 Te recomiendo: **{dias_ordenados[0]['dia_nombre']}**"
                 mensaje += "\n\n✍️ Decime para qué fecha querés (ej: 'ese martes', 'viernes', '15 de octubre')"
                 dispatcher.utter_message(text=mensaje)
+                log_interaction_improved(tracker, mensaje, {"recomendacion_fecha": True, "tipo": "fuzzy_ambiguous"})
                 return {"fecha": None}
         
         # 🔍 Intentar parsear fecha
@@ -637,9 +738,9 @@ class ValidateFormularioTurno(FormValidationAction):
                     )
                 return {"fecha": None}
         
-        dispatcher.utter_message(
-            text=f"Perfecto, registré la fecha para el **{format_fecha_es(fecha_normalizada, True)}** ✅"
-        )
+        bot_response = f"Perfecto, registré la fecha para el **{format_fecha_es(fecha_normalizada, True)}** ✅"
+        dispatcher.utter_message(text=bot_response)
+        log_interaction_improved(tracker, bot_response, {"validation_success": True, "field": "fecha"})
         return {"fecha": fecha_normalizada.isoformat()}
 
 
@@ -658,7 +759,9 @@ class ValidateFormularioTurno(FormValidationAction):
         # Detectar corrección
         correccion = detectar_correccion(texto_usuario)
         if correccion:
-            dispatcher.utter_message(text=f"Perfecto, corregiremos tu {correccion}.")
+            bot_response = f"Perfecto, corregiremos tu {correccion}."
+            dispatcher.utter_message(text=bot_response)
+            log_interaction_improved(tracker, bot_response)
             return {correccion: None}
         
         # ✅ NUEVA: Detección de expresiones naturales de hora temprana
@@ -670,9 +773,9 @@ class ValidateFormularioTurno(FormValidationAction):
         
         if any(frase in texto_usuario for frase in frases_temprano):
             logger.info(f"🔍 DEBUG: Detectada frase temprana, asignando 07:00")
-            dispatcher.utter_message(
-                text="Perfecto, te agendo a primera hora disponible (07:00) 🌅"
-            )
+            bot_response = "Perfecto, te agendo a primera hora disponible (07:00) 🌅"
+            dispatcher.utter_message(text=bot_response)
+            log_interaction_improved(tracker, bot_response, {"hora_automatica": "07:00", "tipo": "temprano"})
             return {"hora": "07:00"}
         
         # ✅ NUEVA: Detección de solo números (ej: "8", "14")
@@ -724,6 +827,7 @@ class ValidateFormularioTurno(FormValidationAction):
                     msg += "\n\n✍️ Escribí la hora exacta que preferís (ej: '07:15' o '2 de la tarde')."
                     
                     dispatcher.utter_message(text=msg)
+                    log_interaction_improved(tracker, msg, {"horarios_disponibles_mostrados": True, "total_horarios": len(horarios_libres)})
                     return {"hora": None}
             
             except Exception as e:
@@ -773,6 +877,7 @@ class ValidateFormularioTurno(FormValidationAction):
                     logger.error(f"Error validando ocupación: {e}")
         
         logger.info(f"🔍 DEBUG: Hora validada exitosamente: {hora_normalizada.strftime('%H:%M')}")
+        log_interaction_improved(tracker, f"Hora validada: {hora_normalizada.strftime('%H:%M')}", {"validation_success": True, "field": "hora"})
         return {"hora": hora_normalizada.strftime("%H:%M")}
 
 
@@ -885,12 +990,8 @@ class ActionConfirmarDatosTurno(Action):
         
         dispatcher.utter_message(text=mensaje)
         
-        if conversation_logger:
-            log_rasa_interaction(
-                conversation_logger,
-                tracker,
-                "Confirmación de datos de turno mostrada"
-            )
+        # Registrar interacción para aprendizaje con sistema mejorado
+        log_interaction_improved(tracker, mensaje, {"accion": "confirmar_datos", "resultado": "datos_presentados", "tiene_email": bool(email_slot)})
         
         return []
 
@@ -1014,15 +1115,18 @@ class ActionGuardarTurno(Action):
                 
                 dispatcher.utter_message(text=mensaje)
                 
-                # Registrar interacción en el sistema de aprendizaje
-                if conversation_logger:
-                    response_time_ms = int((time.time() - start_time) * 1000)
-                    log_rasa_interaction(
-                        conversation_logger,
-                        tracker,
-                        f"Turno {codigo} guardado (email: {'sí' if email else 'no'})",
-                        response_time_ms
-                    )
+                # Registrar interacción en el sistema de aprendizaje con datos enriquecidos
+                response_time_ms = int((time.time() - start_time) * 1000)
+                turno_data = {
+                    "accion": "guardar_turno", 
+                    "resultado": "exitoso",
+                    "codigo_turno": codigo,
+                    "tiene_email": bool(email),
+                    "tiene_calendar": bool(calendar_link),
+                    "response_time_ms": response_time_ms,
+                    "cedula_tipo": "primera_vez" if cedula == "PRIMERA_VEZ" else "existente"
+                }
+                log_interaction_improved(tracker, mensaje, turno_data)
                 
         except Exception as e:
             dispatcher.utter_message(text="❌ Error al guardar el turno. Por favor, intentá de nuevo.")
@@ -1142,14 +1246,17 @@ class ActionRecomendarHorarioFuzzy(Action):
                 dispatcher.utter_message(text=mensaje)
                 logger.info(f"🔥 MOTOR DIFUSO: Análisis completado y enviado al usuario")
                 
-                if conversation_logger:
-                    response_time_ms = int((time.time() - start_time) * 1000)
-                    log_rasa_interaction(
-                        conversation_logger,
-                        tracker,
-                        "Motor difuso - análisis inteligente completado",
-                        response_time_ms
-                    )
+                # Registrar interacción con datos enriquecidos
+                response_time_ms = int((time.time() - start_time) * 1000)
+                fuzzy_data = {
+                    "accion": "motor_difuso",
+                    "fecha_analizada": fecha.isoformat(),
+                    "ocupacion_franjas": ocupacion_franjas,
+                    "horarios_disponibles": len(horarios_libres),
+                    "mejor_franja": mejor_franja_nombre,
+                    "response_time_ms": response_time_ms
+                }
+                log_interaction_improved(tracker, mensaje, fuzzy_data)
                 
                 return []
                 
@@ -1205,8 +1312,10 @@ class ActionConsultarDisponibilidad(Action):
         mensaje += "\n\n¿Para qué fecha querés agendar? O decí 'recomendame' para análisis inteligente."
         
         dispatcher.utter_message(text=mensaje)
-        if conversation_logger:
-            log_rasa_interaction(conversation_logger, tracker, "Consulta disponibilidad real - múltiples días")
+        
+        # Registrar consulta para aprendizaje con sistema mejorado
+        log_interaction_improved(tracker, mensaje, {"accion": "consultar_disponibilidad", "dias_consultados": len(disponibilidad)})
+        
         return []
 
 # ✅ RESTO DE LAS ACCIONES (sin cambios mayores)
@@ -1244,12 +1353,12 @@ class ActionTiempoEsperaActual(Action):
                 
                 dispatcher.utter_message(text=mensaje)
                 
-                if conversation_logger:
-                    log_rasa_interaction(
-                        conversation_logger,
-                        tracker,
-                        f"Consulta tiempo espera real: {tiempo_espera:.1f}min, ocupación: {ocupacion_actual}%"
-                    )
+                # Registrar consulta para aprendizaje con sistema mejorado
+                log_interaction_improved(tracker, mensaje, {
+                    "accion": "tiempo_espera_actual", 
+                    "ocupacion": ocupacion_actual, 
+                    "tiempo_espera_min": tiempo_espera
+                })
         
         except Exception as e:
             logger.error(f"Error consultando estado actual: {e}")
@@ -1290,12 +1399,12 @@ class ActionCalcularSaturacion(Action):
                 
                 dispatcher.utter_message(text=mensaje)
                 
-                if conversation_logger:
-                    log_rasa_interaction(
-                        conversation_logger,
-                        tracker,
-                        f"Consulta saturación real: {estado} ({ocupacion_actual}%)"
-                    )
+                # Registrar consulta para aprendizaje con sistema mejorado
+                log_interaction_improved(tracker, mensaje, {
+                    "accion": "calcular_saturacion", 
+                    "saturacion": estado, 
+                    "ocupacion": ocupacion_actual
+                })
         
         except Exception as e:
             logger.error(f"Error consultando saturación: {e}")
@@ -1339,12 +1448,11 @@ class ActionConsultarTurnoExistente(Action):
                 
                 dispatcher.utter_message(text=mensaje)
                 
-                if conversation_logger:
-                    log_rasa_interaction(
-                        conversation_logger,
-                        tracker,
-                        f"Consulta turno - {'encontrado' if turno else 'no encontrado'}"
-                    )
+                # Registrar consulta para aprendizaje con sistema mejorado
+                log_interaction_improved(tracker, mensaje, {
+                    "accion": "consultar_turno_existente", 
+                    "resultado": "encontrado" if turno else "no_encontrado"
+                })
         
         except Exception as e:
             logger.error(f"Error consultando turno: {e}")
@@ -1361,15 +1469,8 @@ class ActionSessionStart(Action):
         
         logger.info(f"🟢 Iniciando nueva sesión para: {tracker.sender_id}")
         
-        if conversation_logger:
-            try:
-                log_rasa_interaction(
-                    conversation_logger,
-                    tracker,
-                    "Nueva sesión iniciada"
-                )
-            except Exception as e:
-                logger.error(f"Error logging inicio de sesión: {e}")
+        # Registrar inicio de sesión para aprendizaje con sistema mejorado
+        log_interaction_improved(tracker, "Nueva sesión iniciada", {"accion": "session_start"})
         
         return [
             SessionStarted(),

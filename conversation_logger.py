@@ -1,6 +1,14 @@
 """
-Sistema de logging y aprendizaje mejorado para el chatbot de turnos
-Registra conversaciones con feedback de usuario y marcado automático de revisión
+Sistema de logging mejorado y simplificado
+Enfocado en datos esenciales y funcionalidad real
+
+MEJORAS:
+- Solo guarda datos útiles
+- Sistema de feedback funcional
+- Conversaciones completas por semana
+- Integración con LLM para mejor interpretación
+- Dashboard simplificado
+
 """
 
 import logging
@@ -9,7 +17,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, Float, Boolean, Text, JSON, SmallInteger, func
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, Float, Boolean, Text, JSON, SmallInteger, func, Date
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -20,129 +28,91 @@ logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 # =====================================================
-# MODELO MEJORADO CON CAMPOS DE FEEDBACK
+# MODELOS DE BASE DE DATOS SIMPLIFICADOS
 # =====================================================
 
-class ConversationLog(Base):
-    """Registro de todas las conversaciones con feedback"""
-    __tablename__ = 'conversation_logs'
+class ConversationMessage(Base):
+    """Registro individual de cada mensaje (para feedback y revisión)"""
+    __tablename__ = 'conversation_messages'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(100), nullable=False)
     user_message = Column(Text, nullable=False)
     bot_response = Column(Text, nullable=False)
+    
+    # Datos de interpretación
     intent_detected = Column(String(100))
     confidence = Column(Float, default=0.0)
+    llm_interpretation = Column(String(100))  # Interpretación del LLM
+    
+    # Control de calidad
+    needs_review = Column(Boolean, default=False)
+    feedback_thumbs = Column(SmallInteger, nullable=True)  # 1 = 👍, -1 = 👎
+    feedback_comment = Column(Text, nullable=True)
+    
+    # Metadatos
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
-    
-    # ✅ NUEVOS CAMPOS DE FEEDBACK
-    feedback_thumbs = Column(SmallInteger, nullable=True)  # 1 = 👍, -1 = 👎, NULL = sin feedback
-    feedback_comment = Column(Text, nullable=True)  # Comentario cuando presiona 👎
-    needs_review = Column(Boolean, default=False)  # Marca si requiere revisión
-    message_block = Column(Text, nullable=True)  # Bloque combinado [USUARIO] + [BOT]
-    
-    # Campos heredados
-    was_helpful = Column(Boolean)
-    feedback_score = Column(Integer)
-    response_time_ms = Column(Integer)
+    reviewed = Column(Boolean, default=False)
 
 
-class IntentAnalysis(Base):
-    """Análisis de rendimiento por intent"""
-    __tablename__ = 'intent_analysis'
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    intent_name = Column(String(100), nullable=False)
-    total_uses = Column(Integer, default=0)
-    avg_confidence = Column(Float, default=0.0)
-    success_rate = Column(Float, default=0.0)
-    last_updated = Column(DateTime, default=datetime.utcnow)
-    examples_needed = Column(Boolean, default=False)
-
-
-class FuzzyAnalysisLog(Base):
-    """Registro específico para análisis del motor difuso"""
-    __tablename__ = 'fuzzy_analysis_logs'
+class WeeklyConversation(Base):
+    """Conversaciones completas por semana (para análisis de uso)"""
+    __tablename__ = 'weekly_conversations'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(100), nullable=False)
-    user_query = Column(Text, nullable=False)
-    analysis_type = Column(String(50))
-    analysis_data = Column(JSON)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    processing_time_ms = Column(Integer)
+    conversation_data = Column(JSON, nullable=False)  # Conversación completa
+    
+    # Metadatos de la conversación
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    message_count = Column(Integer, default=0)
+    week_start = Column(Date, nullable=False)  # Lunes de la semana
+    
+    # Estadísticas básicas
+    avg_confidence = Column(Float, default=0.0)
+    feedback_positive = Column(Integer, default=0)
+    feedback_negative = Column(Integer, default=0)
 
 
-class LearningMetrics(Base):
-    """Métricas generales de aprendizaje del sistema"""
-    __tablename__ = 'learning_metrics'
+class SystemStats(Base):
+    """Estadísticas diarias del sistema (resumen)"""
+    __tablename__ = 'system_stats'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    date = Column(DateTime, nullable=False)
-    total_conversations = Column(Integer, default=0)
-    successful_interactions = Column(Integer, default=0)
-    fuzzy_activations = Column(Integer, default=0)
-    avg_response_time = Column(Float, default=0.0)
-    user_satisfaction_score = Column(Float, default=0.0)
+    date = Column(Date, nullable=False, unique=True)
+    
+    # Contadores esenciales
+    total_messages = Column(Integer, default=0)
+    avg_confidence = Column(Float, default=0.0)
+    needs_review_count = Column(Integer, default=0)
+    positive_feedback = Column(Integer, default=0)
+    negative_feedback = Column(Integer, default=0)
+    
+    # Calculados
+    satisfaction_rate = Column(Float, default=0.0)  # % feedback positivo
 
 
 # =====================================================
-# CLASE PRINCIPAL DEL LOGGER MEJORADO
+# CLASE PRINCIPAL MEJORADA
 # =====================================================
 
-class ConversationLogger:
-    """Maneja el logging y análisis de conversaciones con feedback"""
+class ImprovedConversationLogger:
+    """Logger simplificado enfocado en funcionalidad real"""
     
     def __init__(self, database_url: str):
-        """Inicializa el logger con conexión a BD"""
         self.database_url = database_url
         self.engine = create_engine(database_url, pool_pre_ping=True)
         self.Session = sessionmaker(bind=self.engine)
         self.logger = logging.getLogger(__name__)
         
-        # Crear tablas si no existen
+        # Crear tablas
         try:
             Base.metadata.create_all(self.engine)
-            self.logger.info("✅ Tablas de aprendizaje verificadas/creadas con nuevos campos")
-            self._add_new_columns_if_missing()
+            self.logger.info("✅ Tablas de logging creadas/verificadas")
+            self._cleanup_old_data()
         except Exception as e:
-            self.logger.error(f"❌ Error creando tablas de aprendizaje: {e}")
-    
-    def _add_new_columns_if_missing(self):
-        """Agrega columnas nuevas si no existen (migración automática)"""
-        try:
-            with self.engine.connect() as conn:
-                # Verificar si las columnas nuevas existen
-                result = conn.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name='conversation_logs'
-                """)
-                existing_columns = [row[0] for row in result]
-                
-                # Agregar columnas faltantes
-                if 'feedback_thumbs' not in existing_columns:
-                    conn.execute("ALTER TABLE conversation_logs ADD COLUMN feedback_thumbs SMALLINT")
-                    conn.commit()
-                    self.logger.info("✅ Columna feedback_thumbs agregada")
-                
-                if 'feedback_comment' not in existing_columns:
-                    conn.execute("ALTER TABLE conversation_logs ADD COLUMN feedback_comment TEXT")
-                    conn.commit()
-                    self.logger.info("✅ Columna feedback_comment agregada")
-                
-                if 'needs_review' not in existing_columns:
-                    conn.execute("ALTER TABLE conversation_logs ADD COLUMN needs_review BOOLEAN DEFAULT FALSE")
-                    conn.commit()
-                    self.logger.info("✅ Columna needs_review agregada")
-                
-                if 'message_block' not in existing_columns:
-                    conn.execute("ALTER TABLE conversation_logs ADD COLUMN message_block TEXT")
-                    conn.commit()
-                    self.logger.info("✅ Columna message_block agregada")
-                
-        except Exception as e:
-            self.logger.warning(f"⚠️ No se pudieron agregar columnas (puede ser normal): {e}")
+            self.logger.error(f"❌ Error creando tablas: {e}")
     
     @contextmanager
     def get_db_session(self):
@@ -153,357 +123,425 @@ class ConversationLogger:
             session.commit()
         except Exception as e:
             session.rollback()
-            self.logger.error(f"Error en sesión de logging: {e}")
+            self.logger.error(f"Error en sesión: {e}")
             raise
         finally:
             session.close()
     
-    def log_conversation(self, session_id: str, user_message: str, bot_response: str, 
-                        intent_detected: str = '', confidence: float = 0.0, 
-                        response_time_ms: int = None) -> int:
+    def log_message(self, session_id: str, user_message: str, bot_response: str,
+                   intent_detected: str = None, confidence: float = 0.0,
+                   llm_interpretation: str = None) -> int:
         """
-        Registra una conversación completa con marcado automático de revisión
+        Registra un mensaje individual
         
         Returns:
-            int: ID del registro creado
+            int: ID del mensaje registrado
         """
         try:
-            # Validar que user_message no sea None o vacío
-            if not user_message:
-                user_message = "Mensaje del usuario no disponible"
+            # Determinar si necesita revisión
+            needs_review = self._should_review(intent_detected, confidence, llm_interpretation)
             
-            # ✅ GENERAR MESSAGE_BLOCK
-            message_block = self._generate_message_block(user_message, bot_response)
-            
-            # ✅ DETERMINAR SI NECESITA REVISIÓN
-            needs_review = self._should_mark_for_review(intent_detected, confidence)
-            
-            log_entry = ConversationLog(
+            message = ConversationMessage(
                 session_id=session_id,
-                user_message=user_message,
+                user_message=user_message or "Mensaje no disponible",
                 bot_response=bot_response,
                 intent_detected=intent_detected,
                 confidence=confidence,
-                timestamp=datetime.utcnow(),
-                response_time_ms=response_time_ms,
-                message_block=message_block,
+                llm_interpretation=llm_interpretation,
                 needs_review=needs_review,
-                feedback_thumbs=None,  # Sin feedback inicial
-                feedback_comment=None
+                timestamp=datetime.utcnow()
             )
             
             with self.get_db_session() as session:
-                session.add(log_entry)
+                session.add(message)
                 session.flush()
-                log_id = log_entry.id
-                
-            self.logger.info(f"✅ Conversación registrada (ID: {log_id}, needs_review: {needs_review})")
+                message_id = message.id
             
-            # Actualizar métricas de intent
-            self._update_intent_metrics(intent_detected, confidence)
+            self.logger.info(f"✅ Mensaje registrado (ID: {message_id}, review: {needs_review})")
             
-            return log_id
+            # Actualizar estadísticas diarias
+            self._update_daily_stats()
+            
+            return message_id
             
         except Exception as e:
-            self.logger.error(f"❌ Error logging conversación: {e}")
+            self.logger.error(f"❌ Error logging mensaje: {e}")
             return -1
     
-    def _generate_message_block(self, user_message: str, bot_response: str) -> str:
-        """Genera el bloque combinado de mensaje"""
-        block = f"[USUARIO]\n{user_message}\n\n[BOT]\n{bot_response}"
-        return block
-    
-    def _should_mark_for_review(self, intent_detected: str, confidence: float) -> bool:
+    def update_feedback(self, session_id: str, bot_response: str, 
+                       feedback_thumbs: int, feedback_comment: str = None) -> bool:
         """
-        Determina si un mensaje debe marcarse para revisión
-        
-        Criterios:
-        - Intent no detectado o NULL
-        - Confianza menor a 0.75
-        """
-        if not intent_detected or intent_detected == "No detectado":
-            return True
-        
-        if confidence < 0.75:
-            return True
-        
-        return False
-    
-    def update_feedback(self, log_id: int, feedback_thumbs: int, 
-                       feedback_comment: str = None) -> bool:
-        """
-        Actualiza el feedback de un mensaje existente
+        Actualiza feedback de un mensaje específico
         
         Args:
-            log_id: ID del registro
+            session_id: ID de sesión
+            bot_response: Respuesta exacta del bot
             feedback_thumbs: 1 para 👍, -1 para 👎
-            feedback_comment: Comentario opcional (requerido si thumbs=-1)
-        
-        Returns:
-            bool: True si se actualizó correctamente
+            feedback_comment: Comentario del usuario
         """
         try:
             with self.get_db_session() as session:
-                log_entry = session.query(ConversationLog).filter_by(id=log_id).first()
+                # Buscar mensaje más reciente que coincida
+                message = session.query(ConversationMessage).filter(
+                    ConversationMessage.session_id == session_id,
+                    ConversationMessage.bot_response == bot_response
+                ).order_by(ConversationMessage.timestamp.desc()).first()
                 
-                if not log_entry:
-                    self.logger.warning(f"⚠️ No se encontró el registro con ID {log_id}")
+                if not message:
+                    self.logger.warning(f"No se encontró mensaje para feedback")
                     return False
                 
-                log_entry.feedback_thumbs = feedback_thumbs
-                log_entry.feedback_comment = feedback_comment
+                message.feedback_thumbs = feedback_thumbs
+                message.feedback_comment = feedback_comment
                 
-                # ✅ Si es feedback negativo, marcar para revisión
+                # Si es negativo, marcar para revisión
                 if feedback_thumbs == -1:
-                    log_entry.needs_review = True
+                    message.needs_review = True
                 
                 session.commit()
-                self.logger.info(f"✅ Feedback actualizado para ID {log_id}: {'👍' if feedback_thumbs == 1 else '👎'}")
+                self.logger.info(f"✅ Feedback actualizado: {'👍' if feedback_thumbs == 1 else '👎'}")
+                
+                # Actualizar estadísticas
+                self._update_daily_stats()
                 return True
                 
         except Exception as e:
             self.logger.error(f"❌ Error actualizando feedback: {e}")
             return False
     
-    def mark_as_reviewed(self, log_id: int) -> bool:
-        """Marca un mensaje como revisado"""
-        try:
-            with self.get_db_session() as session:
-                log_entry = session.query(ConversationLog).filter_by(id=log_id).first()
-                
-                if not log_entry:
-                    return False
-                
-                log_entry.needs_review = False
-                session.commit()
-                self.logger.info(f"✅ Registro {log_id} marcado como revisado")
-                return True
-                
-        except Exception as e:
-            self.logger.error(f"❌ Error marcando como revisado: {e}")
-            return False
-    
-    def get_messages_needing_review(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Obtiene mensajes que necesitan revisión"""
-        try:
-            with self.get_db_session() as session:
-                messages = session.query(ConversationLog).filter(
-                    ConversationLog.needs_review == True
-                ).order_by(ConversationLog.timestamp.desc()).limit(limit).all()
-                
-                return [{
-                    'id': msg.id,
-                    'session_id': msg.session_id,
-                    'user_message': msg.user_message,
-                    'bot_response': msg.bot_response,
-                    'intent_detected': msg.intent_detected or 'No detectado',
-                    'confidence': msg.confidence,
-                    'timestamp': msg.timestamp.isoformat(),
-                    'message_block': msg.message_block,
-                    'feedback_thumbs': msg.feedback_thumbs,
-                    'feedback_comment': msg.feedback_comment
-                } for msg in messages]
-                
-        except Exception as e:
-            self.logger.error(f"❌ Error obteniendo mensajes para revisión: {e}")
-            return []
-    
-    def get_feedback_messages(self, feedback_type: str = 'negative', limit: int = 50) -> List[Dict[str, Any]]:
+    def save_weekly_conversation(self, session_id: str, conversation_data: List[Dict]) -> bool:
         """
-        Obtiene mensajes con feedback de usuario
-        
-        Args:
-            feedback_type: 'negative' (👎) o 'positive' (👍)
-            limit: Cantidad máxima de resultados
-        """
-        try:
-            with self.get_db_session() as session:
-                if feedback_type == 'negative':
-                    messages = session.query(ConversationLog).filter(
-                        ConversationLog.feedback_thumbs == -1
-                    ).order_by(ConversationLog.timestamp.desc()).limit(limit).all()
-                else:
-                    messages = session.query(ConversationLog).filter(
-                        ConversationLog.feedback_thumbs == 1
-                    ).order_by(ConversationLog.timestamp.desc()).limit(limit).all()
-                
-                return [{
-                    'id': msg.id,
-                    'session_id': msg.session_id,
-                    'user_message': msg.user_message,
-                    'bot_response': msg.bot_response,
-                    'intent_detected': msg.intent_detected or 'No detectado',
-                    'confidence': msg.confidence,
-                    'timestamp': msg.timestamp.isoformat(),
-                    'message_block': msg.message_block,
-                    'feedback_comment': msg.feedback_comment
-                } for msg in messages]
-                
-        except Exception as e:
-            self.logger.error(f"❌ Error obteniendo mensajes con feedback: {e}")
-            return []
-    
-    def update_feedback_by_details(self, session_id: str, bot_response: str, 
-                                  feedback_thumbs: int, feedback_comment: str = None) -> bool:
-        """
-        Actualiza feedback buscando por session_id y bot_response
+        Guarda conversación completa de la semana
         
         Args:
             session_id: ID de la sesión
-            bot_response: Respuesta exacta del bot
-            feedback_thumbs: 1 para 👍, -1 para 👎
-            feedback_comment: Comentario opcional
-        
-        Returns:
-            bool: True si se actualizó correctamente
+            conversation_data: Lista de mensajes de la conversación
         """
         try:
-            with self.get_db_session() as session:
-                # Buscar el registro más reciente que coincida
-                log_entry = session.query(ConversationLog).filter(
-                    ConversationLog.session_id == session_id,
-                    ConversationLog.bot_response == bot_response
-                ).order_by(ConversationLog.timestamp.desc()).first()
-                
-                if not log_entry:
-                    self.logger.warning(f"⚠️ No se encontró registro para session {session_id}")
-                    return False
-                
-                log_entry.feedback_thumbs = feedback_thumbs
-                log_entry.feedback_comment = feedback_comment
-                
-                # Si es feedback negativo, marcar para revisión
-                if feedback_thumbs == -1:
-                    log_entry.needs_review = True
-                
-                session.commit()
-                self.logger.info(f"✅ Feedback actualizado para sesión {session_id}: {'👍' if feedback_thumbs == 1 else '👎'}")
-                return True
-                
-        except Exception as e:
-            self.logger.error(f"❌ Error actualizando feedback por detalles: {e}")
-            return False
-    
-    def log_fuzzy_analysis(self, session_id: str, user_query: str, 
-                          analysis_type: str, analysis_data: Dict, 
-                          processing_time_ms: int = None) -> bool:
-        """Registra análisis específico del motor difuso"""
-        try:
-            if not user_query:
-                user_query = "Consulta del motor difuso"
+            if not conversation_data:
+                return False
             
-            fuzzy_log = FuzzyAnalysisLog(
+            # Calcular semana actual (lunes)
+            today = datetime.now().date()
+            week_start = today - timedelta(days=today.weekday())
+            
+            # Extraer metadatos
+            start_time = datetime.fromisoformat(conversation_data[0].get('timestamp', datetime.now().isoformat()))
+            end_time = datetime.fromisoformat(conversation_data[-1].get('timestamp', datetime.now().isoformat()))
+            message_count = len(conversation_data)
+            
+            # Calcular estadísticas
+            feedback_positive = len([m for m in conversation_data if m.get('feedback_thumbs') == 1])
+            feedback_negative = len([m for m in conversation_data if m.get('feedback_thumbs') == -1])
+            
+            confidences = [m.get('confidence', 0) for m in conversation_data if m.get('confidence', 0) > 0]
+            avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+            
+            conversation = WeeklyConversation(
                 session_id=session_id,
-                user_query=user_query,
-                analysis_type=analysis_type,
-                analysis_data=analysis_data,
-                timestamp=datetime.utcnow(),
-                processing_time_ms=processing_time_ms
+                conversation_data=conversation_data,
+                start_time=start_time,
+                end_time=end_time,
+                message_count=message_count,
+                week_start=week_start,
+                avg_confidence=avg_confidence,
+                feedback_positive=feedback_positive,
+                feedback_negative=feedback_negative
             )
             
-            with self.get_db_session() as session:
-                session.add(fuzzy_log)
+            with self.get_db_session() as session_db:
+                # Verificar si ya existe conversación para esta sesión esta semana
+                existing = session_db.query(WeeklyConversation).filter(
+                    WeeklyConversation.session_id == session_id,
+                    WeeklyConversation.week_start == week_start
+                ).first()
                 
-            self.logger.info(f"✅ Análisis difuso registrado: {analysis_type}")
+                if existing:
+                    # Actualizar existente
+                    existing.conversation_data = conversation_data
+                    existing.end_time = end_time
+                    existing.message_count = message_count
+                    existing.avg_confidence = avg_confidence
+                    existing.feedback_positive = feedback_positive
+                    existing.feedback_negative = feedback_negative
+                else:
+                    # Crear nueva
+                    session_db.add(conversation)
+                
+                session_db.commit()
+            
+            self.logger.info(f"✅ Conversación semanal guardada: {session_id}")
             return True
             
         except Exception as e:
-            self.logger.error(f"❌ Error logging análisis difuso: {e}")
+            self.logger.error(f"❌ Error guardando conversación semanal: {e}")
             return False
     
-    def _update_intent_metrics(self, intent_name: str, confidence: float):
-        """Actualiza métricas de rendimiento por intent"""
-        if not intent_name:
-            return
+    def _should_review(self, intent: str, confidence: float, llm_interpretation: str) -> bool:
+        """Determina si un mensaje necesita revisión"""
+        # Sin intent detectado
+        if not intent or intent == "nlu_fallback":
+            return True
         
-        try:
-            with self.get_db_session() as session:
-                analysis = session.query(IntentAnalysis).filter_by(intent_name=intent_name).first()
-                
-                if analysis:
-                    analysis.total_uses += 1
-                    new_avg = ((analysis.avg_confidence * (analysis.total_uses - 1)) + confidence) / analysis.total_uses
-                    analysis.avg_confidence = new_avg
-                    analysis.last_updated = datetime.utcnow()
-                    analysis.examples_needed = new_avg < 0.7
-                else:
-                    analysis = IntentAnalysis(
-                        intent_name=intent_name,
-                        total_uses=1,
-                        avg_confidence=confidence,
-                        examples_needed=confidence < 0.7
-                    )
-                    session.add(analysis)
-                    
-        except Exception as e:
-            self.logger.error(f"❌ Error actualizando métricas de intent: {e}")
+        # Confianza baja
+        if confidence < 0.7:
+            return True
+        
+        # LLM no pudo interpretar
+        if not llm_interpretation or llm_interpretation == "unknown":
+            return True
+        
+        return False
     
-    def get_daily_stats(self, date: datetime = None) -> Dict[str, Any]:
-        """Obtiene estadísticas del día"""
-        if not date:
-            date = datetime.now().date()
-        
+    def _update_daily_stats(self):
+        """Actualiza estadísticas diarias"""
         try:
+            today = datetime.now().date()
+            
             with self.get_db_session() as session:
-                start_date = datetime.combine(date, datetime.min.time())
-                end_date = start_date + timedelta(days=1)
-                
-                conversations = session.query(ConversationLog).filter(
-                    ConversationLog.timestamp >= start_date,
-                    ConversationLog.timestamp < end_date
+                # Obtener datos del día
+                today_messages = session.query(ConversationMessage).filter(
+                    func.date(ConversationMessage.timestamp) == today
                 ).all()
                 
-                total_conversations = len(conversations)
-                unique_sessions = len(set(conv.session_id for conv in conversations))
-                avg_confidence = sum(conv.confidence for conv in conversations) / max(1, total_conversations)
+                if not today_messages:
+                    return
                 
-                response_times = [conv.response_time_ms for conv in conversations if conv.response_time_ms]
-                avg_response_time = sum(response_times) / max(1, len(response_times)) if response_times else 0
+                # Calcular estadísticas
+                total_messages = len(today_messages)
+                confidences = [m.confidence for m in today_messages if m.confidence > 0]
+                avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
                 
-                # ✅ Estadísticas de feedback
-                positive_feedback = len([c for c in conversations if c.feedback_thumbs == 1])
-                negative_feedback = len([c for c in conversations if c.feedback_thumbs == -1])
-                needs_review_count = len([c for c in conversations if c.needs_review])
+                needs_review_count = len([m for m in today_messages if m.needs_review])
+                positive_feedback = len([m for m in today_messages if m.feedback_thumbs == 1])
+                negative_feedback = len([m for m in today_messages if m.feedback_thumbs == -1])
+                
+                total_feedback = positive_feedback + negative_feedback
+                satisfaction_rate = (positive_feedback / total_feedback * 100) if total_feedback > 0 else 0.0
+                
+                # Actualizar o crear registro diario
+                daily_stats = session.query(SystemStats).filter(
+                    SystemStats.date == today
+                ).first()
+                
+                if daily_stats:
+                    daily_stats.total_messages = total_messages
+                    daily_stats.avg_confidence = avg_confidence
+                    daily_stats.needs_review_count = needs_review_count
+                    daily_stats.positive_feedback = positive_feedback
+                    daily_stats.negative_feedback = negative_feedback
+                    daily_stats.satisfaction_rate = satisfaction_rate
+                else:
+                    daily_stats = SystemStats(
+                        date=today,
+                        total_messages=total_messages,
+                        avg_confidence=avg_confidence,
+                        needs_review_count=needs_review_count,
+                        positive_feedback=positive_feedback,
+                        negative_feedback=negative_feedback,
+                        satisfaction_rate=satisfaction_rate
+                    )
+                    session.add(daily_stats)
+                
+                session.commit()
+                
+        except Exception as e:
+            self.logger.error(f"Error actualizando estadísticas diarias: {e}")
+    
+    def _cleanup_old_data(self):
+        """Limpia datos antiguos (conversaciones > 1 semana)"""
+        try:
+            cutoff_date = datetime.now().date() - timedelta(days=7)
+            
+            with self.get_db_session() as session:
+                # Eliminar conversaciones semanales antiguas
+                old_conversations = session.query(WeeklyConversation).filter(
+                    WeeklyConversation.week_start < cutoff_date
+                ).delete()
+                
+                # Mantener mensajes individuales por 30 días para feedback
+                old_cutoff = datetime.now() - timedelta(days=30)
+                old_messages = session.query(ConversationMessage).filter(
+                    ConversationMessage.timestamp < old_cutoff,
+                    ConversationMessage.feedback_thumbs.is_(None),  # Solo si no tienen feedback
+                    ConversationMessage.needs_review == False
+                ).delete()
+                
+                session.commit()
+                
+                if old_conversations > 0:
+                    self.logger.info(f"🗑️ Eliminadas {old_conversations} conversaciones antiguas")
+                if old_messages > 0:
+                    self.logger.info(f"🗑️ Eliminados {old_messages} mensajes antiguos")
+                    
+        except Exception as e:
+            self.logger.error(f"Error en limpieza: {e}")
+    
+    # =====================================================
+    # MÉTODOS PARA EL DASHBOARD
+    # =====================================================
+    
+    def get_summary_stats(self, days: int = 7) -> Dict[str, Any]:
+        """Obtiene estadísticas de resumen para el dashboard"""
+        try:
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=days)
+            
+            with self.get_db_session() as session:
+                stats = session.query(SystemStats).filter(
+                    SystemStats.date >= start_date,
+                    SystemStats.date <= end_date
+                ).all()
+                
+                if not stats:
+                    return {
+                        'total_conversations': 0,
+                        'avg_confidence': 0.0,
+                        'needs_review': 0,
+                        'positive_feedback': 0,
+                        'negative_feedback': 0,
+                        'satisfaction_rate': 0.0
+                    }
+                
+                # Sumar estadísticas
+                total_conversations = sum(s.total_messages for s in stats)
+                avg_confidence = sum(s.avg_confidence for s in stats) / len(stats)
+                needs_review = sum(s.needs_review_count for s in stats)
+                positive_feedback = sum(s.positive_feedback for s in stats)
+                negative_feedback = sum(s.negative_feedback for s in stats)
+                
+                total_feedback = positive_feedback + negative_feedback
+                satisfaction_rate = (positive_feedback / total_feedback * 100) if total_feedback > 0 else 0.0
                 
                 return {
-                    'date': date.isoformat(),
                     'total_conversations': total_conversations,
-                    'unique_sessions': unique_sessions,
                     'avg_confidence': round(avg_confidence, 3),
-                    'avg_response_time_ms': round(avg_response_time, 2),
+                    'needs_review': needs_review,
                     'positive_feedback': positive_feedback,
                     'negative_feedback': negative_feedback,
-                    'needs_review': needs_review_count
+                    'satisfaction_rate': round(satisfaction_rate, 1)
                 }
                 
         except Exception as e:
-            self.logger.error(f"❌ Error obteniendo estadísticas diarias: {e}")
+            self.logger.error(f"Error obteniendo estadísticas: {e}")
             return {}
+    
+    def get_messages_for_review(self, limit: int = 50) -> List[Dict]:
+        """Obtiene mensajes que necesitan revisión"""
+        try:
+            with self.get_db_session() as session:
+                messages = session.query(ConversationMessage).filter(
+                    ConversationMessage.needs_review == True,
+                    ConversationMessage.reviewed == False
+                ).order_by(ConversationMessage.timestamp.desc()).limit(limit).all()
+                
+                return [{
+                    'id': m.id,
+                    'session_id': m.session_id,
+                    'user_message': m.user_message,
+                    'bot_response': m.bot_response,
+                    'intent_detected': m.intent_detected or 'No detectado',
+                    'confidence': m.confidence,
+                    'llm_interpretation': m.llm_interpretation,
+                    'timestamp': m.timestamp.isoformat()
+                } for m in messages]
+                
+        except Exception as e:
+            self.logger.error(f"Error obteniendo mensajes para revisión: {e}")
+            return []
+    
+    def get_feedback_messages(self, feedback_type: str, limit: int = 50) -> List[Dict]:
+        """Obtiene mensajes con feedback específico"""
+        try:
+            thumbs_value = 1 if feedback_type == 'positive' else -1
+            
+            with self.get_db_session() as session:
+                messages = session.query(ConversationMessage).filter(
+                    ConversationMessage.feedback_thumbs == thumbs_value
+                ).order_by(ConversationMessage.timestamp.desc()).limit(limit).all()
+                
+                return [{
+                    'id': m.id,
+                    'session_id': m.session_id,
+                    'user_message': m.user_message,
+                    'bot_response': m.bot_response,
+                    'intent_detected': m.intent_detected,
+                    'confidence': m.confidence,
+                    'feedback_comment': m.feedback_comment,
+                    'timestamp': m.timestamp.isoformat()
+                } for m in messages]
+                
+        except Exception as e:
+            self.logger.error(f"Error obteniendo feedback: {e}")
+            return []
+    
+    def get_weekly_conversations(self) -> List[Dict]:
+        """Obtiene conversaciones de la semana actual"""
+        try:
+            today = datetime.now().date()
+            week_start = today - timedelta(days=today.weekday())
+            
+            with self.get_db_session() as session:
+                conversations = session.query(WeeklyConversation).filter(
+                    WeeklyConversation.week_start == week_start
+                ).order_by(WeeklyConversation.start_time.desc()).all()
+                
+                return [{
+                    'id': c.id,
+                    'session_id': c.session_id,
+                    'start_time': c.start_time.isoformat(),
+                    'end_time': c.end_time.isoformat(),
+                    'message_count': c.message_count,
+                    'avg_confidence': c.avg_confidence,
+                    'feedback_positive': c.feedback_positive,
+                    'feedback_negative': c.feedback_negative,
+                    'conversation_data': c.conversation_data
+                } for c in conversations]
+                
+        except Exception as e:
+            self.logger.error(f"Error obteniendo conversaciones semanales: {e}")
+            return []
+    
+    def mark_as_reviewed(self, message_id: int) -> bool:
+        """Marca un mensaje como revisado"""
+        try:
+            with self.get_db_session() as session:
+                message = session.query(ConversationMessage).filter_by(id=message_id).first()
+                if message:
+                    message.reviewed = True
+                    message.needs_review = False
+                    session.commit()
+                    return True
+            return False
+        except Exception as e:
+            self.logger.error(f"Error marcando como revisado: {e}")
+            return False
 
 
 # =====================================================
-# FUNCIONES DE UTILIDAD PARA RASA
+# FUNCIONES PARA INTEGRACIÓN CON RASA Y LLM
 # =====================================================
 
-def setup_learning_system(database_url: str) -> ConversationLogger:
-    """Inicializa el sistema de aprendizaje mejorado"""
+def setup_improved_logging_system(database_url: str) -> ImprovedConversationLogger:
+    """Inicializa el sistema mejorado"""
     try:
-        logger_instance = ConversationLogger(database_url)
-        logger.info("✅ Sistema de aprendizaje mejorado inicializado correctamente")
+        logger_instance = ImprovedConversationLogger(database_url)
+        logger.info("✅ Sistema de logging mejorado inicializado")
         return logger_instance
     except Exception as e:
-        logger.error(f"❌ Error inicializando sistema de aprendizaje: {e}")
+        logger.error(f"❌ Error inicializando sistema: {e}")
         raise
 
-
-def log_rasa_interaction(logger_instance, tracker, bot_response, response_time_ms=None):
-    """Log de interacción con Rasa - Versión mejorada"""
+def log_rasa_interaction_improved(logger_instance, tracker, bot_response, 
+                                 llm_classification=None, response_time_ms=None):
+    """Log mejorado para interacciones de Rasa con clasificación LLM"""
     if not logger_instance:
         return
     
     try:
         session_id = getattr(tracker, 'sender_id', 'unknown')
         
+        # Extraer mensaje del usuario
         events = getattr(tracker, 'events', [])
         user_message = "Inicio de sesión"
         intent_detected = ""
@@ -519,137 +557,37 @@ def log_rasa_interaction(logger_instance, tracker, bot_response, response_time_m
                     confidence = intent_data.get('confidence', 0.0)
                 break
         
-        if not user_message or user_message == "Inicio de sesión":
-            if "sesión iniciada" in bot_response.lower():
-                user_message = "/session_start"
-                intent_detected = "session_start"
-                confidence = 1.0
+        # Usar clasificación LLM si está disponible
+        llm_interpretation = None
+        if llm_classification:
+            llm_interpretation = llm_classification.get('intent')
+            if llm_classification.get('confidence', 0) > confidence:
+                confidence = llm_classification.get('confidence', 0)
         
-        if not user_message:
-            user_message = "Mensaje del usuario no disponible"
-        
-        # ✅ Registrar con nuevos campos
-        log_id = logger_instance.log_conversation(
+        # Registrar mensaje
+        message_id = logger_instance.log_message(
             session_id=session_id,
             user_message=user_message,
             bot_response=bot_response,
             intent_detected=intent_detected,
             confidence=confidence,
-            response_time_ms=response_time_ms
+            llm_interpretation=llm_interpretation
         )
         
-        return log_id
+        return message_id
         
     except Exception as e:
-        logger.error(f"❌ Error logging interacción de Rasa: {e}")
+        logger.error(f"❌ Error en log mejorado: {e}")
         return -1
 
+# Instancia global
+_global_improved_logger = None
 
-# Instancia global del logger
-_global_logger = None
+def get_improved_conversation_logger():
+    """Obtiene la instancia global del logger mejorado"""
+    return _global_improved_logger
 
-def get_conversation_logger():
-    """Obtiene la instancia global del logger"""
-    return _global_logger
-
-def set_conversation_logger(logger_instance):
-    """Establece la instancia global del logger"""
-    global _global_logger
-    _global_logger = logger_instance
-
-
-def log_fuzzy_activation(logger_instance, tracker, analysis_data, response_time_ms=None):
-    """Log específico para activación del motor difuso"""
-    if not logger_instance:
-        return
-    
-    try:
-        session_id = getattr(tracker, 'sender_id', 'unknown')
-        
-        events = getattr(tracker, 'events', [])
-        user_message = "Activación motor difuso"
-        
-        for event in reversed(events):
-            if hasattr(event, 'type') and event.type == 'user':
-                if hasattr(event, 'text') and event.text:
-                    user_message = event.text
-                break
-        
-        if not user_message:
-            user_message = "Consulta del motor difuso"
-        
-        logger_instance.log_fuzzy_analysis(
-            session_id=session_id,
-            user_query=user_message,
-            analysis_type="complete_recommendation",
-            analysis_data=analysis_data,
-            processing_time_ms=response_time_ms
-        )
-        
-    except Exception as e:
-        logger.error(f"❌ Error logging análisis difuso: {e}")
-
-
-# =====================================================
-# FUNCIONES ADICIONALES PARA EL DASHBOARD
-# =====================================================
-
-def get_general_stats(logger_instance, days: int = 7) -> Dict[str, Any]:
-    """Obtiene estadísticas generales para el dashboard"""
-    if not logger_instance:
-        return {}
-    
-    try:
-        with logger_instance.get_db_session() as session:
-            start_date = datetime.utcnow() - timedelta(days=days)
-            
-            conversations = session.query(ConversationLog).filter(
-                ConversationLog.timestamp >= start_date
-            ).all()
-            
-            if not conversations:
-                return {
-                    'total_conversations': 0,
-                    'unique_sessions': 0,
-                    'avg_confidence': 0.0,
-                    'needs_review_count': 0,
-                    'positive_feedback': 0,
-                    'negative_feedback': 0
-                }
-            
-            total_conversations = len(conversations)
-            unique_sessions = len(set(conv.session_id for conv in conversations))
-            
-            confidences = [conv.confidence for conv in conversations if conv.confidence]
-            avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-            
-            needs_review_count = len([c for c in conversations if c.needs_review])
-            positive_feedback = len([c for c in conversations if c.feedback_thumbs == 1])
-            negative_feedback = len([c for c in conversations if c.feedback_thumbs == -1])
-            
-            return {
-                'total_conversations': total_conversations,
-                'unique_sessions': unique_sessions,
-                'avg_confidence': round(avg_confidence, 3),
-                'needs_review_count': needs_review_count,
-                'positive_feedback': positive_feedback,
-                'negative_feedback': negative_feedback,
-                'period_days': days
-            }
-            
-    except Exception as e:
-        logger.error(f"❌ Error obteniendo estadísticas generales: {e}")
-        return {}
-
-
-def generate_yaml_suggestion(user_message: str, intent_detected: str = None) -> str:
-    """Genera sugerencia YAML para agregar al nlu.yml"""
-    suggested_intent = intent_detected if intent_detected and intent_detected != 'No detectado' else 'nlu_fallback'
-    
-    yaml_suggestion = f"""# Agregar a nlu.yml
-
-- intent: {suggested_intent}
-  examples: |
-    - {user_message}"""
-    
-    return yaml_suggestion
+def set_improved_conversation_logger(logger_instance):
+    """Establece la instancia global del logger mejorado"""
+    global _global_improved_logger
+    _global_improved_logger = logger_instance

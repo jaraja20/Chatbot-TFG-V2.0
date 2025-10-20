@@ -1,23 +1,34 @@
 """
-Dashboard de aprendizaje simplificado para el chatbot
-3 pestañas: Resumen, Guardados (No interpretados), Feedback
-CORREGIDO para compatibilidad con PostgreSQL
+Dashboard de aprendizaje simplificado
+Solo funcionalidades esenciales que realmente funcionan
+
+PESTAÑAS:
+1. Resumen - Solo métricas útiles
+2. Mensajes para Revisar - Funcionamiento correcto
+3. Feedback - Positivo y negativo funcional
+4. Conversaciones Semanales - Nueva funcionalidad
+
 """
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
 import json
+from datetime import datetime, timedelta
 import psycopg2
-from collections import Counter
-import re
+from typing import Dict, List
 
-# =====================================================
-# CONFIGURACIÓN DE BASE DE DATOS
-# =====================================================
+# Importar el logger mejorado
+try:
+    from improved_conversation_logger import (
+        ImprovedConversationLogger, 
+        get_improved_conversation_logger,
+        setup_improved_logging_system
+    )
+    LOGGER_AVAILABLE = True
+except ImportError:
+    LOGGER_AVAILABLE = False
 
+# Configuración de BD
 DB_CONFIG = {
     'host': 'localhost',
     'database': 'chatbotdb',
@@ -25,706 +36,476 @@ DB_CONFIG = {
     'password': 'root'
 }
 
-# =====================================================
-# FUNCIONES DE CONEXIÓN Y UTILIDAD
-# =====================================================
-
 def get_db_connection():
-    """Obtiene conexión segura a PostgreSQL"""
+    """Obtiene conexión a PostgreSQL"""
     try:
-        return psycopg2.connect(
-            host=DB_CONFIG['host'],
-            database=DB_CONFIG['database'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password'],
-            client_encoding='utf8'
-        )
+        return psycopg2.connect(**DB_CONFIG)
     except Exception as e:
-        st.error(f"Error de conexión a BD: {e}")
+        st.error(f"Error conectando a BD: {e}")
         return None
 
-def safe_query(query, params=None):
-    """Ejecuta queries de forma segura y retorna DataFrame"""
-    conn = get_db_connection()
-    if not conn:
-        return pd.DataFrame()
+def initialize_improved_logger():
+    """Inicializa el logger mejorado"""
+    if not LOGGER_AVAILABLE:
+        st.error("Sistema de logging mejorado no disponible")
+        return None
     
     try:
-        df = pd.read_sql_query(query, conn, params=params)
-        conn.close()
-        return df
+        database_url = f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}/{DB_CONFIG['database']}"
+        logger_instance = setup_improved_logging_system(database_url)
+        return logger_instance
     except Exception as e:
-        st.error(f"Error en query: {e}")
-        if conn:
-            conn.close()
-        return pd.DataFrame()
-
-def check_and_add_missing_columns():
-    """Verifica y agrega columnas faltantes en conversation_logs"""
-    conn = get_db_connection()
-    if not conn:
-        return False
-    
-    try:
-        cursor = conn.cursor()
-        
-        # Verificar columnas existentes
-        cursor.execute("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'conversation_logs'
-        """)
-        existing_columns = [row[0] for row in cursor.fetchall()]
-        
-        columns_to_add = {
-            'feedback_thumbs': 'SMALLINT',
-            'feedback_comment': 'TEXT',
-            'needs_review': 'BOOLEAN DEFAULT FALSE',
-            'message_block': 'TEXT'
-        }
-        
-        for column_name, column_type in columns_to_add.items():
-            if column_name not in existing_columns:
-                try:
-                    cursor.execute(f"ALTER TABLE conversation_logs ADD COLUMN {column_name} {column_type}")
-                    conn.commit()
-                    st.success(f"✅ Columna {column_name} agregada exitosamente")
-                except Exception as e:
-                    st.warning(f"⚠️ No se pudo agregar {column_name}: {e}")
-        
-        cursor.close()
-        conn.close()
-        return True
-        
-    except Exception as e:
-        st.error(f"Error verificando columnas: {e}")
-        if conn:
-            conn.close()
-        return False
-
-def update_needs_review_status(log_id, status=False):
-    """Actualiza el estado needs_review de un registro"""
-    conn = get_db_connection()
-    if not conn:
-        return False
-    
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE conversation_logs SET needs_review = %s WHERE id = %s",
-            (status, log_id)
-        )
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Error actualizando estado: {e}")
-        if conn:
-            conn.close()
-        return False
-
-def generate_yaml_suggestion(user_message, intent_suggestion="nlu_fallback"):
-    """Genera sugerencia YAML para nlu.yml"""
-    return f"""- intent: {intent_suggestion}
-  examples: |
-    - {user_message}"""
-
-def generate_message_block_if_missing(user_message, bot_response):
-    """Genera message_block si no existe"""
-    return f"[USUARIO]\n{user_message}\n\n[BOT]\n{bot_response}"
+        st.error(f"Error inicializando logger: {e}")
+        return None
 
 # =====================================================
-# PESTAÑA 1: RESUMEN (CORREGIDA)
+# PESTAÑA 1: RESUMEN SIMPLIFICADO
 # =====================================================
 
-def show_summary_tab():
-    """📈 Pestaña de resumen con estadísticas globales"""
-    st.header("📈 Resumen General")
+def show_summary_tab_simplified():
+    """Resumen con solo métricas esenciales"""
+    st.header("📈 Resumen del Sistema")
     
-    # Verificar y agregar columnas faltantes
-    check_and_add_missing_columns()
+    logger_instance = get_improved_conversation_logger()
+    if not logger_instance:
+        logger_instance = initialize_improved_logger()
     
-    # Query corregida para PostgreSQL
-    stats_query = """
-        SELECT 
-            COUNT(*) as total_conversations,
-            COUNT(DISTINCT session_id) as unique_sessions,
-            CAST(AVG(CASE WHEN confidence > 0 THEN confidence::numeric ELSE NULL END) AS numeric(10,3)) as avg_confidence,
-            COUNT(CASE WHEN needs_review = TRUE THEN 1 END) as needs_review_count,
-            COUNT(CASE WHEN feedback_thumbs = 1 THEN 1 END) as positive_feedback,
-            COUNT(CASE WHEN feedback_thumbs = -1 THEN 1 END) as negative_feedback
-        FROM conversation_logs
-        WHERE timestamp >= NOW() - INTERVAL '30 days'
-    """
-    
-    stats_df = safe_query(stats_query)
-    
-    if stats_df.empty:
-        st.warning("⚠️ No hay datos disponibles. Interactúa con el chatbot para generar estadísticas.")
+    if not logger_instance:
+        st.error("Sistema de logging no disponible")
         return
     
-    stats = stats_df.iloc[0]
+    # Obtener estadísticas
+    stats = logger_instance.get_summary_stats(days=7)
     
-    # Métricas principales
-    col1, col2, col3, col4 = st.columns(4)
+    if not stats or stats.get('total_conversations', 0) == 0:
+        st.warning("⚠️ No hay datos disponibles de los últimos 7 días")
+        st.info("Interactúa con el chatbot para generar estadísticas")
+        return
     
-    with col1:
-        st.metric(
-            "💬 Total Conversaciones",
-            int(stats['total_conversations']),
-            help="Mensajes procesados en últimos 30 días"
-        )
-    
-    with col2:
-        st.metric(
-            "👥 Sesiones Únicas",
-            int(stats['unique_sessions']),
-            help="Usuarios que han interactuado"
-        )
-    
-    with col3:
-        confidence_val = float(stats['avg_confidence']) if stats['avg_confidence'] else 0
-        st.metric(
-            "🎯 Confianza Promedio",
-            f"{confidence_val:.3f}",
-            help="Nivel promedio de confianza del modelo"
-        )
-    
-    with col4:
-        st.metric(
-            "⚠️ Requieren Revisión",
-            int(stats['needs_review_count']),
-            help="Mensajes marcados para revisión"
-        )
-    
-    st.markdown("---")
-    
-    # Métricas de feedback
+    # Métricas principales en columnas
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.metric(
-            "👍 Feedback Positivo",
-            int(stats['positive_feedback']),
-            help="Usuarios que dieron like"
+            "💬 Total Conversaciones",
+            stats['total_conversations'],
+            help="Mensajes procesados últimos 7 días"
+        )
+        
+        st.metric(
+            "🎯 Confianza Promedio",
+            f"{stats['avg_confidence']:.3f}",
+            help="Nivel promedio de confianza"
         )
     
     with col2:
         st.metric(
-            "👎 Feedback Negativo",
-            int(stats['negative_feedback']),
-            help="Usuarios que reportaron problemas"
+            "⚠️ Requieren Revisión",
+            stats['needs_review'],
+            help="Mensajes que necesitan atención"
+        )
+        
+        st.metric(
+            "👍 Feedback Positivo",
+            stats['positive_feedback'],
+            help="Usuarios satisfechos"
         )
     
     with col3:
-        total_feedback = int(stats['positive_feedback']) + int(stats['negative_feedback'])
-        satisfaction_rate = (int(stats['positive_feedback']) / max(1, total_feedback)) * 100
+        st.metric(
+            "👎 Feedback Negativo",
+            stats['negative_feedback'],
+            help="Usuarios insatisfechos"
+        )
+        
         st.metric(
             "😊 Satisfacción",
-            f"{satisfaction_rate:.1f}%",
-            help="Porcentaje de feedback positivo"
+            f"{stats['satisfaction_rate']:.1f}%",
+            help="% de feedback positivo"
         )
     
-    # Gráficos
-    st.markdown("---")
+    # Alerta si hay problemas
+    if stats['needs_review'] > 10:
+        st.warning(f"⚠️ Hay {stats['needs_review']} mensajes que requieren tu atención")
     
-    col1, col2 = st.columns(2)
+    if stats['satisfaction_rate'] < 70 and stats['positive_feedback'] + stats['negative_feedback'] > 5:
+        st.error("🔴 Satisfacción baja. Revisa el feedback negativo.")
     
-    with col1:
-        # Gráfico de intents más utilizados
-        st.subheader("🎯 Intents Más Utilizados")
-        
-        intent_query = """
-            SELECT 
-                COALESCE(intent_detected, 'No detectado') as intent,
-                COUNT(*) as count
-            FROM conversation_logs
-            WHERE timestamp >= NOW() - INTERVAL '30 days'
-            GROUP BY intent_detected
-            ORDER BY count DESC
-            LIMIT 10
-        """
-        
-        intent_df = safe_query(intent_query)
-        
-        if not intent_df.empty:
-            fig_intents = px.bar(
-                intent_df,
-                x='count',
-                y='intent',
-                orientation='h',
-                title='Top 10 Intents',
-                color='count',
-                color_continuous_scale='viridis'
-            )
-            fig_intents.update_layout(yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig_intents, use_container_width=True)
-        else:
-            st.info("No hay datos de intents disponibles")
-    
-    with col2:
-        # Actividad por días
-        st.subheader("📅 Actividad Diaria")
-        
-        daily_query = """
-            SELECT 
-                DATE(timestamp) as date,
-                COUNT(*) as conversations
-            FROM conversation_logs
-            WHERE timestamp >= NOW() - INTERVAL '30 days'
-            GROUP BY DATE(timestamp)
-            ORDER BY date
-        """
-        
-        daily_df = safe_query(daily_query)
-        
-        if not daily_df.empty:
-            fig_daily = px.line(
-                daily_df,
-                x='date',
-                y='conversations',
-                title='Conversaciones por Día',
-                markers=True
-            )
-            fig_daily.update_layout(
-                xaxis_title="Fecha",
-                yaxis_title="Número de Conversaciones"
-            )
-            st.plotly_chart(fig_daily, use_container_width=True)
-        else:
-            st.info("No hay datos de actividad diaria disponibles")
+    # Botón de actualización
+    if st.button("🔄 Actualizar Datos"):
+        st.rerun()
 
 # =====================================================
-# PESTAÑA 2: GUARDADOS (CORREGIDA)
+# PESTAÑA 2: MENSAJES PARA REVISAR
 # =====================================================
 
-def show_saved_tab():
-    """🗂️ Pestaña de mensajes guardados que necesitan revisión"""
-    st.header("🗂️ Guardados (No interpretados)")
-    st.write("Mensajes que el sistema marcó automáticamente para revisión")
+def show_review_tab_functional():
+    """Mensajes que realmente necesitan revisión"""
+    st.header("🗂️ Mensajes para Revisar")
+    st.write("Mensajes que el sistema marcó automáticamente para revisión manual")
     
-    # Verificar si la columna message_block existe
-    check_query = """
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'conversation_logs' AND column_name = 'message_block'
-    """
+    logger_instance = get_improved_conversation_logger()
+    if not logger_instance:
+        logger_instance = initialize_improved_logger()
     
-    check_df = safe_query(check_query)
-    has_message_block = not check_df.empty
+    if not logger_instance:
+        st.error("Sistema de logging no disponible")
+        return
     
-    # Query adaptada según si existe message_block
-    if has_message_block:
-        review_query = """
-            SELECT 
-                id, session_id, user_message, bot_response, 
-                intent_detected, confidence, timestamp, message_block
-            FROM conversation_logs
-            WHERE needs_review = TRUE
-            ORDER BY timestamp DESC
-            LIMIT 50
-        """
-    else:
-        review_query = """
-            SELECT 
-                id, session_id, user_message, bot_response, 
-                intent_detected, confidence, timestamp
-            FROM conversation_logs
-            WHERE (intent_detected IS NULL OR intent_detected = 'No detectado' OR confidence < 0.75)
-            ORDER BY timestamp DESC
-            LIMIT 50
-        """
+    # Obtener mensajes para revisar
+    messages = logger_instance.get_messages_for_review(limit=30)
     
-    review_df = safe_query(review_query)
-    
-    if review_df.empty:
-        st.success("🎉 ¡Excelente! No hay mensajes pendientes de revisión.")
+    if not messages:
+        st.success("🎉 ¡Excelente! No hay mensajes pendientes de revisión")
         st.info("Los mensajes se marcan automáticamente cuando:")
         st.markdown("""
         - No se detecta un intent específico
-        - La confianza es menor a 0.75
-        - El usuario da feedback negativo (👎)
+        - La confianza es menor al 70%
+        - El LLM no puede interpretar el mensaje
+        - El usuario da feedback negativo
         """)
-        
-        # Botón para agregar columnas faltantes
-        if not has_message_block:
-            st.warning("⚠️ Faltan columnas en la tabla. Haz clic para agregarlas:")
-            if st.button("🔧 Agregar Columnas Faltantes"):
-                if check_and_add_missing_columns():
-                    st.success("Columnas agregadas. Recarga la página.")
-                    st.rerun()
         return
     
-    st.write(f"📋 **{len(review_df)} mensajes** requieren tu atención:")
+    st.write(f"📋 **{len(messages)} mensajes** requieren tu atención:")
     
-    # Mostrar cada mensaje en un expander
-    for idx, row in review_df.iterrows():
-        # Crear título descriptivo para el expander
-        user_msg_preview = row['user_message'][:50] + "..." if len(row['user_message']) > 50 else row['user_message']
-        confidence_str = f"Confianza: {row['confidence']:.2f}" if row['confidence'] else "Sin confianza"
-        
-        expander_title = f"📝 {user_msg_preview} • {confidence_str}"
-        
-        with st.expander(expander_title):
-            # Mostrar el message_block o generarlo
-            st.subheader("💬 Conversación Completa")
+    # Mostrar mensajes
+    for i, msg in enumerate(messages):
+        with st.expander(f"📝 {msg['user_message'][:60]}... • Confianza: {msg['confidence']:.2f}"):
             
-            if has_message_block and row.get('message_block'):
-                message_content = row['message_block']
-            else:
-                # Generar message_block si no existe
-                message_content = generate_message_block_if_missing(
-                    row['user_message'], 
-                    row['bot_response']
-                )
-            
-            st.text_area(
-                "Bloque de mensaje:",
-                value=message_content,
-                height=120,
-                key=f"block_{row['id']}",
-                disabled=True
-            )
-            
-            # Información adicional
+            # Mostrar conversación
             col1, col2 = st.columns(2)
             
             with col1:
-                st.write("**Detalles:**")
-                st.write(f"- **ID:** {row['id']}")
-                st.write(f"- **Sesión:** {str(row['session_id'])[-8:]}")
-                st.write(f"- **Intent detectado:** {row['intent_detected'] or 'No detectado'}")
-                st.write(f"- **Timestamp:** {row['timestamp']}")
+                st.subheader("👤 Usuario")
+                st.write(msg['user_message'])
+                
+                st.subheader("📊 Análisis")
+                st.write(f"**Intent detectado:** {msg['intent_detected']}")
+                st.write(f"**Confianza:** {msg['confidence']:.3f}")
+                if msg['llm_interpretation']:
+                    st.write(f"**LLM interpretó:** {msg['llm_interpretation']}")
+                st.write(f"**Timestamp:** {msg['timestamp'][:16]}")
             
             with col2:
-                st.write("**Acciones:**")
-                
-                # Botón de descarga
-                st.download_button(
-                    label="📄 Descargar .txt",
-                    data=message_content,
-                    file_name=f"mensaje_{row['id']}.txt",
-                    mime="text/plain",
-                    key=f"download_{row['id']}"
-                )
+                st.subheader("🤖 Bot")
+                st.write(msg['bot_response'])
             
-            # Sugerencia YAML automática
+            # Sugerencia YAML
             st.subheader("🔧 Sugerencia para nlu.yml")
+            suggested_intent = msg['intent_detected'] if msg['intent_detected'] != 'No detectado' else 'nlu_fallback'
             
-            # Determinar intent sugerido
-            if row['intent_detected'] and row['intent_detected'] != 'No detectado':
-                suggested_intent = row['intent_detected']
-            else:
-                suggested_intent = "nlu_fallback"
+            yaml_suggestion = f"""- intent: {suggested_intent}
+  examples: |
+    - {msg['user_message']}"""
             
-            yaml_suggestion = generate_yaml_suggestion(row['user_message'], suggested_intent)
             st.code(yaml_suggestion, language="yaml")
             
-            # Botón para marcar como revisado (solo si existe la columna)
-            if has_message_block:
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    if st.button(
-                        "✅ Marcar como revisado",
-                        key=f"reviewed_{row['id']}",
-                        help="Eliminar de la lista de revisión"
-                    ):
-                        if update_needs_review_status(row['id'], False):
-                            st.success("Marcado como revisado!")
-                            st.rerun()
-                        else:
-                            st.error("Error al actualizar estado")
-                
-                with col2:
-                    # Selector de intent para reasignar
-                    new_intent = st.selectbox(
-                        "Reasignar intent:",
-                        ["Seleccionar...", "agendar_turno", "consultar_horarios", 
-                         "consultar_requisitos", "cancelar_turno", "frase_ambigua", 
-                         "consultar_disponibilidad", "nlu_fallback"],
-                        key=f"intent_select_{row['id']}"
-                    )
-                    
-                    if new_intent != "Seleccionar...":
-                        st.info(f"Intent sugerido: {new_intent}")
-
-# =====================================================
-# PESTAÑA 3: FEEDBACK (CORREGIDA)
-# =====================================================
-
-def show_feedback_tab():
-    """💬 Pestaña de feedback con subpestañas de 👎 y 👍"""
-    st.header("💬 Feedback de Usuarios")
-    st.write("Análisis de feedback directo de los usuarios")
-    
-    # Verificar si existen las columnas de feedback
-    feedback_check_query = """
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'conversation_logs' 
-        AND column_name IN ('feedback_thumbs', 'feedback_comment')
-    """
-    
-    feedback_columns_df = safe_query(feedback_check_query)
-    has_feedback_columns = len(feedback_columns_df) >= 1
-    
-    if not has_feedback_columns:
-        st.warning("⚠️ Las columnas de feedback no existen aún en la base de datos.")
-        st.info("Usa el chatbot y da feedback con 👍/👎 para generar datos aquí.")
-        
-        if st.button("🔧 Agregar Columnas de Feedback"):
-            if check_and_add_missing_columns():
-                st.success("Columnas agregadas. Recarga la página.")
-                st.rerun()
-        return
-    
-    # Crear subpestañas para feedback negativo y positivo
-    subtab1, subtab2 = st.tabs(["👎 Feedback Negativo", "👍 Feedback Positivo"])
-    
-    with subtab1:
-        st.subheader("👎 Mensajes con Feedback Negativo")
-        
-        # Obtener feedback negativo
-        negative_query = """
-            SELECT 
-                id, session_id, user_message, bot_response, 
-                intent_detected, confidence, timestamp, feedback_comment
-            FROM conversation_logs
-            WHERE feedback_thumbs = -1
-            ORDER BY timestamp DESC
-            LIMIT 50
-        """
-        
-        negative_df = safe_query(negative_query)
-        
-        if negative_df.empty:
-            st.success("🎉 ¡No hay feedback negativo reciente!")
-            st.info("Esto significa que los usuarios están satisfechos con las respuestas.")
-            return
-        
-        st.write(f"📋 **{len(negative_df)} mensajes** con feedback negativo:")
-        
-        for idx, row in negative_df.iterrows():
-            user_msg_preview = row['user_message'][:50] + "..." if len(row['user_message']) > 50 else row['user_message']
-            
-            with st.expander(f"👎 {user_msg_preview} • {row['timestamp'].strftime('%Y-%m-%d %H:%M')}"):
-                # Mostrar conversación
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.write("**Mensaje del usuario:**")
-                    st.write(row['user_message'])
-                    st.write("**Intent detectado:**")
-                    st.write(row['intent_detected'] or 'No detectado')
-                    st.write("**Confianza:**")
-                    st.write(f"{row['confidence']:.3f}" if row['confidence'] else "N/A")
-                
-                with col2:
-                    st.write("**Respuesta del bot:**")
-                    st.write(row['bot_response'])
-                    st.write("**Comentario del usuario:**")
-                    if row.get('feedback_comment'):
-                        st.warning(f"💭 {row['feedback_comment']}")
-                    else:
-                        st.write("Sin comentario específico")
-                
-                # Sugerencia YAML
-                st.subheader("🔧 Sugerencia para Mejora")
-                yaml_suggestion = generate_yaml_suggestion(
-                    row['user_message'], 
-                    row['intent_detected'] or "nlu_fallback"
-                )
-                st.code(yaml_suggestion, language="yaml")
-                
-                st.info("💡 **Acción recomendada:** Revisar y mejorar la respuesta para este tipo de consulta")
-    
-    with subtab2:
-        st.subheader("👍 Mensajes con Feedback Positivo")
-        
-        # Obtener feedback positivo
-        positive_query = """
-            SELECT 
-                id, session_id, user_message, bot_response, 
-                intent_detected, confidence, timestamp
-            FROM conversation_logs
-            WHERE feedback_thumbs = 1
-            ORDER BY timestamp DESC
-            LIMIT 50
-        """
-        
-        positive_df = safe_query(positive_query)
-        
-        if positive_df.empty:
-            st.info("📝 Aún no hay feedback positivo registrado.")
-            st.write("Los usuarios pueden dar 👍 a las respuestas útiles del chatbot.")
-            return
-        
-        st.write(f"📋 **{len(positive_df)} mensajes** con feedback positivo:")
-        
-        # Mostrar estadísticas de respuestas exitosas
-        if not positive_df.empty:
-            # Análisis de intents exitosos
-            intent_success = positive_df['intent_detected'].value_counts()
-            
-            col1, col2 = st.columns(2)
+            # Acciones
+            col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.subheader("🎯 Intents Más Exitosos")
-                for intent, count in intent_success.head(5).items():
-                    st.write(f"- **{intent or 'No detectado'}**: {count} éxitos")
+                if st.button("✅ Marcar como revisado", key=f"reviewed_{msg['id']}"):
+                    if logger_instance.mark_as_reviewed(msg['id']):
+                        st.success("Marcado como revisado!")
+                        st.rerun()
+                    else:
+                        st.error("Error al marcar")
             
             with col2:
-                st.subheader("📊 Estadísticas de Éxito")
-                avg_confidence = positive_df[positive_df['confidence'] > 0]['confidence'].mean()
-                st.metric("Confianza promedio", f"{avg_confidence:.3f}" if avg_confidence else "N/A")
-                st.metric("Total respuestas exitosas", len(positive_df))
-        
-        # Mostrar ejemplos de respuestas exitosas
-        st.subheader("✅ Ejemplos de Respuestas Exitosas")
-        
-        for idx, row in positive_df.head(10).iterrows():
-            user_msg_preview = row['user_message'][:50] + "..." if len(row['user_message']) > 50 else row['user_message']
+                # Descargar como texto
+                message_content = f"""Usuario: {msg['user_message']}
+Bot: {msg['bot_response']}
+Intent: {msg['intent_detected']}
+Confianza: {msg['confidence']}
+Timestamp: {msg['timestamp']}"""
+                
+                st.download_button(
+                    "📄 Descargar",
+                    data=message_content,
+                    file_name=f"mensaje_{msg['id']}.txt",
+                    mime="text/plain",
+                    key=f"download_{msg['id']}"
+                )
             
-            with st.expander(f"👍 {user_msg_preview} • Confianza: {row['confidence']:.2f}"):
+            with col3:
+                # Selector de nuevo intent
+                new_intent = st.selectbox(
+                    "Reasignar intent:",
+                    ["", "agendar_turno", "consultar_horarios", "consultar_requisitos", 
+                     "cancelar_turno", "frase_ambigua", "consultar_disponibilidad"],
+                    key=f"intent_{msg['id']}"
+                )
+                if new_intent:
+                    st.info(f"Sugerido: {new_intent}")
+
+# =====================================================
+# PESTAÑA 3: FEEDBACK FUNCIONAL
+# =====================================================
+
+def show_feedback_tab_functional():
+    """Feedback que realmente funciona"""
+    st.header("💬 Feedback de Usuarios")
+    
+    logger_instance = get_improved_conversation_logger()
+    if not logger_instance:
+        logger_instance = initialize_improved_logger()
+    
+    if not logger_instance:
+        st.error("Sistema de logging no disponible")
+        return
+    
+    # Tabs para positivo y negativo
+    tab1, tab2 = st.tabs(["👎 Feedback Negativo", "👍 Feedback Positivo"])
+    
+    with tab1:
+        st.subheader("👎 Mensajes con Feedback Negativo")
+        
+        negative_messages = logger_instance.get_feedback_messages('negative', limit=30)
+        
+        if not negative_messages:
+            st.success("🎉 ¡No hay feedback negativo reciente!")
+            st.info("Los usuarios están satisfechos con las respuestas")
+            return
+        
+        st.write(f"📋 **{len(negative_messages)} mensajes** con feedback negativo:")
+        
+        for msg in negative_messages:
+            with st.expander(f"👎 {msg['user_message'][:50]}... • {msg['timestamp'][:16]}"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.write("**Mensaje del usuario:**")
-                    st.write(row['user_message'])
-                    st.write("**Intent detectado:**")
-                    st.write(row['intent_detected'] or 'No detectado')
+                    st.write("**👤 Usuario preguntó:**")
+                    st.write(msg['user_message'])
+                    st.write("**📊 Análisis:**")
+                    st.write(f"• Intent: {msg['intent_detected']}")
+                    st.write(f"• Confianza: {msg['confidence']:.3f}")
                 
                 with col2:
-                    st.write("**Respuesta exitosa:**")
-                    st.write(row['bot_response'])
-                    st.write("**Timestamp:**")
-                    st.write(row['timestamp'].strftime('%Y-%m-%d %H:%M:%S'))
+                    st.write("**🤖 Bot respondió:**")
+                    st.write(msg['bot_response'])
+                    if msg['feedback_comment']:
+                        st.warning(f"**💭 Comentario:** {msg['feedback_comment']}")
                 
-                st.success("💡 **Esta respuesta fue útil para el usuario** - Considerar como referencia para casos similares")
-
-# =====================================================
-# FUNCIÓN PRINCIPAL DEL DASHBOARD
-# =====================================================
-
-def show_learning_dashboard():
-    """Dashboard principal con 3 pestañas simplificadas"""
+                st.error("💡 **Acción recomendada:** Mejorar la respuesta para este tipo de consulta")
     
-    st.title("📊 Dashboard de Aprendizaje del Chatbot")
+    with tab2:
+        st.subheader("👍 Mensajes con Feedback Positivo")
+        
+        positive_messages = logger_instance.get_feedback_messages('positive', limit=30)
+        
+        if not positive_messages:
+            st.info("📝 Aún no hay feedback positivo registrado")
+            return
+        
+        st.write(f"📋 **{len(positive_messages)} mensajes** con feedback positivo:")
+        
+        # Mostrar estadísticas de éxito
+        if positive_messages:
+            intents_exitosos = {}
+            for msg in positive_messages:
+                intent = msg['intent_detected'] or 'No detectado'
+                intents_exitosos[intent] = intents_exitosos.get(intent, 0) + 1
+            
+            st.subheader("🎯 Intents Más Exitosos")
+            for intent, count in sorted(intents_exitosos.items(), key=lambda x: x[1], reverse=True)[:5]:
+                st.write(f"• **{intent}**: {count} éxitos")
+        
+        # Mostrar ejemplos exitosos
+        st.subheader("✅ Ejemplos de Respuestas Exitosas")
+        for msg in positive_messages[:5]:
+            with st.expander(f"👍 {msg['user_message'][:50]}... • Confianza: {msg['confidence']:.2f}"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write("**👤 Usuario:**")
+                    st.write(msg['user_message'])
+                    st.write(f"**Intent:** {msg['intent_detected']}")
+                
+                with col2:
+                    st.write("**🤖 Respuesta exitosa:**")
+                    st.write(msg['bot_response'])
+                
+                st.success("💡 Esta respuesta fue útil - Usar como referencia")
+
+# =====================================================
+# PESTAÑA 4: CONVERSACIONES SEMANALES (NUEVA)
+# =====================================================
+
+def show_weekly_conversations_tab():
+    """Nueva pestaña para conversaciones completas semanales"""
+    st.header("📅 Conversaciones de la Semana")
+    st.write("Registro completo de todas las conversaciones de usuarios (se guarda 1 semana)")
+    
+    logger_instance = get_improved_conversation_logger()
+    if not logger_instance:
+        logger_instance = initialize_improved_logger()
+    
+    if not logger_instance:
+        st.error("Sistema de logging no disponible")
+        return
+    
+    # Obtener conversaciones semanales
+    conversations = logger_instance.get_weekly_conversations()
+    
+    if not conversations:
+        st.info("📝 No hay conversaciones registradas para esta semana")
+        st.write("Las conversaciones se guardan automáticamente cuando los usuarios interactúan")
+        return
+    
+    st.write(f"📋 **{len(conversations)} conversaciones** registradas esta semana:")
+    
+    # Estadísticas generales
+    total_messages = sum(c['message_count'] for c in conversations)
+    avg_confidence = sum(c['avg_confidence'] for c in conversations) / len(conversations)
+    total_positive = sum(c['feedback_positive'] for c in conversations)
+    total_negative = sum(c['feedback_negative'] for c in conversations)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("💬 Total Mensajes", total_messages)
+    with col2:
+        st.metric("🎯 Confianza Promedio", f"{avg_confidence:.2f}")
+    with col3:
+        st.metric("👍 Feedback +", total_positive)
+    with col4:
+        st.metric("👎 Feedback -", total_negative)
+    
     st.markdown("---")
     
-    # Verificar conexión a base de datos
+    # Mostrar cada conversación
+    for i, conv in enumerate(conversations):
+        start_time = datetime.fromisoformat(conv['start_time']).strftime("%d/%m %H:%M")
+        end_time = datetime.fromisoformat(conv['end_time']).strftime("%H:%M")
+        duration = datetime.fromisoformat(conv['end_time']) - datetime.fromisoformat(conv['start_time'])
+        
+        with st.expander(f"💬 Sesión {conv['session_id'][-8:]} • {start_time}-{end_time} • {conv['message_count']} mensajes"):
+            
+            # Información de la conversación
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.write(f"**Duración:** {duration}")
+                st.write(f"**Mensajes:** {conv['message_count']}")
+            with col2:
+                st.write(f"**Confianza:** {conv['avg_confidence']:.2f}")
+                st.write(f"**Feedback +:** {conv['feedback_positive']}")
+            with col3:
+                st.write(f"**Feedback -:** {conv['feedback_negative']}")
+                st.write(f"**ID Sesión:** {conv['session_id']}")
+            
+            # Mostrar mensajes de la conversación
+            if st.checkbox(f"Ver mensajes completos", key=f"show_msgs_{conv['id']}"):
+                conversation_data = conv['conversation_data']
+                
+                for j, msg in enumerate(conversation_data):
+                    role = msg.get('role', 'unknown')
+                    content = msg.get('content', 'Sin contenido')
+                    timestamp = msg.get('timestamp', '')
+                    
+                    if role == 'user':
+                        st.write(f"**👤 Usuario ({timestamp[:16]}):**")
+                        st.write(content)
+                    elif role == 'assistant':
+                        st.write(f"**🤖 Bot ({timestamp[:16]}):**")
+                        st.write(content)
+                        
+                        # Mostrar feedback si existe
+                        if msg.get('feedback_thumbs'):
+                            feedback_emoji = "👍" if msg['feedback_thumbs'] == 1 else "👎"
+                            st.write(f"**Feedback:** {feedback_emoji}")
+                            if msg.get('feedback_comment'):
+                                st.write(f"**Comentario:** {msg['feedback_comment']}")
+                    
+                    st.markdown("---")
+            
+            # Botón de descarga
+            conversation_json = {
+                'session_id': conv['session_id'],
+                'start_time': conv['start_time'],
+                'end_time': conv['end_time'],
+                'message_count': conv['message_count'],
+                'conversation_data': conv['conversation_data']
+            }
+            
+            st.download_button(
+                "📄 Descargar JSON",
+                data=json.dumps(conversation_json, indent=2, ensure_ascii=False),
+                file_name=f"conversacion_{conv['session_id'][-8:]}_{start_time.replace('/', '')}.json",
+                mime="application/json",
+                key=f"download_conv_{conv['id']}"
+            )
+
+# =====================================================
+# DASHBOARD PRINCIPAL SIMPLIFICADO
+# =====================================================
+
+def show_simplified_learning_dashboard():
+    """Dashboard principal simplificado con solo funcionalidades útiles"""
+    
+    st.title("📊 Dashboard de Aprendizaje Simplificado")
+    st.markdown("---")
+    
+    # Verificar conexión
     if not get_db_connection():
         st.error("❌ No se puede conectar a la base de datos")
-        st.info("Asegúrate de que:")
-        st.markdown("""
-        - PostgreSQL esté ejecutándose
-        - La base de datos 'chatbotdb' exista
-        - Las credenciales sean correctas (user: botuser, password: root)
-        - Las tablas de conversación estén creadas
-        """)
+        st.info("Verifica que PostgreSQL esté ejecutándose y las credenciales sean correctas")
         return
     
     # Sidebar con controles
     with st.sidebar:
-        st.header("🎛️ Controles del Dashboard")
+        st.header("🎛️ Controles")
         
-        # Botón de actualizar
-        if st.button("🔄 Actualizar Datos", help="Recargar información desde la BD"):
+        if st.button("🔄 Actualizar Todo"):
             st.cache_data.clear()
             st.rerun()
         
         st.markdown("---")
         
-        # Verificar estructura de base de datos
-        st.subheader("🔧 Estado de la BD")
+        # Estado del sistema
+        st.subheader("ℹ️ Estado")
         
-        if st.button("📋 Verificar Columnas"):
-            check_and_add_missing_columns()
-            st.rerun()
-        
-        st.markdown("---")
-        
-        # Información del sistema
-        st.subheader("ℹ️ Estado del Sistema")
-        
-        # Verificar si hay datos
-        test_query = "SELECT COUNT(*) as count FROM conversation_logs"
-        test_df = safe_query(test_query)
-        
-        if not test_df.empty:
-            total_messages = test_df.iloc[0]['count']
-            st.metric("Total mensajes", total_messages)
-            
-            if total_messages > 0:
-                st.success("✅ Sistema funcionando")
-            else:
-                st.warning("⚠️ Sin datos aún")
+        # Verificar si hay logger mejorado
+        logger_instance = get_improved_conversation_logger()
+        if logger_instance:
+            st.success("✅ Logger mejorado activo")
+        else:
+            if st.button("🔧 Inicializar Logger"):
+                logger_instance = initialize_improved_logger()
+                if logger_instance:
+                    st.success("Logger inicializado")
+                    st.rerun()
         
         st.markdown("---")
         
-        # Acciones de exportación
-        st.subheader("📥 Exportación")
-        
-        if st.button("📄 Generar Reporte Completo"):
-            # Obtener datos para reporte
-            report_query = """
-                SELECT 
-                    COUNT(*) as total,
-                    COUNT(CASE WHEN needs_review = TRUE THEN 1 END) as needs_review,
-                    COUNT(CASE WHEN feedback_thumbs = 1 THEN 1 END) as positive,
-                    COUNT(CASE WHEN feedback_thumbs = -1 THEN 1 END) as negative
-                FROM conversation_logs
-                WHERE timestamp >= NOW() - INTERVAL '30 days'
-            """
-            
-            report_df = safe_query(report_query)
-            
-            if not report_df.empty:
-                stats = report_df.iloc[0]
-                
-                report_content = f"""# Reporte de Dashboard de Aprendizaje
-Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-## Resumen Ejecutivo
-- Total conversaciones: {stats['total']}
-- Necesitan revisión: {stats['needs_review']}
-- Feedback positivo: {stats['positive']}
-- Feedback negativo: {stats['negative']}
-
-## Recomendaciones
-- Revisar {stats['needs_review']} mensajes marcados
-- Analizar {stats['negative']} casos de feedback negativo
-- Mantener calidad basada en {stats['positive']} casos exitosos
-"""
-                
-                st.download_button(
-                    label="📄 Descargar Reporte",
-                    data=report_content,
-                    file_name=f"reporte_dashboard_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-                    mime="text/markdown"
-                )
+        # Información
+        st.write("**Funcionalidades:**")
+        st.write("• Estadísticas esenciales")
+        st.write("• Mensajes para revisar")
+        st.write("• Feedback funcional")
+        st.write("• Conversaciones semanales")
     
-    # Pestañas principales del dashboard
-    tab1, tab2, tab3 = st.tabs([
+    # Pestañas principales
+    tab1, tab2, tab3, tab4 = st.tabs([
         "📈 Resumen",
-        "🗂️ Guardados (No interpretados)", 
-        "💬 Feedback (👎 / 👍)"
+        "🗂️ Para Revisar", 
+        "💬 Feedback",
+        "📅 Conversaciones Semanales"
     ])
     
     with tab1:
-        show_summary_tab()
+        show_summary_tab_simplified()
     
     with tab2:
-        show_saved_tab()
+        show_review_tab_functional()
     
     with tab3:
-        show_feedback_tab()
+        show_feedback_tab_functional()
+    
+    with tab4:
+        show_weekly_conversations_tab()
 
 # =====================================================
 # PUNTO DE ENTRADA
 # =====================================================
 
 if __name__ == "__main__":
-    show_learning_dashboard()
+    show_simplified_learning_dashboard()

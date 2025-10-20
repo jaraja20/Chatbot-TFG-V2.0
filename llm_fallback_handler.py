@@ -1,7 +1,3 @@
-"""
-Sistema de Fallback Inteligente con Prompt Mejorado
-Versión optimizada para mejor comprensión del dominio
-"""
 
 import requests
 import logging

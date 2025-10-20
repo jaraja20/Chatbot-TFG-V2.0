@@ -1,9 +1,4 @@
-"""
-Clasificador de Intents usando LLM local (LM Studio)
-Mejora la interpretación del lenguaje natural antes de que Rasa procese
 
-VERSIÓN MEJORADA: Maneja respuestas verbosas del LLM
-"""
 
 import requests
 import logging

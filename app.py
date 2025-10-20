@@ -252,7 +252,7 @@ def send_message_to_rasa(message: str, sender: str = "user") -> List[Dict]:
         return [{"text": f"Error de conexión: {str(e)}"}]
 
 def initialize_session():
-    """Inicializa el estado de la sesión"""
+    """Inicializa el estado de la sesión con sistema de logging mejorado"""
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {
@@ -269,15 +269,33 @@ def initialize_session():
     if "should_scroll" not in st.session_state:
         st.session_state.should_scroll = False
     
-    # ✅ Inicializar sistema de logging si está disponible
+    # ✅ SISTEMA DE LOGGING MEJORADO
+    try:
+        from improved_conversation_logger import (
+            setup_improved_logging_system, 
+            get_improved_conversation_logger,
+            set_improved_conversation_logger
+        )
+        
+        if not get_improved_conversation_logger():
+            database_url = f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}/{DB_CONFIG['database']}"
+            logger_instance = setup_improved_logging_system(database_url)
+            set_improved_conversation_logger(logger_instance)
+            st.success("✅ Sistema de logging mejorado inicializado", icon="🤖")
+            
+    except ImportError:
+        st.warning("⚠️ Sistema de logging mejorado no disponible")
+    except Exception as e:
+        st.warning(f"⚠️ Error inicializando sistema mejorado: {e}")
+    
+    # Fallback al sistema anterior si está disponible
     if LOGGER_AVAILABLE and not get_conversation_logger():
         try:
             database_url = f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}/{DB_CONFIG['database']}"
             logger_instance = setup_learning_system(database_url)
             set_conversation_logger(logger_instance)
-            st.success("✅ Sistema de aprendizaje inicializado", icon="🤖")
         except Exception as e:
-            st.warning(f"⚠️ Sistema de aprendizaje no disponible: {e}")
+            st.warning(f"⚠️ Sistema de aprendizaje fallback no disponible: {e}")
 
 def add_message(role: str, content: str, feedback_enabled: bool = True):
     """Agrega mensaje al historial y marca para scroll"""

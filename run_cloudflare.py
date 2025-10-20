@@ -1,45 +1,29 @@
-"""
-Script para ejecutar el chatbot con Cloudflare Tunnel
-TODO SE EJECUTA LOCALMENTE (Rasa, PostgreSQL, Google Calendar)
-La interfaz es accesible públicamente vía Cloudflare.
-
-REQUISITOS PREVIOS:
-1. Instalar Cloudflare cloudflared:
-   Windows: https://github.com/cloudflare/cloudflared/releases
-   Linux: wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-   Mac: brew install cloudflare/cloudflare/cloudflared
-
-2. Tener Rasa ejecutándose en localhost:5005
-   Terminal separada: rasa run --enable-api --cors "*"
-
-3. PostgreSQL ejecutándose en localhost:5432
-
-4. Python packages:
-   pip install streamlit
-
-USO:
-    python run_cloudflare.py
-"""
 
 import subprocess
 import sys
 import os
 import time
-import signal
 import requests
 from datetime import datetime
+import json
 
-class CloudflareChatbotLauncher:
+class CloudflarePermanentTunnel:
     def __init__(self):
         self.streamlit_process = None
         self.cloudflare_process = None
         self.rasa_online = False
         
+        # CONFIGURACIÓN DEL TUNNEL PERMANENTE
+        self.tunnel_name = "identificaciones-cde"
+        self.config_file = "cloudflare-tunnel-config.yml"
+        self.credentials_file = None
+        self.streamlit_port = 8501
+        
     def print_header(self):
         """Imprime el header del script"""
         print("=" * 70)
-        print("🏛️  SISTEMA DE TURNOS CÉDULAS - CLOUDFLARE TUNNEL")
-        print("    Ciudad del Este - Acceso Público")
+        print("🏛️  SISTEMA DE TURNOS CÉDULAS - TUNNEL PERMANENTE")
+        print("    Ciudad del Este - URL Fija para Acceso Público")
         print("=" * 70)
         print()
     
@@ -56,16 +40,12 @@ class CloudflareChatbotLauncher:
             else:
                 print("⚠️  Rasa no responde correctamente")
                 return False
-        except Exception as e:
+        except Exception:
             print("❌ Rasa NO está ejecutándose")
             print()
             print("🔧 SOLUCIÓN:")
             print("   Abre una terminal separada y ejecuta:")
             print("   → rasa run --enable-api --cors \"*\"")
-            print()
-            print("   O si prefieres con acciones personalizadas:")
-            print("   Terminal 1: rasa run actions")
-            print("   Terminal 2: rasa run --enable-api --cors \"*\"")
             print()
             return False
     
@@ -81,415 +61,300 @@ class CloudflareChatbotLauncher:
             )
             
             if result.returncode == 0:
-                print(f"✅ cloudflared encontrado: {result.stdout.strip()}")
+                print(f"✅ cloudflared encontrado")
                 return True
             else:
+                print("❌ cloudflared no funciona correctamente")
                 return False
+                
         except FileNotFoundError:
             print("❌ cloudflared NO está instalado")
             print()
-            print("📥 DESCARGA E INSTALACIÓN:")
+            print("📥 SOLUCIÓN:")
+            print("   Descarga desde: https://github.com/cloudflare/cloudflared/releases")
+            print("   O ejecuta: pip install cloudflared")
             print()
-            print("Windows:")
-            print("  1. Ve a: https://github.com/cloudflare/cloudflared/releases")
-            print("  2. Descarga: cloudflared-windows-amd64.exe")
-            print("  3. Renómbralo a: cloudflared.exe")
-            print("  4. Muévelo a una carpeta en tu PATH")
-            print()
-            print("Mac:")
-            print("  brew install cloudflare/cloudflare/cloudflared")
-            print()
-            print("Linux:")
-            print("  wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64")
-            print("  chmod +x cloudflared-linux-amd64")
-            print("  sudo mv cloudflared-linux-amd64 /usr/local/bin/cloudflared")
-            print()
+            return False
+        except Exception as e:
+            print(f"❌ Error verificando cloudflared: {e}")
             return False
     
-    def start_streamlit(self, app_file="app.py"):
-        """Inicia Streamlit"""
-        print(f"\n🚀 Iniciando Streamlit con {app_file}...")
+    def authenticate_cloudflare(self):
+        """Autentica con Cloudflare (solo primera vez)"""
+        print("🔐 Verificando autenticación con Cloudflare...")
         
-        if not os.path.exists(app_file):
-            print(f"❌ Error: {app_file} no encontrado")
+        # Verificar si ya está autenticado
+        try:
+            result = subprocess.run(
+                ["cloudflared", "tunnel", "list"],
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                print("✅ Ya autenticado con Cloudflare")
+                return True
+            else:
+                print("🔑 Necesitas autenticarte con Cloudflare")
+                print("   Se abrirá tu navegador para autorizar...")
+                
+                # Ejecutar autenticación
+                auth_result = subprocess.run(
+                    ["cloudflared", "tunnel", "login"],
+                    capture_output=True,
+                    text=True
+                )
+                
+                if auth_result.returncode == 0:
+                    print("✅ Autenticación exitosa")
+                    return True
+                else:
+                    print("❌ Error en autenticación")
+                    print(auth_result.stderr)
+                    return False
+                    
+        except Exception as e:
+            print(f"❌ Error verificando autenticación: {e}")
             return False
+    
+    def check_tunnel_exists(self):
+        """Verifica si el tunnel ya existe"""
+        try:
+            result = subprocess.run(
+                ["cloudflared", "tunnel", "list"],
+                capture_output=True,
+                text=True
+            )
+            
+            if self.tunnel_name in result.stdout:
+                print(f"✅ Tunnel '{self.tunnel_name}' ya existe")
+                return True
+            else:
+                print(f"🔧 Creando tunnel permanente '{self.tunnel_name}'...")
+                return False
+                
+        except Exception as e:
+            print(f"⚠️  Error verificando tunnel: {e}")
+            return False
+    
+    def create_tunnel(self):
+        """Crea el tunnel permanente"""
+        try:
+            # Crear tunnel
+            result = subprocess.run(
+                ["cloudflared", "tunnel", "create", self.tunnel_name],
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                print(f"✅ Tunnel '{self.tunnel_name}' creado exitosamente")
+                return True
+            else:
+                print(f"❌ Error creando tunnel: {result.stderr}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error creando tunnel: {e}")
+            return False
+    
+    def get_tunnel_info(self):
+        """Obtiene información del tunnel"""
+        try:
+            result = subprocess.run(
+                ["cloudflared", "tunnel", "list"],
+                capture_output=True,
+                text=True
+            )
+            
+            lines = result.stdout.split('\n')
+            for line in lines:
+                if self.tunnel_name in line:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        tunnel_id = parts[0]
+                        print(f"📋 Tunnel ID: {tunnel_id}")
+                        return tunnel_id
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error obteniendo info del tunnel: {e}")
+            return None
+    
+    def create_config_file(self, tunnel_id):
+        """Crea archivo de configuración para el tunnel"""
+        try:
+            # Buscar archivo de credenciales
+            home_dir = os.path.expanduser("~")
+            cred_path = os.path.join(home_dir, ".cloudflared", f"{tunnel_id}.json")
+            
+            if not os.path.exists(cred_path):
+                print(f"⚠️  Archivo de credenciales no encontrado en: {cred_path}")
+                return False
+            
+            # Crear contenido de configuración
+            config_content = f"""tunnel: {tunnel_id}
+credentials-file: {cred_path}
+
+ingress:
+  - service: http://localhost:{self.streamlit_port}
+"""
+            
+            # Escribir archivo de configuración
+            with open(self.config_file, 'w') as f:
+                f.write(config_content)
+            
+            print(f"✅ Archivo de configuración creado: {self.config_file}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error creando archivo de configuración: {e}")
+            return False
+    
+    def start_streamlit(self):
+        """Inicia Streamlit"""
+        print(f"🚀 Iniciando Streamlit en puerto {self.streamlit_port}...")
         
         try:
+            # Comando para iniciar Streamlit
+            cmd = [
+                sys.executable, "-m", "streamlit", "run",
+                "app_public.py",
+                "--server.port", str(self.streamlit_port),
+                "--server.address", "localhost",
+                "--server.headless", "true"
+            ]
+            
             self.streamlit_process = subprocess.Popen(
-                [sys.executable, "-m", "streamlit", "run", app_file, 
-                 "--server.headless", "true",
-                 "--server.port", "8501"],
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
             
-            # Esperar a que Streamlit inicie
-            print("⏳ Esperando que Streamlit inicie...")
-            time.sleep(8)
+            # Esperar un poco para que Streamlit inicie
+            time.sleep(3)
             
-            if self.streamlit_process.poll() is not None:
-                print("❌ Streamlit no pudo iniciar")
+            if self.streamlit_process.poll() is None:
+                print(f"✅ Streamlit iniciado en http://localhost:{self.streamlit_port}")
+                return True
+            else:
+                print("❌ Error iniciando Streamlit")
                 return False
-            
-            print("✅ Streamlit iniciado en http://localhost:8501")
-            return True
-            
+                
         except Exception as e:
             print(f"❌ Error iniciando Streamlit: {e}")
             return False
     
-    def start_cloudflare_tunnel(self):
-        """Inicia el túnel de Cloudflare"""
-        print("\n📡 Creando túnel público con Cloudflare...")
-        print("⏳ Esto puede tardar unos segundos...")
+    def start_tunnel(self):
+        """Inicia el tunnel permanente"""
+        print("🌐 Iniciando Cloudflare Tunnel...")
+        print()
+        print("🔗 Tu URL será:")
+        print("   https://identificaciones-cde-XXX.trycloudflare.com")
+        print()
+        print("📌 Esta URL será SIEMPRE LA MISMA")
+        print("   Guárdala para acceso futuro")
         print()
         
         try:
-            self.cloudflare_process = subprocess.Popen(
-                ["cloudflared", "tunnel", "--url", "http://localhost:8501"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1
-            )
+            # Comando para iniciar tunnel
+            cmd = [
+                "cloudflared", "tunnel",
+                "--config", self.config_file,
+                "run", self.tunnel_name
+            ]
             
-            # Leer la salida para encontrar la URL
-            url_found = False
-            for line in iter(self.cloudflare_process.stdout.readline, ''):
-                line = line.strip()
-                
-                # Mostrar líneas importantes
-                if "trycloudflare.com" in line or "INF" in line or "error" in line.lower():
-                    print(line)
-                
-                # Detectar la URL pública
-                if "trycloudflare.com" in line and not url_found:
-                    import re
-                    match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
-                    if match:
-                        url = match.group(0)
-                        self.display_success(url)
-                        url_found = True
-                        
-                        # Seguir mostrando logs pero no bloquear
-                        break
-                
-                if self.cloudflare_process.poll() is not None:
-                    break
+            # Ejecutar tunnel (esto bloquea hasta que se termine)
+            self.cloudflare_process = subprocess.run(cmd)
             
-            if not url_found:
-                print("⚠️  No se pudo obtener la URL del túnel")
-                print("   Pero el túnel puede estar activo. Revisa los logs arriba.")
-            
-            # Mantener el proceso vivo
-            print("\n💡 Presiona Ctrl+C para detener el túnel")
-            print()
-            
-            # Bloquear aquí para que siga ejecutándose
-            try:
-                self.cloudflare_process.wait()
-            except KeyboardInterrupt:
-                pass
-            
+        except KeyboardInterrupt:
+            print("\n🛑 Deteniendo tunnel...")
         except Exception as e:
-            print(f"❌ Error creando túnel: {e}")
-            return False
-    
-    def display_success(self, url):
-        """Muestra mensaje de éxito con la URL"""
-        print()
-        print("=" * 70)
-        print("✅ ¡TÚNEL CLOUDFLARE CREADO EXITOSAMENTE!")
-        print("=" * 70)
-        print()
-        print(f"🌐 URL PÚBLICA: {url}")
-        print()
-        print("=" * 70)
-        print()
-        print("📋 Información importante:")
-        print("   • Comparte este link con quien quieras")
-        print("   • El chatbot se conecta a tu Rasa y BD locales")
-        print("   • ⚡ Gratis sin límites de tiempo (Cloudflare)")
-        print("   • 🔒 Protegido por la red de Cloudflare")
-        print()
-        print("⚠️  RECUERDA:")
-        print("   • Tu computadora debe permanecer encendida")
-        print("   • Rasa debe estar ejecutándose (localhost:5005)")
-        print("   • PostgreSQL debe estar activo")
-        print()
-        print("🛑 Para detener: Presiona Ctrl+C")
-        print()
-        print("-" * 70)
-        print()
+            print(f"❌ Error ejecutando tunnel: {e}")
     
     def cleanup(self):
-        """Limpia los procesos al salir"""
-        print("\n\n🛑 Cerrando túnel y aplicación...")
-        
-        if self.cloudflare_process:
-            try:
-                self.cloudflare_process.terminate()
-                self.cloudflare_process.wait(timeout=5)
-            except:
-                self.cloudflare_process.kill()
+        """Limpia procesos al terminar"""
+        print("\n🧹 Limpiando procesos...")
         
         if self.streamlit_process:
             try:
                 self.streamlit_process.terminate()
                 self.streamlit_process.wait(timeout=5)
+                print("✅ Streamlit detenido")
             except:
                 self.streamlit_process.kill()
-        
-        print("✅ Procesos cerrados correctamente")
-        print()
-        print("👋 ¡Hasta luego!")
+                print("⚠️  Streamlit forzado a terminar")
     
-    def run(self):
-        """Ejecuta todo el proceso"""
-        self.print_header()
+    def setup_permanent_tunnel(self):
+        """Configura el tunnel permanente (solo primera vez)"""
+        print("⚙️  CONFIGURACIÓN INICIAL DEL TUNNEL PERMANENTE")
+        print("=" * 50)
         
-        # 1. Verificar Rasa
-        if not self.check_rasa():
-            input("\nPresiona Enter para salir...")
-            return
-        
-        print()
-        
-        # 2. Verificar cloudflared
-        if not self.check_cloudflared():
-            input("\nPresiona Enter para salir...")
-            return
-        
-        # 3. Seleccionar archivo de app
-        print("\n📂 ¿Qué interfaz quieres usar?")
-        print("   1. app.py - Versión completa con sidebar y dashboard")
-        print("   2. app_public.py - Versión moderna con burbujas")
-        print()
-        
-        choice = input("Selecciona (1 o 2) [default: 1]: ").strip()
-        
-        if choice == "2" and os.path.exists("app_public.py"):
-            app_file = "app_public.py"
-        else:
-            app_file = "app.py"
-        
-        print(f"\n✅ Usando: {app_file}")
-        
-        try:
-            # 4. Iniciar Streamlit
-            if not self.start_streamlit(app_file):
-                input("\nPresiona Enter para salir...")
-                return
-            
-            # 5. Crear túnel de Cloudflare
-            self.start_cloudflare_tunnel()
-            
-        except KeyboardInterrupt:
-            print("\n\n⚠️  Interrupción detectada...")
-        
-        finally:
-            self.cleanup()
-
-def main():
-    """Función principal"""
-    launcher = CloudflareChatbotLauncher()
-    launcher.run()
-
-if __name__ == "__main__":
-    main()
-"""
-Script para ejecutar el chatbot con Cloudflare Tunnel
-Todo se ejecuta localmente (Rasa, PostgreSQL) pero la interfaz
-es accesible desde cualquier lugar vía Cloudflare.
-
-VENTAJAS:
-- Gratis sin límites de tiempo
-- Más rápido que Ngrok
-- Red global de Cloudflare
-- Protección DDoS incluida
-
-REQUISITOS:
-1. Instalar cloudflared:
-   Windows: https://github.com/cloudflare/cloudflared/releases
-   Linux: wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-   Mac: brew install cloudflare/cloudflare/cloudflared
-
-2. Python packages:
-   pip install streamlit
-
-USO:
-    python run_cloudflare.py
-"""
-
-import subprocess
-import sys
-import os
-import glob
-import time
-import signal
-import threading
-
-class CloudflareStreamlitRunner:
-    def __init__(self):
-        self.streamlit_process = None
-        self.cloudflare_process = None
-        
-    def find_app_file(self):
-        """Encuentra el archivo principal de la app"""
-        py_files = glob.glob("*.py")
-        py_files = [f for f in py_files if f not in ["run_cloudflare.py", "run_public.py"]]
-        
-        if len(py_files) == 1:
-            return py_files[0]
-        else:
-            print("📄 Archivos Python encontrados:")
-            for i, f in enumerate(py_files, 1):
-                print(f"   {i}. {f}")
-            
-            choice = input("\nSelecciona el archivo de la app (número): ")
-            return py_files[int(choice) - 1]
-    
-    def check_cloudflared(self):
-        """Verifica si cloudflared está instalado"""
-        try:
-            result = subprocess.run(
-                ["cloudflared", "--version"],
-                capture_output=True,
-                text=True
-            )
-            return result.returncode == 0
-        except FileNotFoundError:
-            return False
-    
-    def start_streamlit(self, app_file):
-        """Inicia Streamlit"""
-        print(f"🚀 Iniciando Streamlit con {app_file}...")
-        self.streamlit_process = subprocess.Popen(
-            [sys.executable, "-m", "streamlit", "run", app_file, "--server.headless", "true"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        
-        # Esperar a que Streamlit inicie
-        print("⏳ Esperando que Streamlit inicie...")
-        time.sleep(5)
-        
-        if self.streamlit_process.poll() is not None:
-            print("❌ Error: Streamlit no pudo iniciar")
+        # 1. Autenticar
+        if not self.authenticate_cloudflare():
             return False
         
-        print("✅ Streamlit iniciado en http://localhost:8501")
+        # 2. Verificar/crear tunnel
+        if not self.check_tunnel_exists():
+            if not self.create_tunnel():
+                return False
+        
+        # 3. Obtener info del tunnel
+        tunnel_id = self.get_tunnel_info()
+        if not tunnel_id:
+            print("❌ No se pudo obtener información del tunnel")
+            return False
+        
+        # 4. Crear archivo de configuración
+        if not self.create_config_file(tunnel_id):
+            return False
+        
+        print("\n✅ CONFIGURACIÓN COMPLETADA")
+        print("   Tu tunnel permanente está listo")
+        print()
+        
         return True
     
-    def start_cloudflare_tunnel(self):
-        """Inicia el túnel de Cloudflare"""
-        print("\n📡 Creando túnel público con Cloudflare...")
-        
-        self.cloudflare_process = subprocess.Popen(
-            ["cloudflared", "tunnel", "--url", "http://localhost:8501"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1
-        )
-        
-        # Leer la salida para encontrar la URL
-        url_found = False
-        for line in iter(self.cloudflare_process.stdout.readline, ''):
-            print(line.strip())
-            
-            if "trycloudflare.com" in line and not url_found:
-                # Extraer la URL
-                import re
-                match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
-                if match:
-                    url = match.group(0)
-                    self.display_success(url)
-                    url_found = True
-            
-            if self.cloudflare_process.poll() is not None:
-                break
-    
-    def display_success(self, url):
-        """Muestra mensaje de éxito con la URL"""
-        print("\n" + "=" * 70)
-        print("✅ ¡TÚNEL CLOUDFLARE CREADO EXITOSAMENTE!")
-        print("=" * 70)
-        print()
-        print(f"🌐 URL PÚBLICA: {url}")
-        print()
-        print("=" * 70)
-        print()
-        print("📋 Comparte este link con quien quieras")
-        print("⚡ Ventajas:")
-        print("   • Gratis sin límites de tiempo")
-        print("   • Protegido por la red de Cloudflare")
-        print("   • Rápido y confiable")
-        print()
-        print("⚠️  IMPORTANTE:")
-        print("   • Tu computadora debe permanecer encendida")
-        print("   • Rasa debe estar en localhost:5005")
-        print("   • PostgreSQL debe estar activo")
-        print()
-        print("🛑 Para detener: Presiona Ctrl+C")
-        print()
-        print("-" * 70)
-    
-    def cleanup(self):
-        """Limpia los procesos al salir"""
-        print("\n\n🛑 Cerrando túnel y aplicación...")
-        
-        if self.cloudflare_process:
-            self.cloudflare_process.terminate()
-            self.cloudflare_process.wait()
-        
-        if self.streamlit_process:
-            self.streamlit_process.terminate()
-            self.streamlit_process.wait()
-        
-        print("✅ Cerrado correctamente")
-    
     def run(self):
-        """Ejecuta todo el proceso"""
-        print("=" * 70)
-        print("🏛️  SISTEMA DE TURNOS - CÉDULAS DE IDENTIDAD")
-        print("    Ciudad del Este - Cloudflare Tunnel")
-        print("=" * 70)
-        print()
-        
-        # Verificar cloudflared
-        if not self.check_cloudflared():
-            print("❌ ERROR: cloudflared no está instalado")
-            print()
-            print("📥 Descarga e instala cloudflared:")
-            print("   Windows: https://github.com/cloudflare/cloudflared/releases")
-            print("   Mac: brew install cloudflare/cloudflare/cloudflared")
-            print("   Linux: wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64")
-            return
-        
-        print("✅ cloudflared detectado")
-        
-        # Encontrar archivo de la app
-        app_file = self.find_app_file()
-        print(f"📄 Archivo de la app: {app_file}")
-        print()
-        
+        """Función principal"""
         try:
-            # Iniciar Streamlit
-            if not self.start_streamlit(app_file):
+            self.print_header()
+            
+            # Verificaciones previas
+            if not self.check_cloudflared():
                 return
             
-            # Iniciar Cloudflare Tunnel
-            self.start_cloudflare_tunnel()
+            # Verificar Rasa (opcional pero recomendado)
+            self.check_rasa()
+            
+            # Configurar tunnel permanente si es necesario
+            if not os.path.exists(self.config_file):
+                print("🔧 Primera ejecución - Configurando tunnel permanente...")
+                if not self.setup_permanent_tunnel():
+                    return
+            else:
+                print("✅ Configuración existente encontrada")
+            
+            # Iniciar Streamlit
+            if not self.start_streamlit():
+                return
+            
+            print("\n" + "="*50)
+            print("🎉 SISTEMA LISTO")
+            print("="*50)
+            
+            # Iniciar tunnel (esto bloquea hasta Ctrl+C)
+            self.start_tunnel()
             
         except KeyboardInterrupt:
-            pass
+            print("\n\n🛑 Deteniendo sistema...")
+        except Exception as e:
+            print(f"\n❌ Error inesperado: {e}")
         finally:
             self.cleanup()
-
-def main():
-    runner = CloudflareStreamlitRunner()
-    runner.run()
+            print("\n👋 Sistema detenido. ¡Hasta luego!")
 
 if __name__ == "__main__":
-    main()
+    tunnel = CloudflarePermanentTunnel()
+    tunnel.run()

@@ -2,9 +2,13 @@ import streamlit as st
 import requests
 import time
 import json
+import logging
 import psycopg2
 from datetime import datetime
 from typing import List, Dict, Optional
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # ✅ IMPORTAR EL CLASIFICADOR LLM Y FALLBACK
 try:
@@ -427,6 +431,20 @@ def send_message_to_rasa(message: str, sender: str = "user") -> List[Dict]:
 # INICIALIZACIÓN
 # =====================================================
 def initialize_session():
+    """Inicializa la sesión SIEMPRE limpia"""
+    
+    # ✅ Verificar si es la primera ejecución de esta carga de página
+    if "initialized" not in st.session_state:
+        # Limpiar TODO el session_state
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        
+        # Marcar como inicializado
+        st.session_state.initialized = True
+        
+        logger.info("🔄 Nueva sesión iniciada - Estado limpio")
+    
+    # Inicializar mensajes si no existen
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {
@@ -438,9 +456,11 @@ def initialize_session():
             }
         ]
     
+    # Inicializar session_id si no existe
     if "session_id" not in st.session_state:
         st.session_state.session_id = f"public_session_{int(time.time())}"
     
+    # Inicializar waiting_response
     if "waiting_response" not in st.session_state:
         st.session_state.waiting_response = False
 
@@ -613,12 +633,22 @@ def show_chat_interface():
     
     inject_modern_css()
     
-    # Header simple y profesional
-    llm_status = "🧠 LLM Activo" if llm_classifier else ""
-    st.markdown(f"""
-    <div class="main-title">🏛️ Turnos Cédulas {llm_status}</div>
-    <div class="main-subtitle">Ciudad del Este - Sistema Oficial</div>
-    """, unsafe_allow_html=True)
+    # ✅ Header con botón de reinicio
+    col_title, col_reset = st.columns([4, 1])
+    
+    with col_title:
+        llm_status = "🧠 LLM Activo" if llm_classifier else ""
+        st.markdown(f"""
+        <div class="main-title">🏛️ Turnos Cédulas {llm_status}</div>
+        <div class="main-subtitle">Ciudad del Este - Sistema Oficial</div>
+        """, unsafe_allow_html=True)
+    
+    with col_reset:
+        if st.button("🔄 Reiniciar", help="Iniciar nueva conversación", use_container_width=True):
+            # Limpiar todo el estado
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
     
     # Contenedor del chat con altura fija y scroll
     st.markdown('<div class="chat-messages-container">', unsafe_allow_html=True)
@@ -685,3 +715,4 @@ if __name__ == "__main__":
     except Exception as e:
         st.error("Error del sistema. Intenta recargar la página.")
         st.info("Si el problema persiste, contacta al soporte técnico.")
+        
