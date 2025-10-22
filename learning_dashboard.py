@@ -279,10 +279,9 @@ def show_negative_feedback_tab():
         st.error("Sistema de logging no disponible")
         return
     
-    # Obtener mensajes con feedback negativo (filtrados por tipo)
-    all_problematic = logger_instance.get_problematic_messages_with_context(limit=100)
-    negative_feedback_messages = [m for m in all_problematic if m['feedback_type'] == 'thumbs_down']
     
+    # ✅ Obtener mensajes con feedback negativo desde ambas fuentes
+    negative_feedback_messages = logger_instance.get_negative_feedback_messages(limit=100)
     if not negative_feedback_messages:
         st.success("🎉 ¡Excelente! No hay feedback negativo reciente")
         st.info("Los usuarios pueden dar feedback negativo (👎) cuando:")

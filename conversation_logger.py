@@ -615,6 +615,107 @@ class ImprovedConversationLogger:
             self.logger.error(f"Error obteniendo mensajes problemáticos: {e}")
             return []
     
+    def get_negative_feedback_messages(self, limit: int = 50) -> List[Dict]:
+        """
+        ✅ NUEVA: Obtiene mensajes con feedback negativo desde conversation_messages
+        Y también desde conversation_context_enhanced
+        
+        Combina ambas fuentes para mostrar TODO el feedback negativo
+        """
+        try:
+            with self.get_db_session() as session:
+                results = []
+                
+                # 1. Obtener feedback directo desde conversation_messages
+                direct_feedback = session.query(ConversationMessage).filter(
+                    ConversationMessage.feedback_thumbs == -1
+                ).order_by(ConversationMessage.timestamp.desc()).limit(limit).all()
+                
+                for msg in direct_feedback:
+                    # Buscar contexto (mensajes previos/siguientes en la misma sesión)
+                    prev_msg = session.query(ConversationMessage).filter(
+                        ConversationMessage.session_id == msg.session_id,
+                        ConversationMessage.timestamp < msg.timestamp
+                    ).order_by(ConversationMessage.timestamp.desc()).first()
+                    
+                    next_msg = session.query(ConversationMessage).filter(
+                        ConversationMessage.session_id == msg.session_id,
+                        ConversationMessage.timestamp > msg.timestamp
+                    ).order_by(ConversationMessage.timestamp.asc()).first()
+                    
+                    results.append({
+                        'id': msg.id,
+                        'session_id': msg.session_id,
+                        'timestamp': msg.timestamp.isoformat(),
+                        'source': 'direct_feedback',
+                        
+                        # Contexto ANTERIOR
+                        'previous_user_message': prev_msg.user_message if prev_msg else None,
+                        'previous_bot_response': prev_msg.bot_response if prev_msg else None,
+                        'previous_intent': prev_msg.intent_detected if prev_msg else None,
+                        
+                        # Mensaje con FEEDBACK NEGATIVO
+                        'problematic_message': msg.user_message,
+                        'bot_response': msg.bot_response,
+                        'intent_detected': msg.intent_detected or 'No detectado',
+                        'confidence': msg.confidence or 0.0,
+                        
+                        # Contexto POSTERIOR
+                        'next_user_message': next_msg.user_message if next_msg else None,
+                        'next_bot_response': next_msg.bot_response if next_msg else None,
+                        'next_intent': next_msg.intent_detected if next_msg else None,
+                        
+                        # Feedback
+                        'feedback_type': 'thumbs_down',
+                        'feedback_comment': msg.feedback_comment,
+                        'suggested_intent': None,
+                        'suggested_training_example': None
+                    })
+                
+                # 2. Obtener también desde conversation_context_enhanced
+                auto_captured = session.query(ConversationContextCapture).filter(
+                    ConversationContextCapture.feedback_type == 'thumbs_down',
+                    ConversationContextCapture.resolved == False
+                ).order_by(ConversationContextCapture.timestamp.desc()).limit(limit).all()
+                
+                for ctx in auto_captured:
+                    results.append({
+                        'id': ctx.id,
+                        'session_id': ctx.session_id,
+                        'timestamp': ctx.timestamp.isoformat(),
+                        'source': 'auto_captured',
+                        
+                        # Contexto ANTERIOR
+                        'previous_user_message': ctx.previous_user_message,
+                        'previous_bot_response': ctx.previous_bot_response,
+                        'previous_intent': ctx.previous_intent,
+                        
+                        # Mensaje PROBLEMÁTICO
+                        'problematic_message': ctx.problematic_message,
+                        'bot_response': ctx.bot_response,
+                        'intent_detected': ctx.intent_detected,
+                        'confidence': ctx.confidence,
+                        
+                        # Contexto POSTERIOR
+                        'next_user_message': ctx.next_user_message,
+                        'next_bot_response': ctx.next_bot_response,
+                        'next_intent': ctx.next_intent,
+                        
+                        # Feedback y sugerencias
+                        'feedback_type': ctx.feedback_type,
+                        'feedback_comment': ctx.feedback_comment,
+                        'suggested_intent': ctx.suggested_intent,
+                        'suggested_training_example': ctx.suggested_training_example
+                    })
+                
+                # Ordenar por timestamp
+                results.sort(key=lambda x: x['timestamp'], reverse=True)
+                
+                return results[:limit]
+                
+        except Exception as e:
+            self.logger.error(f"Error obteniendo mensajes con feedback negativo: {e}")
+            return []
     def get_model_efficiency_stats(self, days: int = 7) -> List[Dict]:
         """
         ✅ OBTIENE estadísticas de eficiencia para el dashboard
