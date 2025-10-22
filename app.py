@@ -6,18 +6,30 @@ import psycopg2
 from datetime import datetime
 from typing import List, Dict, Optional
 
-# Importar el dashboard de aprendizaje
+# =====================================================
+# ✅ IMPORTAR EL DASHBOARD MEJORADO
+# =====================================================
 try:
     from learning_dashboard import show_learning_dashboard
     DASHBOARD_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    print(f"⚠️ Dashboard no disponible: {e}")
     DASHBOARD_AVAILABLE = False
 
-# Importar el sistema de logging
+# =====================================================
+# ✅ IMPORTAR EL SISTEMA DE LOGGING MEJORADO
+# =====================================================
 try:
-    from conversation_logger import setup_learning_system, get_conversation_logger, set_conversation_logger
+    from conversation_logger import (
+        setup_improved_logging_system, 
+        get_improved_conversation_logger,
+        set_improved_conversation_logger
+    )
+
+
     LOGGER_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    print(f"⚠️ Logger mejorado no disponible: {e}")
     LOGGER_AVAILABLE = False
 
 # =====================================================
@@ -40,6 +52,18 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# =====================================================
+# ✅ INICIALIZAR LOGGER MEJORADO
+# =====================================================
+if LOGGER_AVAILABLE:
+    try:
+        database_url = f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}/{DB_CONFIG['database']}"
+        improved_logger = setup_improved_logging_system(database_url)
+        set_improved_conversation_logger(improved_logger)
+        print("✅ Logger mejorado inicializado correctamente")
+    except Exception as e:
+        print(f"❌ Error inicializando logger mejorado: {e}")
 
 # =====================================================
 # CSS PERSONALIZADO CON BOTONES COMPACTOS
@@ -157,7 +181,28 @@ def get_db_connection():
         return None
 
 def update_feedback_in_db(session_id: str, bot_response: str, feedback_thumbs: int, feedback_comment: str = None):
-    """Actualiza feedback en la base de datos usando psycopg2"""
+    """✅ Actualiza feedback usando el sistema mejorado"""
+    
+    # Intentar con el logger mejorado primero
+    if LOGGER_AVAILABLE:
+        try:
+            logger_instance = get_improved_conversation_logger()
+            if logger_instance:
+                success = logger_instance.update_feedback(
+                    session_id=session_id,
+                    bot_response=bot_response,
+                    feedback_thumbs=feedback_thumbs,
+                    feedback_comment=feedback_comment
+                )
+                if success:
+                    print(f"✅ Feedback actualizado: {'👍' if feedback_thumbs == 1 else '👎'}")
+                    if feedback_comment:
+                        print(f"   Comentario: {feedback_comment}")
+                    return True
+        except Exception as e:
+            print(f"⚠️ Error con logger mejorado: {e}")
+    
+    # Fallback: usar psycopg2 directamente con la tabla nueva
     conn = get_db_connection()
     if not conn:
         return False
@@ -165,9 +210,9 @@ def update_feedback_in_db(session_id: str, bot_response: str, feedback_thumbs: i
     try:
         cursor = conn.cursor()
         
-        # Buscar el registro más reciente que coincida
+        # Buscar en conversation_messages (tabla nueva)
         cursor.execute("""
-            SELECT id FROM conversation_logs 
+            SELECT id FROM conversation_messages 
             WHERE session_id = %s AND bot_response = %s 
             ORDER BY timestamp DESC 
             LIMIT 1
@@ -175,27 +220,31 @@ def update_feedback_in_db(session_id: str, bot_response: str, feedback_thumbs: i
         
         result = cursor.fetchone()
         if not result:
+            print(f"⚠️ No se encontró mensaje para actualizar feedback")
+            cursor.close()
+            conn.close()
             return False
         
         log_id = result[0]
         
         # Actualizar feedback
-        update_query = """
-            UPDATE conversation_logs 
+        cursor.execute("""
+            UPDATE conversation_messages 
             SET feedback_thumbs = %s, 
                 feedback_comment = %s,
                 needs_review = CASE WHEN %s = -1 THEN TRUE ELSE needs_review END
             WHERE id = %s
-        """
+        """, (feedback_thumbs, feedback_comment, feedback_thumbs, log_id))
         
-        cursor.execute(update_query, (feedback_thumbs, feedback_comment, feedback_thumbs, log_id))
         conn.commit()
-        
         cursor.close()
         conn.close()
+        
+        print(f"✅ Feedback actualizado (fallback): {'👍' if feedback_thumbs == 1 else '👎'}")
         return True
         
     except Exception as e:
+        print(f"❌ Error actualizando feedback: {e}")
         st.error(f"Error actualizando feedback: {e}")
         if conn:
             conn.close()
@@ -217,15 +266,19 @@ def check_rasa_status() -> Dict[str, bool]:
     except:
         return {'online': False, 'model_loaded': False}
 
-def send_message_to_rasa(message: str, sender: str = "user") -> List[Dict]:
+def send_message_to_rasa(message: str, sender: str = None) -> List[Dict]:
     """Envía mensaje a Rasa y retorna respuestas"""
     try:
+        # ✅ Usar el session_id de Streamlit como sender para que coincida
+        if sender is None:
+            sender = st.session_state.get("session_id", "default")
+        
         payload = {
-            "sender": sender,
+            "sender": sender,  # ✅ Ahora usa el mismo session_id
             "message": message,
             "metadata": {
                 "timestamp": datetime.now().isoformat(),
-                "session_id": st.session_state.get("session_id", "default")
+                "session_id": sender  # ✅ Consistente
             }
         }
         
@@ -237,151 +290,123 @@ def send_message_to_rasa(message: str, sender: str = "user") -> List[Dict]:
         )
         
         if response.status_code == 200:
-            response_data = response.json()
-            if not response_data:
-                return [{"text": "El bot no respondió. Intenta de nuevo."}]
-            return response_data
+            return response.json()
         else:
-            return [{"text": f"Error del servidor: {response.status_code}. Verifica que Rasa esté funcionando."}]
-            
+            st.error(f"Error del servidor: {response.status_code}")
+            return []
+    
     except requests.exceptions.Timeout:
-        return [{"text": "El bot tardó demasiado en responder. Verifica la conexión con Rasa."}]
+        st.error("⏱️ Timeout: El servidor tardó demasiado en responder")
+        return []
     except requests.exceptions.ConnectionError:
-        return [{"text": "No se puede conectar con Rasa. Asegúrate de que esté ejecutándose en el puerto 5005."}]
+        st.error("🔌 Error de conexión: No se pudo conectar con el servidor Rasa")
+        return []
     except Exception as e:
-        return [{"text": f"Error de conexión: {str(e)}"}]
+        st.error(f"Error inesperado: {str(e)}")
+        return []
 
 def initialize_session():
-    """Inicializa el estado de la sesión con sistema de logging mejorado"""
+    """Inicializa variables de sesión"""
     if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {
-                "role": "assistant",
-                "content": "¡Hola! Soy tu asistente virtual para gestión de cédulas en Ciudad del Este. ¿En qué puedo ayudarte hoy?",
-                "timestamp": datetime.now().isoformat(),
-                "feedback_given": False
-            }
-        ]
+        st.session_state.messages = [{
+            "role": "assistant",
+            "content": "¡Hola! 👋 Soy tu asistente virtual para la gestión de turnos de cédulas. ¿En qué puedo ayudarte hoy?",
+            "timestamp": datetime.now().isoformat(),
+            "feedback_given": False
+        }]
     
     if "session_id" not in st.session_state:
         st.session_state.session_id = f"session_{int(time.time())}"
     
     if "should_scroll" not in st.session_state:
-        st.session_state.should_scroll = False
-    
-    # ✅ SISTEMA DE LOGGING MEJORADO
-    try:
-        from improved_conversation_logger import (
-            setup_improved_logging_system, 
-            get_improved_conversation_logger,
-            set_improved_conversation_logger
-        )
-        
-        if not get_improved_conversation_logger():
-            database_url = f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}/{DB_CONFIG['database']}"
-            logger_instance = setup_improved_logging_system(database_url)
-            set_improved_conversation_logger(logger_instance)
-            st.success("✅ Sistema de logging mejorado inicializado", icon="🤖")
-            
-    except ImportError:
-        st.warning("⚠️ Sistema de logging mejorado no disponible")
-    except Exception as e:
-        st.warning(f"⚠️ Error inicializando sistema mejorado: {e}")
-    
-    # Fallback al sistema anterior si está disponible
-    if LOGGER_AVAILABLE and not get_conversation_logger():
-        try:
-            database_url = f"postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}/{DB_CONFIG['database']}"
-            logger_instance = setup_learning_system(database_url)
-            set_conversation_logger(logger_instance)
-        except Exception as e:
-            st.warning(f"⚠️ Sistema de aprendizaje fallback no disponible: {e}")
+        st.session_state.should_scroll = True
 
 def add_message(role: str, content: str, feedback_enabled: bool = True):
-    """Agrega mensaje al historial y marca para scroll"""
-    st.session_state.messages.append({
+    """Agrega un mensaje al historial de chat"""
+    message = {
         "role": role,
         "content": content,
         "timestamp": datetime.now().isoformat(),
-        "feedback_given": False if role == "assistant" and feedback_enabled else True
-    })
+        "feedback_given": False if role == "assistant" and feedback_enabled else None
+    }
+    st.session_state.messages.append(message)
     st.session_state.should_scroll = True
 
 def handle_feedback(message_index: int, feedback_type: str, comment: str = None):
-    """Maneja el feedback del usuario para un mensaje específico"""
-    if message_index >= len(st.session_state.messages):
-        return
-    
+    """Maneja el feedback del usuario"""
     message = st.session_state.messages[message_index]
-    if message["role"] != "assistant":
-        return
     
-    # Marcar feedback como dado
-    st.session_state.messages[message_index]["feedback_given"] = True
+    # Marcar como feedback dado
+    message["feedback_given"] = True
+    message["feedback_type"] = feedback_type
     
-    # Determinar valor de feedback
-    feedback_value = 1 if feedback_type == "positive" else -1
+    # Guardar en BD
+    feedback_thumbs = 1 if feedback_type == "positive" else -1
+    session_id = st.session_state.session_id
+    bot_response = message["content"]
     
-    # Actualizar en base de datos
-    success = update_feedback_in_db(
-        session_id=st.session_state.session_id,
-        bot_response=message["content"],
-        feedback_thumbs=feedback_value,
-        feedback_comment=comment
-    )
+    success = update_feedback_in_db(session_id, bot_response, feedback_thumbs, comment)
     
     if success:
         if feedback_type == "positive":
-            st.toast("¡Gracias por el 👍!", icon="😊")
+            st.success("¡Gracias por tu feedback positivo! 👍")
         else:
-            st.toast("Comentario guardado, seguimos.", icon="📝")
+            st.info("Gracias por tu feedback. Lo usaremos para mejorar. 👎")
     else:
-        st.toast("Error guardando feedback", icon="❌")
+        st.warning("No se pudo guardar el feedback, pero lo hemos registrado localmente.")
 
 def show_feedback_buttons(message_index: int):
-    """Muestra botones de feedback compactos para un mensaje"""
+    """Muestra botones de feedback compactos"""
     message = st.session_state.messages[message_index]
     
-    if message["role"] != "assistant" or message.get("feedback_given", False):
+    # Si ya se dio feedback, mostrar estado
+    if message.get("feedback_given", False):
+        feedback_type = message.get("feedback_type", "")
+        if feedback_type == "positive":
+            st.success("✅ Marcado como útil")
+        elif feedback_type == "negative":
+            st.error("❌ Marcado como no útil")
         return
     
-    col1, col2, col3 = st.columns([1, 1, 8])
+    # Mostrar botones de feedback
+    col1, col2 = st.columns([1, 5])
     
     with col1:
-        if st.button("👍", key=f"pos_{message_index}", help="Respuesta útil"):
+        if st.button("👍", key=f"thumbs_up_{message_index}", help="Útil"):
             handle_feedback(message_index, "positive")
             st.rerun()
     
     with col2:
-        if st.button("👎", key=f"neg_{message_index}", help="Respuesta no útil"):
-            # Activar modo de comentario
+        if st.button("👎", key=f"thumbs_down_{message_index}", help="No útil"):
+            # Activar modo comentario
             st.session_state[f"comment_mode_{message_index}"] = True
             st.rerun()
     
-    # Mostrar cuadro de comentario si está en modo comentario
+    # Si está en modo comentario
     if st.session_state.get(f"comment_mode_{message_index}", False):
-        with st.container():
-            st.markdown('<div class="comment-container">', unsafe_allow_html=True)
-            comment = st.text_area(
-                "¿Qué podríamos mejorar?",
-                key=f"comment_{message_index}",
-                placeholder="Describe brevemente qué esperabas o qué no funcionó...",
-                height=60
-            )
-            
-            col_send, col_cancel = st.columns(2)
-            with col_send:
-                if st.button("Enviar", key=f"send_{message_index}"):
-                    handle_feedback(message_index, "negative", comment)
-                    st.session_state[f"comment_mode_{message_index}"] = False
-                    st.rerun()
-            
-            with col_cancel:
-                if st.button("Cancelar", key=f"cancel_{message_index}"):
-                    st.session_state[f"comment_mode_{message_index}"] = False
-                    st.rerun()
-            
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="comment-container">', unsafe_allow_html=True)
+        st.write("**¿Qué salió mal?**")
+        
+        comment = st.text_area(
+            "¿Qué podríamos mejorar?",
+            key=f"comment_{message_index}",
+            placeholder="Describe brevemente qué esperabas o qué no funcionó...",
+            height=60
+        )
+        
+        col_send, col_cancel = st.columns(2)
+        with col_send:
+            if st.button("Enviar", key=f"send_{message_index}"):
+                handle_feedback(message_index, "negative", comment)
+                st.session_state[f"comment_mode_{message_index}"] = False
+                st.rerun()
+        
+        with col_cancel:
+            if st.button("Cancelar", key=f"cancel_{message_index}"):
+                st.session_state[f"comment_mode_{message_index}"] = False
+                st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
 def process_quick_button(user_msg: str):
     """Procesa los botones rápidos de la sidebar"""
@@ -567,35 +592,23 @@ def show_chat_interface():
 def main():
     """Función principal de la aplicación con pestañas"""
     initialize_session()
-    
-    # Renderizar sidebar
     render_sidebar()
-    
-    # Crear selector de página
+
     if DASHBOARD_AVAILABLE:
         page = st.sidebar.radio(
             "Seleccionar página:",
             ["💬 Chat", "📊 Dashboard de Aprendizaje"],
             help="Cambia entre el chat y el panel de análisis"
         )
-        
+
         if page == "💬 Chat":
             show_chat_interface()
         else:
-            show_learning_dashboard()
+            show_learning_dashboard()  # viene desde learning_dashboard.py
     else:
-        # Solo mostrar chat si el dashboard no está disponible
         show_chat_interface()
-        
-        if not DASHBOARD_AVAILABLE:
-            st.warning("⚠️ Dashboard de aprendizaje no disponible. Instala las dependencias: `pip install plotly pandas`")
+        st.warning("⚠️ Dashboard no disponible. Instala dependencias: `pip install plotly pandas`")
 
-# =====================================================
-# PUNTO DE ENTRADA
-# =====================================================
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        st.error(f"Error crítico en la aplicación: {str(e)}")
-        st.info("Por favor, recarga la página o contacta al administrador.")
+    main()
+

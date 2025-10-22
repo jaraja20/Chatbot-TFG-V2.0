@@ -1,4 +1,4 @@
-from typing import Any, Text, Dict, List, Optional
+from typing import Any, Text, Dict, List, Optional, Tuple
 from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet, SessionStarted, EventType, FollowupAction, ActionExecuted
@@ -35,7 +35,7 @@ PALABRAS_PROHIBIDAS_NOMBRE = [
     "hola", "chau", "bot", "chatbot", "admin", "root", "user"
 ]
 
-def validar_nombre_real(nombre: str) -> tuple[bool, str]:
+def validar_nombre_real(nombre: str) -> Tuple[bool, str]:
     """
     Valida que el nombre sea realista
     
@@ -102,9 +102,11 @@ except ImportError:
         base = ocupacion * 0.4 + urgencia * 5
         return min(60, max(5, base))
 
-# Sistema de aprendizaje
+# =====================================================
+# ✅ SISTEMA DE LOGGING MEJORADO (conversation_logger.py)
+# =====================================================
 try:
-    from improved_conversation_logger import (
+    from conversation_logger import (
         setup_improved_logging_system, 
         log_rasa_interaction_improved,
         get_improved_conversation_logger,
@@ -112,19 +114,18 @@ try:
     )
     IMPROVED_LOGGING_AVAILABLE = True
     logger.info("✅ Sistema de logging mejorado cargado exitosamente")
-except ImportError:
-    IMPROVED_LOGGING_AVAILABLE = False
-    logger.warning("❌ Sistema de logging mejorado no disponible")
-
-# Fallback al sistema anterior
-try:
-    from conversation_logger import setup_learning_system, log_rasa_interaction
-    LEARNING_AVAILABLE = True
-    logger.info("✅ Sistema de aprendizaje fallback cargado")
 except ImportError as e:
-    logger.warning(f"❌ Sistema de aprendizaje fallback no disponible: {e}")
-    LEARNING_AVAILABLE = False
-    def log_rasa_interaction(*args, **kwargs):
+    IMPROVED_LOGGING_AVAILABLE = False
+    logger.error(f"❌ Sistema de logging mejorado no disponible: {e}")
+    
+    # Crear funciones dummy para evitar errores
+    def setup_improved_logging_system(*args, **kwargs):
+        return None
+    def log_rasa_interaction_improved(*args, **kwargs):
+        pass
+    def get_improved_conversation_logger():
+        return None
+    def set_improved_conversation_logger(*args, **kwargs):
         pass
 
 # =====================================================
@@ -152,15 +153,7 @@ if IMPROVED_LOGGING_AVAILABLE:
         logger.error(f"❌ Error inicializando sistema mejorado: {e}")
         improved_logger = None
 
-# Fallback al sistema anterior
-conversation_logger = None
-if not improved_logger and LEARNING_AVAILABLE:
-    try:
-        conversation_logger = setup_learning_system(DATABASE_URL)
-        logger.info("✅ Sistema de aprendizaje fallback inicializado")
-    except Exception as e:
-        logger.error(f"❌ Error inicializando sistema fallback: {e}")
-        conversation_logger = None
+# Ya no necesitamos fallback - solo usamos improved_logger
 
 # =====================================================
 # MODELOS DE BASE DE DATOS
@@ -499,9 +492,6 @@ def log_interaction_improved(tracker, bot_response, additional_data=None):
             # Preparar datos LLM si están disponibles
             llm_classification = additional_data if additional_data else {}
             log_rasa_interaction_improved(improved_logger, tracker, bot_response, llm_classification)
-        elif conversation_logger:
-            # Fallback al sistema anterior
-            log_rasa_interaction(conversation_logger, tracker, bot_response)
     except Exception as e:
         logger.error(f"❌ Error en logging mejorado: {e}")
 
@@ -1539,3 +1529,136 @@ class ActionGestionarCambioDatos(Action):
         eventos = [SlotSet(c, None) for c in campos_detectados]
         eventos.append(FollowupAction("turno_form"))
         return eventos
+    
+def log_interaction_improved(tracker, bot_response, additional_data=None):
+    """
+    Función auxiliar MEJORADA para registrar interacciones con captura de contexto
+    """
+    try:
+        improved_logger = get_improved_conversation_logger()
+        if improved_logger:
+            # Preparar datos LLM si están disponibles
+            llm_classification = additional_data if additional_data else {}
+            
+            # Registrar mensaje normal
+            message_id = log_rasa_interaction_improved(improved_logger, tracker, bot_response, llm_classification)
+            
+            # NUEVA: Detectar situaciones problemáticas y capturar contexto
+            session_id = getattr(tracker, 'sender_id', 'unknown')
+            last_user_message = ""
+            intent_detected = ""
+            confidence = 0.0
+            
+            # Extraer último mensaje del usuario
+            events = getattr(tracker, 'events', [])
+            for event in reversed(events):
+                if hasattr(event, 'type') and event.type == 'user':
+                    if hasattr(event, 'text') and event.text:
+                        last_user_message = event.text
+                    if hasattr(event, 'parse_data') and event.parse_data:
+                        intent_data = event.parse_data.get('intent', {})
+                        intent_detected = intent_data.get('name', '')
+                        confidence = intent_data.get('confidence', 0.0)
+                    break
+            
+            # Capturar contexto si es problemático
+            should_capture = False
+            feedback_type = None
+            
+            # Caso 1: Intent es fallback
+            if intent_detected == 'nlu_fallback':
+                should_capture = True
+                feedback_type = 'fallback'
+            
+            # Caso 2: Confianza baja
+            elif confidence < 0.7:
+                should_capture = True
+                feedback_type = 'low_confidence'
+            
+            # Caso 3: Respuesta contiene errores o no entendimientos
+            if any(phrase in bot_response.lower() for phrase in [
+                'no entendí', 'no pude entender', 'no comprendo', 
+                'disculpa', 'error', 'intenta de nuevo', 'reformular'
+            ]):
+                should_capture = True
+                if not feedback_type:
+                    feedback_type = 'misunderstanding'
+            
+            if should_capture:
+                context_id = improved_logger.capture_conversation_context(
+                    session_id=session_id,
+                    problematic_message=last_user_message,
+                    bot_response=bot_response,
+                    intent_detected=intent_detected,
+                    confidence=confidence,
+                    feedback_type=feedback_type
+                )
+                logger.info(f"🔍 Contexto problemático capturado: ID {context_id}")
+            
+            # Actualizar estadísticas de eficiencia
+            improved_logger.update_model_efficiency_stats()
+            
+    except Exception as e:
+        logger.error(f"❌ Error en logging mejorado: {e}")
+    
+class ActionCaptureFeedbackContext(Action):
+    def name(self) -> Text:
+        return "action_capture_feedback_context"
+
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        """Captura contexto cuando el usuario da feedback negativo"""
+        
+        try:
+            improved_logger = get_improved_conversation_logger()
+            if not improved_logger:
+                return []
+            
+            session_id = tracker.sender_id
+            
+            # Extraer último intercambio
+            events = tracker.events
+            last_user_message = ""
+            last_bot_response = ""
+            intent_detected = ""
+            confidence = 0.0
+            
+            # Buscar los últimos mensajes
+            for event in reversed(events):
+                if hasattr(event, 'type'):
+                    if event.type == 'user' and hasattr(event, 'text'):
+                        if not last_user_message:
+                            last_user_message = event.text
+                        if hasattr(event, 'parse_data') and event.parse_data:
+                            intent_data = event.parse_data.get('intent', {})
+                            intent_detected = intent_data.get('name', '')
+                            confidence = intent_data.get('confidence', 0.0)
+                    elif event.type == 'bot' and hasattr(event, 'text'):
+                        if not last_bot_response:
+                            last_bot_response = event.text
+                
+                if last_user_message and last_bot_response:
+                    break
+            
+            # Capturar contexto para feedback negativo
+            if last_user_message and last_bot_response:
+                context_id = improved_logger.capture_conversation_context(
+                    session_id=session_id,
+                    problematic_message=last_user_message,
+                    bot_response=last_bot_response,
+                    intent_detected=intent_detected,
+                    confidence=confidence,
+                    feedback_type='thumbs_down'
+                )
+                
+                logger.info(f"👎 Feedback negativo con contexto capturado: ID {context_id}")
+                
+                dispatcher.utter_message(
+                    text="Gracias por tu feedback. Lo usaremos para mejorar mis respuestas."
+                )
+            
+        except Exception as e:
+            logger.error(f"❌ Error capturando contexto de feedback: {e}")
+        
+        return []
+
+   
