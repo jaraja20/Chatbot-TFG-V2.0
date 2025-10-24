@@ -2,8 +2,11 @@
 
 import requests
 import logging
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Dict
 import re
+import json
+import os
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -162,27 +165,48 @@ KEYWORD_MAPPING = {
 # PROMPT MEJORADO
 # =====================================================
 
+PROMPT_PATH = "flask-chatbot/llm_prompts/system_prompt_turnos.txt"
+
+def _embedded_system_prompt() -> str:
+    intents_catalogo = ",".join(INTENTS_DISPONIBLES)
+    return (
+        "Eres un asistente virtual especializado en trámites de CÉDULAS DE IDENTIDAD en Ciudad del Este, Paraguay.\n"
+        "Tu función NO es conversar: debes CLASIFICAR la intención y devolver SIEMPRE un JSON en UNA sola línea.\n\n"
+        "ACCIONES/INTENTS válidos:\n" + intents_catalogo + "\n\n"
+        "REGLAS DE MAPEO (ejemplos):\n"
+        "- agendar, marcar, sacar, reservar turno -> agendar_turno\n"
+        "- requisitos, documentos, papeles -> consultar_requisitos\n"
+        "- horario, horarios, disponibilidad -> consultar_horarios o consultar_disponibilidad\n"
+        "- dónde, ubicación, dirección -> consultar_ubicacion\n"
+        "- cuánto cuesta, costo, precio -> consultar_costo\n"
+        "- espera, demora, tiempo -> consulta_tiempo_espera\n"
+        "- cancelar turno -> cancelar_turno\n"
+        "- sí/confirmo -> affirm ; no/cancelar -> deny ; hola -> greet ; chau -> goodbye\n"
+        "- fuera de dominio -> nlu_fallback\n\n"
+        "FORMATO DE RESPUESTA OBLIGATORIO:\n"
+        "{\"intent\":\"<intent>\",\"confidence\":0.0,\"explanation\":\"breve razón\"}"
+    )
+
 def generar_system_prompt() -> str:
-    """Genera prompt ultra-simple para modelos pequeños"""
-    intents_str = ", ".join(INTENTS_DISPONIBLES[:20])  # Solo los más importantes
-    
-    return f"""Eres un clasificador de intenciones. Responde SOLO con una palabra: el nombre del intent.
+    try:
+        if os.path.exists(PROMPT_PATH):
+            with open(PROMPT_PATH, "r", encoding="utf-8") as f:
+                return f.read()
+    except Exception as e:
+        logger.warning(f"No se pudo leer {PROMPT_PATH}: {e}")
+    return _embedded_system_prompt()
 
-INTENTS VÁLIDOS: {intents_str}
+def _try_parse_json(s: str) -> Optional[Dict]:
+    try:
+        s = (s or "").strip()
+        start = s.find("{")
+        end = s.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            s = s[start:end+1]
+        return json.loads(s)
+    except Exception:
+        return None
 
-REGLAS:
-- Responde SOLO con el nombre del intent
-- NO agregues explicaciones
-- NO uses mayúsculas innecesarias
-- NO uses símbolos como →, -, *
-
-EJEMPLOS:
-Usuario: "hola" → greet
-Usuario: "quiero un turno" → agendar_turno
-Usuario: "donde queda" → consultar_ubicacion
-Usuario: "cuanto cuesta" → consultar_costo
-Usuario: "confirmo" → affirm
-Usuario: "chau" → goodbye"""
 
 # =====================================================
 # CLASE PRINCIPAL MEJORADA
@@ -214,62 +238,57 @@ class LLMIntentClassifier:
             return False
     
     def classify_intent(self, user_message: str) -> Tuple[str, float]:
-        """
-        Clasifica el intent con estrategia híbrida: Keywords > LLM > Fallback
-        
-        Args:
-            user_message: Mensaje del usuario
-            
-        Returns:
-            Tuple (intent_name, confidence)
-        """
-        # Primero intentar con keywords (rápido y confiable)
-        keyword_intent = self._classify_by_keywords(user_message)
-        if keyword_intent:
-            logger.info(f"🔑 Keywords clasificaron: {user_message} → {keyword_intent[0]}")
-            return keyword_intent
-        
-        # Si no hay keyword match, usar LLM
+        # 1️⃣ Keywords primero
+        kw = self._classify_by_keywords(user_message)
+        if kw:
+            logger.info(f"🔑 Keywords clasificaron: '{user_message}' → {kw[0]}")
+            return kw
+
+        # 2️⃣ Si LM Studio no está disponible
         if not self.available:
-            logger.warning("LM Studio no disponible, usando fallback")
-            return "nlu_fallback", 0.3
-        
+            logger.warning("LM Studio no disponible, usando nlu_fallback")
+            return ("nlu_fallback", 0.3)
+
+        # 3️⃣ Consulta al modelo local (espera JSON)
         try:
             payload = {
                 "messages": [
                     {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": user_message}
                 ],
-                "temperature": self.temperature,
-                "max_tokens": 10,  # Más corto para forzar respuesta simple
-                "stop": ["\n", "Usuario:", "Explicación:"],  # Detener en saltos de línea
+                "temperature": 0.0,
+                "max_tokens": 60,
                 "stream": False
             }
-            
+
             response = requests.post(self.model_url, json=payload, timeout=10)
-            
             if response.status_code != 200:
                 logger.error(f"Error en LM Studio: {response.status_code}")
-                return self._classify_by_keywords(user_message) or ("nlu_fallback", 0.3)
-            
+                return ("nlu_fallback", 0.4)
+
             result = response.json()
-            llm_response = result['choices'][0]['message']['content'].strip()
-            
-            # NUEVA: Limpieza agresiva de respuesta
-            intent_detected = self._extract_intent_aggressively(llm_response)
-            
-            if intent_detected in INTENTS_DISPONIBLES:
-                logger.info(f"✅ LLM clasificó '{user_message}' → {intent_detected}")
-                return intent_detected, 0.90
-            else:
-                logger.warning(f"⚠️ LLM falló: '{llm_response}'. Usando keywords como fallback")
-                keyword_fallback = self._classify_by_keywords(user_message)
-                return keyword_fallback if keyword_fallback else ("nlu_fallback", 0.4)
-            
+            llm_output = result["choices"][0]["message"]["content"].strip()
+            parsed = _try_parse_json(llm_output)
+
+            if not parsed or not isinstance(parsed, dict):
+                logger.warning(f"No se pudo parsear JSON del LLM: {llm_output[:100]} ...")
+                return ("nlu_fallback", 0.4)
+
+            intent = str(parsed.get("intent", "nlu_fallback")).strip()
+            conf = float(parsed.get("confidence", 0.6) or 0.6)
+            conf = max(0.0, min(1.0, conf))
+
+            if intent not in INTENTS_DISPONIBLES:
+                logger.warning(f"Intent fuera de catálogo: {intent}")
+                return ("nlu_fallback", 0.45)
+
+            logger.info(f"✅ LLM clasificó '{user_message}' → {intent} (conf {conf:.2f})")
+            return (intent, conf)
+
         except Exception as e:
             logger.error(f"❌ Error en LLM: {e}")
-            keyword_fallback = self._classify_by_keywords(user_message)
-            return keyword_fallback if keyword_fallback else ("nlu_fallback", 0.3)
+            return ("nlu_fallback", 0.3)
+
     
     def _extract_intent_aggressively(self, llm_output: str) -> str:
         """

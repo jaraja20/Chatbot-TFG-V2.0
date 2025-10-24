@@ -150,6 +150,11 @@ forms:
       - hora
 
 responses:
+
+  utter_confirmar_primera_vez:
+    - text: "Perfecto 👍 Entonces es tu primera cédula. Continuemos con el agendamiento."
+    - text: "Gracias por aclararlo. Al ser tu primera cédula, necesitás llevar tu partida de nacimiento original. Sigamos con el turno."
+
   utter_greet:
     - text: "Hola! Soy tu asistente virtual para gestión de cédulas de identidad en Ciudad del Este. ¿En qué puedo ayudarte hoy?"
     - text: "¡Bienvenido/a! Te ayudo con todo lo relacionado a trámites de cédula. ¿Qué necesitás?"
@@ -444,6 +449,8 @@ actions:
   - action_reiniciar_campo
   - action_fallback_contexto
   - action_gestionar_cambio_datos
+  - action_confirmar_primera_vez
+
 
 
 session_config:

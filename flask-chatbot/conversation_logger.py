@@ -972,6 +972,18 @@ def log_rasa_interaction_improved(logger_instance, tracker, bot_response,
         logger.error(f"❌ Error en log mejorado: {e}")
         return -1
 
+def save_user_correction(session_id, user_message, bot_response, corrected_response):
+    """Guarda una corrección de respuesta del usuario"""
+    try:
+        with engine.connect() as conn:
+            conn.execute("""
+                INSERT INTO feedback_training_data (session_id, user_message, bot_response, corrected_response, created_at)
+                VALUES (%s, %s, %s, %s, NOW())
+            """, (session_id, user_message, bot_response, corrected_response))
+        print(f"✅ Corrección guardada: {user_message[:50]} → {corrected_response[:50]}")
+    except Exception as e:
+        print(f"❌ Error guardando corrección: {e}")
+
 
 # Instancia global
 _global_improved_logger = None
@@ -984,3 +996,32 @@ def set_improved_conversation_logger(logger_instance):
     """Establece la instancia global del logger mejorado"""
     global _global_improved_logger
     _global_improved_logger = logger_instance
+    
+# =====================================================
+# COMPATIBILIDAD CON app.py - Alias de log_interaction_improved
+# =====================================================
+
+def log_interaction_improved(session_id: str, user_message: str, bot_response: str,
+                             intent_name: str = None, confidence: float = 0.0):
+    """
+    Función de compatibilidad para app.py.
+    Registra una interacción simple en la BD usando ImprovedConversationLogger.
+    """
+    try:
+        logger_instance = get_improved_conversation_logger()
+        if not logger_instance:
+            print("⚠️ Logger no inicializado aún (log_interaction_improved)")
+            return
+        
+        logger_instance.log_message(
+            session_id=session_id,
+            user_message=user_message,
+            bot_response=bot_response,
+            intent_detected=intent_name,
+            confidence=confidence
+        )
+    except Exception as e:
+        print(f"⚠️ Error en log_interaction_improved: {e}")
+
+
+

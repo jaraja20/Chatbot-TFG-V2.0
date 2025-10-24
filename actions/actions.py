@@ -1668,3 +1668,52 @@ class ActionCaptureFeedbackContext(Action):
             logger.error(f"❌ Error capturando contexto de feedback: {e}")
         
         return []
+    
+# =====================================================
+# NUEVA ACCIÓN: Confirmar primera vez y continuar el formulario
+# =====================================================
+class ActionConfirmarPrimeraVez(Action):
+    def name(self) -> Text:
+        return "action_confirmar_primera_vez"
+
+    def run(
+        self,
+        dispatcher: CollectingDispatcher,
+        tracker: Tracker,
+        domain: Dict[Text, Any]
+    ) -> List[Dict[Text, Any]]:
+        
+        bot_response = (
+            "Perfecto 👍 entonces es tu primera cédula. "
+            "Recordá llevar tu partida de nacimiento original y comprobante de pago. "
+            "Continuemos con el agendamiento."
+        )
+        dispatcher.utter_message(text=bot_response)
+        log_interaction_improved(tracker, bot_response, {"accion": "confirmar_primera_vez"})
+        return [SlotSet("cedula", "PRIMERA_VEZ"), FollowupAction("turno_form")]
+
+
+class ActionGuardarCorreccion(Action):
+    def name(self) -> Text:
+        return "action_guardar_correccion"
+
+    def run(self, dispatcher, tracker, domain):
+        ultimo_mensaje = tracker.latest_message.get("text", "")
+        if "deberías responderme" in ultimo_mensaje.lower():
+            try:
+                match = re.search(r"deberías responderme\s*(.*)", ultimo_mensaje, re.IGNORECASE)
+                if match:
+                    corrected_text = match.group(1).strip()
+                    last_bot = None
+                    for e in reversed(tracker.events):
+                        if e.get("event") == "bot" and e.get("text"):
+                            last_bot = e["text"]
+                            break
+                    if last_bot and corrected_text:
+                        save_user_correction(tracker.sender_id, tracker.latest_message.get("text"), last_bot, corrected_text)
+                        dispatcher.utter_message(text="Gracias, guardaré esta corrección para mejorar mis respuestas 🤖")
+                        return []
+            except Exception as e:
+                logger.error(f"Error guardando corrección: {e}")
+        dispatcher.utter_message(text="No entendí la corrección. Podés decir: 'deberías responderme ...'")
+        return []

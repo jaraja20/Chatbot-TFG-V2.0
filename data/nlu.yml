@@ -373,6 +373,8 @@ nlu:
     - cuál es el mejor horario
     - que disponibilidad hay
 
+
+
 # =========================
 # CONSULTAS FRECUENTES
 # =========================
@@ -389,6 +391,25 @@ nlu:
     - qué se necesita
     - papeles requeridos
     - documentación
+
+
+- intent: corregir_respuesta
+  examples: |
+    - deberías responderme esto: [respuesta]
+    - no, deberías decir [respuesta]
+    - corregí tu respuesta: [respuesta]
+    - respondiste mal, deberias decir: [respuesta]
+    - eso no es correcto, deberías decir: [respuesta]
+    - la respuesta correcta es: [respuesta]
+    - quiero corregir tu respuesta a: [respuesta]
+    - tu respuesta debería ser: [respuesta]
+    - tenes que responder: [respuesta]
+    - no no deberias de responder eso, deberias decir: [respuesta]
+    - cuando te pregunte eso, deberías responder: [respuesta]
+    - la respuesta que quiero es: [respuesta]
+    - te pregunte otra cosa, deberías decir: [respuesta]
+    
+
 
 - intent: consultar_requisitos_primera_vez
   examples: |

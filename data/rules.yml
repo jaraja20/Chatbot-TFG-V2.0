@@ -283,3 +283,17 @@ rules:
     - action: action_recomendar_horario_fuzzy
     - action: turno_form
 
+- rule: Primera vez sin cédula durante formulario
+  condition:
+    - active_loop: turno_form
+  steps:
+    - intent: informar_cedula_primera_vez
+    - action: utter_confirmar_primera_vez
+    - slot_was_set:
+        - cedula: "primera_vez"
+    - action: turno_form
+
+- rule: Guardar corrección del usuario
+  steps:
+    - intent: corregir_respuesta
+    - action: action_guardar_correccion

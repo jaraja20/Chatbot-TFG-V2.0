@@ -1,6 +1,6 @@
 """
 Flask Chatbot COMPLETO - Sistema de Turnos Cédulas
-Incluye: Chat + Dashboard + Logging
+Incluye: Chat + Dashboard + Logging + ORQUESTADOR INTELIGENTE
 Ciudad del Este
 """
 
@@ -8,6 +8,7 @@ from flask import Flask, render_template, request, jsonify, session
 import requests
 import psycopg2
 from datetime import datetime
+from orquestador_inteligente import procesar_mensaje_inteligente
 import json
 import logging
 
@@ -45,6 +46,18 @@ try:
 except ImportError as e:
     LOGGER_AVAILABLE = False
     logger.warning(f"⚠️ Logger mejorado no disponible: {e}")
+
+# =====================================================
+# ✨ NUEVO: IMPORTAR ORQUESTADOR INTELIGENTE
+# =====================================================
+try:
+    from orquestador_inteligente import procesar_mensaje_inteligente
+    ORQUESTADOR_DISPONIBLE = True
+    logger.info("✅ Orquestador inteligente cargado")
+except ImportError as e:
+    ORQUESTADOR_DISPONIBLE = False
+    logger.warning(f"⚠️ Orquestador no disponible: {e}")
+    logger.warning("   El sistema funcionará con Rasa tradicional")
 
 # =====================================================
 # FUNCIONES DE BASE DE DATOS
@@ -257,57 +270,118 @@ def index():
     """Página principal del chat"""
     return render_template('index.html')
 
+# =====================================================
+# ✨ RUTA MODIFICADA: /send_message CON ORQUESTADOR
+# =====================================================
+
 @app.route('/send_message', methods=['POST'])
 def send_message():
-    """Enviar mensaje a Rasa y obtener respuesta"""
+    """Enviar mensaje con procesamiento inteligente"""
     try:
         data = request.json
         user_message = data.get('message', '')
-        session_id = data.get('session_id', 'user')  # ✅ NUEVO: recibir session_id
+        session_id = data.get('session_id', 'user')
         
         if not user_message:
             return jsonify({'error': 'Mensaje vacío'}), 400
         
-        # ✅ NUEVO: Generar session_id si no existe
+        # Generar session_id si no existe
         if session_id == 'user':
             import uuid
             session_id = f"web_{uuid.uuid4().hex[:12]}"
         
-        # Enviar a Rasa con session_id único
+        # =====================================================
+        # ✨ NUEVO: USAR ORQUESTADOR INTELIGENTE
+        # =====================================================
+        
+        if ORQUESTADOR_DISPONIBLE:
+            logger.info(f"🧠 Procesando con Orquestador: '{user_message[:30]}...'")
+            
+            try:
+                # Procesar con sistema inteligente
+                resultado = procesar_mensaje_inteligente(user_message, session_id)
+                
+                bot_message = resultado['text']
+                intent_detectado = resultado.get('intent', 'unknown')
+                confidence = resultado.get('confidence', 0.0)
+                
+                logger.info(f"✅ Respuesta generada | Intent: {intent_detectado} | Conf: {confidence:.2f}")
+                
+                # Log mejorado
+                if LOGGER_AVAILABLE:
+                    try:
+                        log_interaction_improved(
+                            session_id=session_id,
+                            user_message=user_message,
+                            bot_response=bot_message,
+                            intent_name=intent_detectado,
+                            confidence=confidence
+                        )
+                    except Exception as e:
+                        logger.warning(f"⚠️ Error en logger: {e}")
+                
+                return jsonify({
+                    'success': True,
+                    'bot_message': bot_message,
+                    'session_id': session_id,
+                    'timestamp': datetime.now().strftime('%H:%M'),
+                    'metadata': {
+                        'intent': intent_detectado,
+                        'confidence': confidence,
+                        'powered_by': 'orquestador_inteligente'
+                    }
+                })
+                
+            except Exception as orch_error:
+                logger.error(f"❌ Error en orquestador: {orch_error}")
+                logger.info("⚠️ Cayendo a sistema Rasa tradicional")
+                # Continuar con fallback abajo
+        
+        # =====================================================
+        # FALLBACK: Sistema anterior (Rasa solo)
+        # =====================================================
+        
+        logger.info(f"📨 Usando Rasa tradicional para: '{user_message[:30]}...'")
+        
+        # Enviar a Rasa
         rasa_response = requests.post(
             RASA_URL,
-            json={'sender': session_id, 'message': user_message},  # ✅ CAMBIO: usar session_id
+            json={'sender': session_id, 'message': user_message},
             timeout=10
         )
         
         if rasa_response.status_code == 200:
             bot_responses = rasa_response.json()
             
-            # Extraer texto de respuestas
             responses_text = []
             for response in bot_responses:
                 if 'text' in response:
                     responses_text.append(response['text'])
             
-            bot_message = ' '.join(responses_text) if responses_text else "Lo siento, no pude procesar tu mensaje."
+            bot_message = ' '.join(responses_text) if responses_text else \
+                          "Lo siento, no pude procesar tu mensaje."
             
-            # Log usando conversation_logger si está disponible
+            # Log
             if LOGGER_AVAILABLE:
                 try:
                     log_interaction_improved(
+                        session_id=session_id,
                         user_message=user_message,
                         bot_response=bot_message,
-                        intent="web_chat",
-                        confidence=1.0
+                        intent_name="rasa_traditional",
+                        confidence=0.8
                     )
                 except Exception as e:
-                    logger.warning(f"No se pudo registrar en logger mejorado: {e}")
+                    logger.warning(f"⚠️ Error en logger: {e}")
             
             return jsonify({
                 'success': True,
                 'bot_message': bot_message,
                 'session_id': session_id,
-                'timestamp': datetime.now().strftime('%H:%M')
+                'timestamp': datetime.now().strftime('%H:%M'),
+                'metadata': {
+                    'powered_by': 'rasa_traditional'
+                }
             })
         else:
             return jsonify({
@@ -318,15 +392,21 @@ def send_message():
     except requests.exceptions.Timeout:
         return jsonify({
             'success': False,
-            'error': 'Timeout al conectar con Rasa'
+            'error': 'Timeout al conectar con el sistema'
         }), 500
         
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"❌ Error general: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
+
+# =====================================================
+# RUTA ORIGINAL: /restart_conversation
+# =====================================================
 
 @app.route('/restart_conversation', methods=['POST'])
 def restart_conversation():
@@ -352,22 +432,33 @@ def restart_conversation():
             'error': str(e)
         }), 500
 
+# =====================================================
+# RUTA ORIGINAL: /feedback
+# =====================================================
+
 @app.route('/feedback', methods=['POST'])
 def feedback():
     """Guardar feedback del usuario"""
     try:
         data = request.json
+        
         user_message = data.get('user_message', '')
         bot_response = data.get('bot_response', '')
         feedback_type = data.get('feedback_type', '')
         comment = data.get('comment', None)
+        
+        if not user_message or not bot_response or not feedback_type:
+            return jsonify({
+                'success': False,
+                'error': 'Faltan datos requeridos'
+            }), 400
         
         success = save_feedback(user_message, bot_response, feedback_type, comment)
         
         if success:
             return jsonify({
                 'success': True,
-                'message': '¡Gracias por tu feedback!'
+                'message': 'Feedback guardado correctamente'
             })
         else:
             return jsonify({
@@ -388,12 +479,12 @@ def feedback():
 
 @app.route('/dashboard')
 def dashboard():
-    """Página del dashboard de análisis"""
+    """Página del dashboard"""
     return render_template('dashboard.html')
 
 @app.route('/api/dashboard/stats', methods=['GET'])
 def get_dashboard_stats():
-    """API para obtener estadísticas del dashboard"""
+    """Obtener estadísticas generales"""
     try:
         stats = get_feedback_stats()
         
@@ -417,7 +508,7 @@ def get_dashboard_stats():
 
 @app.route('/api/dashboard/negative-feedback', methods=['GET'])
 def get_dashboard_negative_feedback():
-    """API para obtener feedback negativo"""
+    """Obtener feedback negativo"""
     try:
         feedback_list = get_negative_feedback()
         
@@ -425,9 +516,9 @@ def get_dashboard_negative_feedback():
             'success': True,
             'feedback': feedback_list
         })
-            
+        
     except Exception as e:
-        logger.error(f"Error en negative feedback: {e}")
+        logger.error(f"Error obteniendo feedback negativo: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -435,7 +526,7 @@ def get_dashboard_negative_feedback():
 
 @app.route('/api/dashboard/conversations', methods=['GET'])
 def get_dashboard_conversations():
-    """API para obtener conversaciones recientes"""
+    """Obtener conversaciones recientes"""
     try:
         limit = request.args.get('limit', 20, type=int)
         conversations = get_recent_conversations(limit)
@@ -444,42 +535,16 @@ def get_dashboard_conversations():
             'success': True,
             'conversations': conversations
         })
-            
+        
     except Exception as e:
-        logger.error(f"Error en conversations: {e}")
+        logger.error(f"Error obteniendo conversaciones: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
 
 # =====================================================
-# RUTAS - UTILIDADES
-# =====================================================
-
-@app.route('/health')
-def health():
-    """Verificar estado del servidor"""
-    # Verificar conexión a Rasa
-    rasa_status = False
-    try:
-        response = requests.get(RASA_STATUS_URL, timeout=2)
-        rasa_status = response.status_code == 200
-    except:
-        pass
-    
-    # Verificar conexión a BD
-    db_status = get_db_connection() is not None
-    
-    return jsonify({
-        'status': 'ok' if (rasa_status and db_status) else 'degraded',
-        'rasa': 'up' if rasa_status else 'down',
-        'database': 'up' if db_status else 'down',
-        'timestamp': datetime.now().isoformat()
-    })
-
-
-# =====================================================
-# RUTAS - DASHBOARD AVANZADO CON GRÁFICOS
+# APIs DASHBOARD - GRÁFICOS
 # =====================================================
 
 @app.route('/api/dashboard/feedback-over-time', methods=['GET'])
@@ -718,25 +783,122 @@ def get_needs_review():
         if conn:
             conn.close()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# =====================================================
+# ✨ NUEVAS RUTAS: DEBUG (OPCIONAL)
+# =====================================================
+
+@app.route('/api/debug/context/<session_id>', methods=['GET'])
+def debug_context(session_id):
+    """Ver el contexto actual de una sesión (solo para desarrollo)"""
+    if not ORQUESTADOR_DISPONIBLE:
+        return jsonify({'error': 'Orquestador no disponible'}), 503
     
+    try:
+        from orquestador_inteligente import SESSION_CONTEXTS
+        
+        if session_id in SESSION_CONTEXTS:
+            context = SESSION_CONTEXTS[session_id]
+            return jsonify({
+                'session_id': session_id,
+                'context': context.to_dict(),
+                'historial_length': len(context.conversacion_historial),
+                'ultimo_mensaje': context.ultimo_mensaje
+            })
+        else:
+            return jsonify({'error': 'Sesión no encontrada'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/debug/fuzzy/<fecha>', methods=['GET'])
+def debug_fuzzy(fecha):
+    """Ver análisis difuso para una fecha (formato: YYYY-MM-DD)"""
+    try:
+        from motor_difuso import analizar_disponibilidad_dia
+        from datetime import datetime
+        
+        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+        analisis = analizar_disponibilidad_dia(fecha_obj)
+        
+        return jsonify({
+            'fecha': fecha,
+            'analisis': analisis
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/debug/status', methods=['GET'])
+def debug_status():
+    """Ver estado de todos los componentes"""
+    status = {
+        'orquestador': ORQUESTADOR_DISPONIBLE,
+        'logger': LOGGER_AVAILABLE,
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    
+    # Verificar LLM
+    try:
+        from llm_classifier import LLMIntentClassifier
+        classifier = LLMIntentClassifier()
+        status['llm'] = classifier.available
+    except:
+        status['llm'] = False
+    
+    # Verificar Rasa
+    try:
+        response = requests.get(RASA_STATUS_URL, timeout=2)
+        status['rasa'] = response.status_code == 200
+    except:
+        status['rasa'] = False
+    
+    # Verificar BD
+    try:
+        conn = get_db_connection()
+        status['database'] = conn is not None
+        if conn:
+            conn.close()
+    except:
+        status['database'] = False
+    
+    return jsonify(status)
+
 # =====================================================
 # EJECUTAR APP
 # =====================================================
 
 if __name__ == '__main__':
     logger.info("=" * 60)
-    logger.info("🚀 Iniciando Flask Chatbot COMPLETO")
+    logger.info("🚀 Iniciando Flask Chatbot COMPLETO + ORQUESTADOR")
     logger.info("=" * 60)
     logger.info(f"📍 Chat: http://localhost:5000")
     logger.info(f"📊 Dashboard: http://localhost:5000/dashboard")
     logger.info(f"💬 Rasa URL: {RASA_URL}")
     logger.info(f"🗄️  Database: {DB_CONFIG['database']}")
+    
+    # Status de componentes
+    logger.info("")
+    logger.info("🔧 COMPONENTES:")
+    logger.info(f"   {'✅' if LOGGER_AVAILABLE else '❌'} Logger mejorado")
+    logger.info(f"   {'✅' if ORQUESTADOR_DISPONIBLE else '❌'} Orquestador inteligente")
+    
+    if ORQUESTADOR_DISPONIBLE:
+        logger.info("   🧠 Modo: INTELIGENTE (LLM + Motor Difuso + Rasa)")
+    else:
+        logger.info("   📨 Modo: TRADICIONAL (Solo Rasa)")
+    
+    logger.info("")
+    logger.info("🐛 DEBUG ENDPOINTS:")
+    logger.info("   http://localhost:5000/api/debug/status")
+    logger.info("   http://localhost:5000/api/debug/context/<session_id>")
+    logger.info("   http://localhost:5000/api/debug/fuzzy/2025-10-24")
     logger.info("=" * 60)
     
     # Inicializar sistema de logging si está disponible
     if LOGGER_AVAILABLE:
         try:
-            setup_improved_logging_system()
+            setup_improved_logging_system("postgresql+psycopg2://botuser:root@localhost/chatbotdb")
+
             logger.info("✅ Sistema de logging mejorado inicializado")
         except Exception as e:
             logger.warning(f"⚠️ No se pudo inicializar logging mejorado: {e}")

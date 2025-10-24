@@ -17,7 +17,8 @@
         <div class="title-section">
             <h1 class="main-title">Bot Gestor de Turnos 💬</h1>
             <p class="subtitle">Ciudad del Este - Sistema Oficial</p>
-            <button id="resetBtn" class="reset-btn">🔄 Reiniciar</button>
+            <button id="restart-btn" class="reset-btn">🔄 Reiniciar</button>
+
         </div>
 
         <!-- Contenedor del chat -->
@@ -33,11 +34,11 @@
                         
                         <!-- Botones de feedback DENTRO de la burbuja -->
                         <div class="feedback-buttons">
-                            <button class="feedback-btn like-btn" data-message-id="0" data-type="positive">
+                            <button class="feedback-btn like-btn" type="button" data-message-id="0" data-type="positive">
                                 <img src="{{ url_for('static', filename='images/like.webp') }}" alt="Me gusta" class="feedback-icon">
                                 Útil
                             </button>
-                            <button class="feedback-btn dislike-btn" data-message-id="0" data-type="negative">
+                            <button class="feedback-btn dislike-btn" type="button" data-message-id="0" data-type="negative">
                                 <img src="{{ url_for('static', filename='images/dislike.png') }}" alt="No me gusta" class="feedback-icon">
                                 Mejorar
                             </button>
@@ -50,12 +51,12 @@
 
         <!-- Botones de acceso rápido -->
         <div class="quick-actions">
-            <button class="quick-btn" data-message="Quiero agendar un turno">📅 Agendar</button>
-            <button class="quick-btn" data-message="Qué requisitos necesito">📋 Requisitos</button>
-            <button class="quick-btn" data-message="Cuáles son los horarios">🕐 Horarios</button>
-            <button class="quick-btn" data-message="Dónde queda la oficina">📍 Ubicación</button>
-            <button class="quick-btn" data-message="Cuánto cuesta">💵 Costo</button>
-            <button class="quick-btn" data-message="Cuánto voy a esperar">⏱ Espera</button>
+            <button class="quick-btn" type="button" data-message="Quiero agendar un turno">📅 Agendar</button>
+            <button class="quick-btn" type="button" data-message="Qué requisitos necesito">📋 Requisitos</button>
+            <button class="quick-btn" type="button" data-message="Cuáles son los horarios">🕐 Horarios</button>
+            <button class="quick-btn" type="button" data-message="Dónde queda la oficina">📍 Ubicación</button>
+            <button class="quick-btn" type="button" data-message="Cuánto cuesta">💵 Costo</button>
+            <button class="quick-btn" type="button" data-message="Cuánto voy a esperar">⏱ Espera</button>
         </div>
 
         <!-- Input del usuario -->

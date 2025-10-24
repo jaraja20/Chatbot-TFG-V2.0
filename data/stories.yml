@@ -500,3 +500,14 @@ stories:
     - action: action_confirmar_datos_turno
     - intent: confirmar_turno
     - action: action_guardar_turno
+
+- story: Usuario informa que es su primera cédula durante agendamiento
+  steps:
+    - intent: agendar_turno
+    - action: turno_form
+    - active_loop: turno_form
+    - slot_was_set:
+        - requested_slot: cedula
+    - intent: informar_cedula_primera_vez
+    - action: utter_confirmar_primera_vez
+    - action: turno_form
