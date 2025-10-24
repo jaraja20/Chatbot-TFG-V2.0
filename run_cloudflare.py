@@ -9,7 +9,7 @@ import json
 
 class CloudflarePermanentTunnel:
     def __init__(self):
-        self.streamlit_process = None
+        self.flask_process = None
         self.cloudflare_process = None
         self.rasa_online = False
         
@@ -17,7 +17,7 @@ class CloudflarePermanentTunnel:
         self.tunnel_name = "identificaciones-cde"
         self.config_file = "cloudflare-tunnel-config.yml"
         self.credentials_file = None
-        self.streamlit_port = 8501
+        self.flask_port = 5000
         
     def print_header(self):
         """Imprime el header del script"""
@@ -198,7 +198,7 @@ class CloudflarePermanentTunnel:
 credentials-file: {cred_path}
 
 ingress:
-  - service: http://localhost:{self.streamlit_port}
+  - service: http://localhost:{self.flask_port}
 """
             
             # Escribir archivo de configuración
@@ -212,38 +212,39 @@ ingress:
             print(f"❌ Error creando archivo de configuración: {e}")
             return False
     
-    def start_streamlit(self):
-        """Inicia Streamlit"""
-        print(f"🚀 Iniciando Streamlit en puerto {self.streamlit_port}...")
+    def start_flask(self):
+        """Inicia Flask"""
+        print(f"🚀 Iniciando Flask en puerto {self.flask_port}...")
         
         try:
-            # Comando para iniciar Streamlit
-            cmd = [
-                sys.executable, "-m", "streamlit", "run",
-                "app_public.py",
-                "--server.port", str(self.streamlit_port),
-                "--server.address", "localhost",
-                "--server.headless", "true"
-            ]
+            # Cambiar directorio a flask-chatbot
+            import os
+            os.chdir('flask-chatbot')
             
-            self.streamlit_process = subprocess.Popen(
+            # Comando para iniciar Flask
+            cmd = [sys.executable, "app.py"]
+            
+            self.flask_process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
             
-            # Esperar un poco para que Streamlit inicie
+            # Volver al directorio original
+            os.chdir('..')
+            
+            # Esperar un poco para que Flask inicie
             time.sleep(3)
             
-            if self.streamlit_process.poll() is None:
-                print(f"✅ Streamlit iniciado en http://localhost:{self.streamlit_port}")
+            if self.flask_process.poll() is None:
+                print(f"✅ Flask iniciado en http://localhost:{self.flask_port}")
                 return True
             else:
-                print("❌ Error iniciando Streamlit")
+                print("❌ Error iniciando Flask")
                 return False
                 
         except Exception as e:
-            print(f"❌ Error iniciando Streamlit: {e}")
+            print(f"❌ Error iniciando Flask: {e}")
             return False
     
     def start_tunnel(self):
@@ -277,14 +278,14 @@ ingress:
         """Limpia procesos al terminar"""
         print("\n🧹 Limpiando procesos...")
         
-        if self.streamlit_process:
+        if hasattr(self, 'flask_process') and self.flask_process:
             try:
-                self.streamlit_process.terminate()
-                self.streamlit_process.wait(timeout=5)
-                print("✅ Streamlit detenido")
+                self.flask_process.terminate()
+                self.flask_process.wait(timeout=5)
+                print("✅ Flask detenido")
             except:
-                self.streamlit_process.kill()
-                print("⚠️  Streamlit forzado a terminar")
+                self.flask_process.kill()
+                print("⚠️  Flask forzado a terminar")
     
     def setup_permanent_tunnel(self):
         """Configura el tunnel permanente (solo primera vez)"""
@@ -336,8 +337,8 @@ ingress:
             else:
                 print("✅ Configuración existente encontrada")
             
-            # Iniciar Streamlit
-            if not self.start_streamlit():
+            # Iniciar Flask
+            if not self.start_flask():
                 return
             
             print("\n" + "="*50)

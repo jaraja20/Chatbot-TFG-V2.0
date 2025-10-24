@@ -1,0 +1,717 @@
+/* =====================================================
+   ESTILOS PROFESIONALES - CHATBOT TURNOS CÉDULAS
+   ✅ VERSION MEJORADA PARA MÓVILES
+   ===================================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f5f7fa;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px 0;
+    overflow-x: hidden; /* ✅ AGREGADO: Evitar scroll horizontal */
+}
+
+/* ✅ AGREGADO: Body responsive para móviles */
+@media (max-width: 768px) {
+    body {
+        padding: 0;
+        align-items: stretch;
+    }
+}
+
+/* =====================================================
+   CONTENEDOR PRINCIPAL
+   ===================================================== */
+
+.container {
+    width: 100%;
+    max-width: 1100px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    display: flex;           /* ✅ AGREGADO: Para layout flexible */
+    flex-direction: column;  /* ✅ AGREGADO: Columnas verticales */
+}
+
+/* =====================================================
+   HEADER
+   ===================================================== */
+
+.header {
+    width: 100%;
+    background: white;
+    padding: 20px;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0; /* ✅ AGREGADO: No se comprime en móviles */
+}
+
+.gobierno-logo {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-height: 80px;      /* ✅ AGREGADO: Limitar altura */
+    object-fit: contain;   /* ✅ AGREGADO: Mantener proporción */
+}
+
+/* =====================================================
+   TÍTULO
+   ===================================================== */
+
+.title-section {
+    padding: 20px 30px;
+    text-align: center;
+    position: relative;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0; /* ✅ AGREGADO: No se comprime en móviles */
+}
+
+.main-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #1a365d;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    font-size: 0.95rem;
+    color: #4a5568;
+    font-weight: 300;
+}
+
+.reset-btn {
+    position: absolute;
+    right: 30px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: white;
+    border: 1px solid #cbd5e0;
+    padding: 8px 16px;
+    border-radius: 18px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reset-btn:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    transform: translateY(-50%) translateY(-1px);
+}
+
+/* =====================================================
+   CHAT CONTAINER
+   ===================================================== */
+
+.chat-container {
+    height: 500px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 30px;
+    background: #fafbfc;
+    scroll-behavior: smooth;
+    flex: 1;         /* ✅ AGREGADO: Toma espacio disponible */
+    min-height: 0;   /* ✅ AGREGADO: Permite scroll en móviles */
+}
+
+/* Scroll personalizado */
+.chat-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chat-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+}
+
+.chat-container::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 10px;
+}
+
+.chat-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* =====================================================
+   MENSAJES
+   ===================================================== */
+
+.message-wrapper {
+    display: flex;
+    margin-bottom: 20px;
+    animation: slideIn 0.3s ease-out;
+    align-items: flex-start;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mensaje del BOT (izquierda) */
+.bot-message {
+    justify-content: flex-start;
+}
+
+/* Mensaje del USUARIO (derecha) */
+.user-message {
+    justify-content: flex-end;
+}
+
+/* =====================================================
+   AVATARES
+   ===================================================== */
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.bot-avatar {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    margin-right: 10px;
+    order: -1;
+}
+
+.bot-avatar img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.user-avatar {
+    background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+    margin-left: 10px;
+    order: 1;
+    font-size: 1.2rem;
+}
+
+/* =====================================================
+   BURBUJAS DE CHAT
+   ===================================================== */
+
+.message-content {
+    flex: 1;
+    max-width: 75%;
+}
+
+.message-bubble {
+    padding: 14px 18px;
+    border-radius: 18px;
+    word-wrap: break-word;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    color: #1e293b;
+    line-height: 1.5;
+}
+
+/* Burbuja del BOT (azul claro) */
+.bot-bubble {
+    background: #e0e7ff;
+    border-radius: 18px 18px 18px 4px;
+}
+
+/* Burbuja del USUARIO (rosa claro) */
+.user-bubble {
+    background: #fce7f3;
+    border-radius: 18px 18px 4px 18px;
+}
+
+.message-time {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-top: 4px;
+    padding-left: 4px;
+}
+
+.user-message .message-time {
+    text-align: right;
+    padding-right: 4px;
+}
+
+/* =====================================================
+   BOTONES DE FEEDBACK (DENTRO DE LA BURBUJA)
+   ===================================================== */
+
+.feedback-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.feedback-btn {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    color: #475569;
+}
+
+.feedback-btn:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+}
+
+.feedback-btn:active {
+    transform: translateY(0);
+}
+
+.feedback-btn.active {
+    background: #10b981;
+    border-color: #10b981;
+    color: white;
+}
+
+.feedback-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* =====================================================
+   BOTONES DE ACCESO RÁPIDO
+   ===================================================== */
+
+.quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 15px 30px;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0; /* ✅ AGREGADO: No se comprime en móviles */
+}
+
+.quick-btn {
+    background: white;
+    border: 1px solid #cbd5e0;
+    border-radius: 18px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    color: #1e293b;
+    font-weight: 500;
+}
+
+.quick-btn:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.quick-btn:active {
+    transform: translateY(0);
+}
+
+/* =====================================================
+   INPUT DEL USUARIO
+   ===================================================== */
+
+.input-container {
+    padding: 20px 30px;
+    background: white;
+    flex-shrink: 0; /* ✅ AGREGADO: No se comprime en móviles */
+}
+
+#chatForm {
+    display: flex;
+    gap: 10px;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid #e2e8f0;
+    border-radius: 24px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.chat-input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.send-btn {
+    width: 48px;
+    height: 48px;
+    background: #6366f1;
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* ✅ AGREGADO: Mantener tamaño */
+}
+
+.send-btn:hover {
+    background: #4f46e5;
+    transform: scale(1.05);
+}
+
+.send-btn:active {
+    transform: scale(0.95);
+}
+
+/* =====================================================
+   MODAL PARA COMENTARIOS
+   ===================================================== */
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    animation: fadeIn 0.2s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    animation: slideUp 0.3s;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-content h3 {
+    margin-bottom: 15px;
+    color: #1e293b;
+}
+
+#commentText {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    resize: vertical;
+    margin-bottom: 15px;
+}
+
+#commentText:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-primary, .btn-secondary {
+    flex: 1;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn-primary {
+    background: #6366f1;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #4f46e5;
+}
+
+.btn-secondary {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+/* =====================================================
+   ESTADOS DE LOADING
+   ===================================================== */
+
+.typing-indicator {
+    display: inline-flex;
+    gap: 4px;
+    padding: 14px 18px;
+}
+
+.typing-dot {
+    width: 8px;
+    height: 8px;
+    background: #94a3b8;
+    border-radius: 50%;
+    animation: typing 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        transform: translateY(0);
+    }
+    30% {
+        transform: translateY(-10px);
+    }
+}
+
+/* =====================================================
+   ✅ RESPONSIVE MEJORADO - CAMBIOS IMPORTANTES AQUÍ
+   ===================================================== */
+
+@media (max-width: 768px) {
+    /* ✅ Container ocupa toda la pantalla */
+    .container {
+        border-radius: 0;
+        height: 100vh;
+        height: 100dvh; /* Altura dinámica considerando teclado */
+        max-height: 100vh;
+        max-height: 100dvh;
+    }
+    
+    /* ✅ Header más compacto */
+    .header {
+        padding: 10px 15px;
+    }
+    
+    .gobierno-logo {
+        max-height: 50px;
+    }
+    
+    /* ✅ Título más compacto */
+    .title-section {
+        padding: 12px 15px;
+    }
+    
+    .main-title {
+        font-size: 1.3rem;
+        margin-bottom: 4px;
+    }
+    
+    .subtitle {
+        font-size: 0.8rem;
+    }
+    
+    .reset-btn {
+        position: static;
+        transform: none;
+        margin-top: 8px;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 6px 12px;
+        font-size: 0.75rem;
+    }
+    
+    /* ✅ Chat container flexible - LA CLAVE DEL PROBLEMA */
+    .chat-container {
+        height: auto !important; /* Altura automática */
+        flex: 1; /* Toma todo el espacio disponible */
+        min-height: 0; /* Permite que se encoja */
+        padding: 15px;
+        -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+    }
+    
+    /* ✅ Mensajes más compactos */
+    .message-wrapper {
+        margin-bottom: 15px;
+    }
+    
+    .message-content {
+        max-width: 85%;
+    }
+    
+    .message-bubble {
+        padding: 10px 14px;
+        font-size: 0.9rem;
+    }
+    
+    .avatar {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .bot-avatar img {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .bot-avatar {
+        margin-right: 8px;
+    }
+    
+    .user-avatar {
+        margin-left: 8px;
+        font-size: 1rem;
+    }
+    
+    /* ✅ Botones de feedback más pequeños */
+    .feedback-buttons {
+        gap: 6px;
+        margin-top: 8px;
+        padding-top: 8px;
+    }
+    
+    .feedback-btn {
+        padding: 5px 10px;
+        font-size: 0.75rem;
+    }
+    
+    .feedback-icon {
+        width: 14px;
+        height: 14px;
+    }
+    
+    /* ✅ Quick actions compactas */
+    .quick-actions {
+        padding: 10px 15px;
+        gap: 6px;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    
+    .quick-btn {
+        font-size: 0.75rem;
+        padding: 6px 12px;
+        white-space: nowrap;
+    }
+    
+    /* ✅ Input siempre visible y accesible */
+    .input-container {
+        padding: 12px 15px;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    #chatForm {
+        gap: 8px;
+    }
+    
+    .chat-input {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
+    
+    .send-btn {
+        width: 42px;
+        height: 42px;
+        font-size: 1rem;
+    }
+    
+    /* ✅ Modal más compacto */
+    .modal-content {
+        padding: 20px;
+        margin: 15px;
+    }
+}
+
+/* ✅ Para pantallas MUY pequeñas (iPhone SE, etc) */
+@media (max-width: 375px) {
+    .main-title {
+        font-size: 1.1rem;
+    }
+    
+    .subtitle {
+        font-size: 0.75rem;
+    }
+    
+    .message-content {
+        max-width: 90%;
+    }
+    
+    .quick-btn {
+        font-size: 0.7rem;
+        padding: 5px 10px;
+    }
+}
+
+/* ✅ Orientación landscape en móvil */
+@media (max-width: 768px) and (orientation: landscape) {
+    .title-section {
+        padding: 8px 15px;
+    }
+    
+    .main-title {
+        font-size: 1.1rem;
+    }
+    
+    .input-container {
+        padding: 8px 15px;
+    }
+}

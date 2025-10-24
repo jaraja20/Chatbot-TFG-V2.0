@@ -71,7 +71,7 @@ def inject_modern_css():
         background: #f5f7fa;
     }
     
-    /* Contenedor principal centrado con borde - MÁS ANCHO */
+    /* Contenedor principal */
     .main .block-container {
         border: 1px solid #e2e8f0;
         border-radius: 12px;
@@ -84,10 +84,12 @@ def inject_modern_css():
     
     /* Contenedor del chat con altura fija y scroll */
     .chat-messages-container {
-        max-height: 60vh;
+        max-height: 500px;
         overflow-y: auto;
-        padding-right: 10px;
+        overflow-x: hidden;
+        padding: 10px;
         margin-bottom: 20px;
+        background: transparent;
     }
     
     /* Scroll personalizado */
@@ -226,9 +228,9 @@ def inject_modern_css():
         margin: 15px 0 20px 0;
     }
     
-    /* Botones compactos e iguales */
+    /* Botones compactos */
     .stButton > button {
-        padding: 6px 14px !important;
+        padding: 8px 16px !important;
         font-size: 0.85rem !important;
         border-radius: 18px !important;
         transition: all 0.2s !important;
@@ -247,79 +249,59 @@ def inject_modern_css():
         box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important;
     }
     
-    /* Input del chat personalizado con text_input */
+    /* Input del chat */
     .stTextInput > div > div > input {
-        border: 1px solid #cbd5e0 !important;
         border-radius: 24px !important;
+        border: 2px solid #e2e8f0 !important;
         padding: 12px 20px !important;
         font-size: 0.95rem !important;
-        background: #f8fafc !important;
-        color: #1e293b !important;
-    }
-    
-    .stTextInput > div > div > input::placeholder {
-        color: #94a3b8 !important;
-    }
-    
-    .stTextInput > div > div > input:focus {
-        border-color: #3b82f6 !important;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+        transition: all 0.2s !important;
         background: white !important;
     }
     
-    /* Botón de enviar */
-    .stFormSubmitButton > button {
-        background: #3b82f6 !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 50% !important;
-        width: 44px !important;
-        height: 44px !important;
-        padding: 0 !important;
-        font-size: 1.2rem !important;
+    .stTextInput > div > div > input:focus {
+        border-color: #6366f1 !important;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
     }
     
-    .stFormSubmitButton > button:hover {
-        background: #2563eb !important;
-        transform: scale(1.05) !important;
-    }
-    
-    /* Ocultar label del form */
-    .stForm {
-        border: none !important;
-        padding: 0 !important;
-        margin-top: 20px !important;
-    }
-    
-    /* Área de comentarios */
+    /* Campo de comentario con fondo claro */
     .comment-container {
-        margin-top: 10px;
-        padding: 10px;
-        background: #fef2f2;
-        border-radius: 10px;
-        border-left: 3px solid #ef4444;
+        background: #f8f9fa !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        margin-top: 10px !important;
     }
     
-    /* Badge del LLM */
+    .comment-container textarea {
+        background: white !important;
+        border: 1px solid #cbd5e0 !important;
+        border-radius: 8px !important;
+    }
+    
+    /* Badges */
     .llm-badge {
-        display: inline-block;
+        font-size: 0.65rem;
         background: #10b981;
         color: white;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-size: 0.7rem;
-        margin-left: 8px;
+        padding: 2px 6px;
+        border-radius: 8px;
+        margin-left: 6px;
         font-weight: 600;
     }
     
-    /* Scroll suave */
-    html {
-        scroll-behavior: smooth;
+    /* Responsivo */
+    @media (max-width: 768px) {
+        .message-bubble {
+            max-width: 85%;
+        }
+        
+        .main .block-container {
+            padding: 15px;
+        }
     }
     </style>
-    """, unsafe_allow_html=True)
-
-# =====================================================
+    """, unsafe_allow_html=True)# =====================================================
 # FUNCIONES DE BASE DE DATOS
 # =====================================================
 def get_db_connection():
@@ -333,43 +315,51 @@ def get_db_connection():
     except Exception as e:
         return None
 
-def update_feedback_in_db(session_id: str, bot_response: str, feedback_thumbs: int, feedback_comment: str = None):
+def save_feedback_simple(session_id: str, user_message: str, bot_response: str, 
+                         feedback_thumbs: int, feedback_comment: str = None):
+    """✅ Guarda feedback DIRECTAMENTE en la BD sin buscar"""
     conn = get_db_connection()
     if not conn:
+        print("❌ No se pudo conectar a la BD")
         return False
     
     try:
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT id FROM conversation_logs 
-            WHERE session_id = %s AND bot_response = %s 
-            ORDER BY timestamp DESC 
-            LIMIT 1
-        """, (session_id, bot_response))
+            INSERT INTO conversation_messages 
+            (session_id, user_message, bot_response, 
+             feedback_thumbs, feedback_comment, needs_review, 
+             timestamp, intent_detected, confidence)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW(), %s, %s)
+            RETURNING id
+        """, (
+            session_id,
+            user_message,
+            bot_response,
+            feedback_thumbs,
+            feedback_comment,
+            True if feedback_thumbs == -1 else False,
+            'feedback_manual',
+            1.0
+        ))
         
-        result = cursor.fetchone()
-        if not result:
-            return False
-        
-        log_id = result[0]
-        
-        update_query = """
-            UPDATE conversation_logs 
-            SET feedback_thumbs = %s, 
-                feedback_comment = %s,
-                needs_review = CASE WHEN %s = -1 THEN TRUE ELSE needs_review END
-            WHERE id = %s
-        """
-        
-        cursor.execute(update_query, (feedback_thumbs, feedback_comment, feedback_thumbs, log_id))
+        new_id = cursor.fetchone()[0]
         conn.commit()
-        
         cursor.close()
         conn.close()
+        
+        print(f"✅ Feedback guardado con ID: {new_id}")
+        print(f"   Feedback: {'👍' if feedback_thumbs == 1 else '👎'}")
+        if feedback_comment:
+            print(f"   Comentario: {feedback_comment}")
+        
         return True
         
     except Exception as e:
+        print(f"❌ Error guardando feedback: {e}")
+        import traceback
+        traceback.print_exc()
         if conn:
             conn.close()
         return False
@@ -541,7 +531,7 @@ def show_feedback_buttons(message_index: int):
     if message["role"] != "assistant" or message.get("feedback_given", False):
         return
     
-    col1, col2, col3 = st.columns([0.8, 0.8, 8])
+    col1, col2, col3 = st.columns([1, 1, 8])
     
     with col1:
         if st.button("👍", key=f"pos_{message_index}", help="Útil"):
@@ -553,34 +543,35 @@ def show_feedback_buttons(message_index: int):
             st.session_state[f"comment_mode_{message_index}"] = True
             st.rerun()
     
-    # Cuadro de comentario
+    # Cuadro de comentario con fondo claro
     if st.session_state.get(f"comment_mode_{message_index}", False):
         st.markdown('<div class="comment-container">', unsafe_allow_html=True)
         
         comment = st.text_area(
-            "¿Qué podríamos mejorar?",
+            "💭 ¿Qué podríamos mejorar?",
             key=f"comment_{message_index}",
-            placeholder="Tu comentario nos ayuda a mejorar...",
+            placeholder="Escribe tu comentario aquí...",
             height=60
         )
         
         col_send, col_cancel = st.columns(2)
         
         with col_send:
-            if st.button("Enviar", key=f"send_{message_index}"):
-                handle_feedback(message_index, "negative", comment)
-                st.session_state[f"comment_mode_{message_index}"] = False
-                st.rerun()
+            if st.button("📤 Enviar", key=f"send_{message_index}", type="primary"):
+                if comment and comment.strip():
+                    handle_feedback(message_index, "negative", comment)
+                    st.session_state[f"comment_mode_{message_index}"] = False
+                    st.rerun()
         
         with col_cancel:
-            if st.button("Cancelar", key=f"cancel_{message_index}"):
+            if st.button("✖️ Cancelar", key=f"cancel_{message_index}"):
                 st.session_state[f"comment_mode_{message_index}"] = False
                 st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
 
 def handle_feedback(message_index: int, feedback_type: str, comment: str = None):
-    """Maneja el feedback del usuario"""
+    """✅ Captura mensaje del usuario también"""
     if message_index >= len(st.session_state.messages):
         return
     
@@ -590,10 +581,19 @@ def handle_feedback(message_index: int, feedback_type: str, comment: str = None)
     
     st.session_state.messages[message_index]["feedback_given"] = True
     
+    # Buscar el mensaje del usuario que provocó esta respuesta
+    user_message = "Mensaje no disponible"
+    if message_index > 0:
+        prev_message = st.session_state.messages[message_index - 1]
+        if prev_message["role"] == "user":
+            user_message = prev_message["content"]
+    
     feedback_value = 1 if feedback_type == "positive" else -1
     
-    success = update_feedback_in_db(
+    # Usar la nueva función simple
+    success = save_feedback_simple(
         session_id=st.session_state.session_id,
+        user_message=user_message,
         bot_response=message["content"],
         feedback_thumbs=feedback_value,
         feedback_comment=comment
@@ -604,6 +604,8 @@ def handle_feedback(message_index: int, feedback_type: str, comment: str = None)
             st.toast("¡Gracias por tu valoración!", icon="👍")
         else:
             st.toast("Gracias por tu comentario. Seguimos mejorando.", icon="📝")
+    else:
+        st.warning("No se pudo guardar el feedback.")
 
 def process_quick_message(message: str):
     """Procesa mensaje de acción rápida"""
@@ -715,4 +717,3 @@ if __name__ == "__main__":
     except Exception as e:
         st.error("Error del sistema. Intenta recargar la página.")
         st.info("Si el problema persiste, contacta al soporte técnico.")
-        

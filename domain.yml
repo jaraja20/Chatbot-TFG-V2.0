@@ -185,7 +185,12 @@ responses:
   utter_ask_fecha:
     - text: "¿Para qué fecha? Podés decir 'mañana', 'jueves', 'viernes 15', '20 de octubre', etc."
 
-
+  utter_turno_confirmado:
+    - text: |
+       ✅ ¡Turno agendado exitosamente!
+         
+       📝 Ayúdanos a mejorar:
+       👉 https://docs.google.com/forms/d/e/1FAIpQLSfNorudi36-q0VjKTWk2GwM277wCiypOTU_qMoPhHD0aWkG8A/viewform?usp=dialog
   utter_ask_hora:
     - text: "¿A qué hora preferís el turno? Atendemos de 07:00 a 15:00 (cerrado 11:00 por almuerzo)."
 

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnos Cédulas - Ciudad del Este</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header con imagen del gobierno -->
+        <div class="header">
+            <img src="{{ url_for('static', filename='images/gobierno.webp') }}" alt="Gobierno de Paraguay" class="gobierno-logo">
+        </div>
+
+        <!-- Título -->
+        <div class="title-section">
+            <h1 class="main-title">Turnos Cédulas 💬</h1>
+            <p class="subtitle">Ciudad del Este - Sistema Oficial</p>
+            <button id="resetBtn" class="reset-btn">🔄 Reiniciar</button>
+        </div>
+
+        <!-- Contenedor del chat -->
+        <div class="chat-container" id="chatContainer">
+            <!-- Mensaje inicial del bot -->
+            <div class="message-wrapper bot-message">
+                <div class="avatar bot-avatar">
+                    <img src="{{ url_for('static', filename='images/bot.png') }}" alt="Bot">
+                </div>
+                <div class="message-content">
+                    <div class="message-bubble bot-bubble">
+                        ¡Hola! Soy tu asistente virtual para gestión de cédulas de identidad en Ciudad del Este. ¿En qué puedo ayudarte hoy?
+                        
+                        <!-- Botones de feedback DENTRO de la burbuja -->
+                        <div class="feedback-buttons">
+                            <button class="feedback-btn like-btn" data-message-id="0" data-type="positive">
+                                <img src="{{ url_for('static', filename='images/like.webp') }}" alt="Me gusta" class="feedback-icon">
+                                Útil
+                            </button>
+                            <button class="feedback-btn dislike-btn" data-message-id="0" data-type="negative">
+                                <img src="{{ url_for('static', filename='images/dislike.png') }}" alt="No me gusta" class="feedback-icon">
+                                Mejorar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="message-time">Ahora</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones de acceso rápido -->
+        <div class="quick-actions">
+            <button class="quick-btn" data-message="Quiero agendar un turno">📅 Agendar</button>
+            <button class="quick-btn" data-message="Qué requisitos necesito">📋 Requisitos</button>
+            <button class="quick-btn" data-message="Cuáles son los horarios">🕐 Horarios</button>
+            <button class="quick-btn" data-message="Dónde queda la oficina">📍 Ubicación</button>
+            <button class="quick-btn" data-message="Cuánto cuesta">💵 Costo</button>
+            <button class="quick-btn" data-message="Cuánto voy a esperar">⏱ Espera</button>
+        </div>
+
+        <!-- Input del usuario -->
+        <div class="input-container">
+            <form id="chatForm">
+                <input 
+                    type="text" 
+                    id="userInput" 
+                    class="chat-input" 
+                    placeholder="Escribe tu consulta aquí..."
+                    autocomplete="off"
+                >
+                <button type="submit" class="send-btn">➤</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para comentarios -->
+    <div id="commentModal" class="modal">
+        <div class="modal-content">
+            <h3>¿Qué podríamos mejorar?</h3>
+            <textarea id="commentText" placeholder="Tu comentario nos ayuda a mejorar..." rows="4"></textarea>
+            <div class="modal-buttons">
+                <button id="sendComment" class="btn-primary">📤 Enviar</button>
+                <button id="cancelComment" class="btn-secondary">✖️ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>

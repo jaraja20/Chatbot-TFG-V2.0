@@ -5,4 +5,4 @@ tunnel: 9b576fd9-6c04-46ad-8a72-55e97b825b51
 credentials-file: C:\Users\NEO\.cloudflared\9b576fd9-6c04-46ad-8a72-55e97b825b51.json
 
 ingress:
-  - service: http://localhost:8501
+  - service: http://localhost:8500

@@ -913,10 +913,14 @@ class ActionReiniciarCampo(Action):
         campo = detectar_correccion(ultimo_mensaje)
         
         if campo:
-            dispatcher.utter_message(text=f"Entendido, vamos a corregir tu {campo}.")
+            mensaje = f"Entendido, vamos a corregir tu {campo}."
+            dispatcher.utter_message(text=mensaje)
+            log_interaction_improved(tracker, mensaje, {"accion": "reiniciar_campo", "campo": campo})
             return [SlotSet(campo, None), FollowupAction("turno_form")]
         else:
-            dispatcher.utter_message(text="Podés decir qué querés cambiar: nombre, cédula, fecha u hora.")
+            mensaje = "Podés decir qué querés cambiar: nombre, cédula, fecha u hora."
+            dispatcher.utter_message(text=mensaje)
+            log_interaction_improved(tracker, mensaje, {"accion": "reiniciar_campo", "campo": "ninguno"})
             return []
 
 
@@ -1487,10 +1491,14 @@ class ActionFallbackContexto(Action):
         campo = detectar_correccion(ultimo)
         
         if campo:
-            dispatcher.utter_message(text=f"Entendido, cambiamos tu {campo}.")
+            mensaje = f"Entendido, cambiamos tu {campo}."
+            dispatcher.utter_message(text=mensaje)
+            log_interaction_improved(tracker, mensaje, {"accion": "fallback_contexto", "campo": campo})
             return [SlotSet(campo, None), FollowupAction("turno_form")]
         
-        dispatcher.utter_message(text="Perdón, no entendí bien. Continuemos con tu turno.")
+        mensaje = "Perdón, no entendí bien. Continuemos con tu turno."
+        dispatcher.utter_message(text=mensaje)
+        log_interaction_improved(tracker, mensaje, {"accion": "fallback_contexto", "campo": "ninguno"})
         return [FollowupAction("turno_form")]
     
 class ActionGestionarCambioDatos(Action):
@@ -1652,13 +1660,11 @@ class ActionCaptureFeedbackContext(Action):
                 
                 logger.info(f"👎 Feedback negativo con contexto capturado: ID {context_id}")
                 
-                dispatcher.utter_message(
-                    text="Gracias por tu feedback. Lo usaremos para mejorar mis respuestas."
-                )
+                mensaje = "Gracias por tu feedback. Lo usaremos para mejorar mis respuestas."
+                dispatcher.utter_message(text=mensaje)
+                log_interaction_improved(tracker, mensaje, {"accion": "capture_feedback"})
             
         except Exception as e:
             logger.error(f"❌ Error capturando contexto de feedback: {e}")
         
         return []
-
-   
