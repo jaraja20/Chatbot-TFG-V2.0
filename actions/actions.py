@@ -3,10 +3,14 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet, SessionStarted, EventType, FollowupAction, ActionExecuted
 from rasa_sdk.forms import FormValidationAction
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'flask-chatbot')))
 from calendar_utils import crear_evento_turno, consultar_disponibilidad
 from sqlalchemy import create_engine, Column, String, Integer, DateTime, UniqueConstraint, func
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import cast, Date
+from conversation_logger import save_user_correction
 from sqlalchemy.exc import SQLAlchemyError
 import datetime
 import random
@@ -16,6 +20,7 @@ import re
 import logging
 import time
 from contextlib import contextmanager
+
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -110,7 +115,8 @@ try:
         setup_improved_logging_system, 
         log_rasa_interaction_improved,
         get_improved_conversation_logger,
-        set_improved_conversation_logger
+        set_improved_conversation_logger,
+        save_user_correction
     )
     IMPROVED_LOGGING_AVAILABLE = True
     logger.info("✅ Sistema de logging mejorado cargado exitosamente")

@@ -42,6 +42,8 @@ intents:
   - restart
   - nlu_fallback
   - out_of_scope
+  - corregir_respuesta
+
 
 entities:
   - nombre
@@ -433,6 +435,16 @@ responses:
   utter_preguntar_cambio_datos:
     - text: "Por supuesto 😊 ¿qué querés cambiar? (nombre, cédula, fecha u hora)"
 
+  utter_informar_cedula_primera_vez:
+    - text: |
+        🪪 Perfecto, veo que es tu **primera vez tramitando la cédula**.
+        
+        📋 **Requisitos:**
+        • Partida de nacimiento original y actualizada  
+        • Si sos menor, acompañado de tu padre, madre o tutor  
+        • No se requiere cédula previa  
+        
+        📅 ¿Qué día querés agendar tu turno?
 
 actions:
   - validate_turno_form
@@ -450,6 +462,7 @@ actions:
   - action_fallback_contexto
   - action_gestionar_cambio_datos
   - action_confirmar_primera_vez
+  - action_guardar_correccion
 
 
 

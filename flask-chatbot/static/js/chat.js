@@ -20,22 +20,61 @@ const cancelCommentBtn = document.getElementById('cancelComment');
 const commentText = document.getElementById('commentText');
 
 // =====================================================
+// DETECTOR DE CORRECCIONES MANUALES
+// =====================================================
+
+function esCorreccionDeUsuario(texto) {
+    const patrones = [
+        "debes responder",
+        "tienes que responder",
+        "deberías responder",
+        "la respuesta correcta es",
+        "debería ser",
+        "corrige esto",
+        "deberías decir"
+    ];
+    const textoLower = texto.toLowerCase();
+    return patrones.some(p => textoLower.includes(p));
+}
+
+
+// =====================================================
 // ENVIAR MENSAJE
 // =====================================================
 
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const message = userInput.value.trim();
     if (!message) return;
-    
+
     // Agregar mensaje del usuario
     addUserMessage(message);
     userInput.value = '';
-    
+
+    // ✅ Verificar si es una corrección
+    if (esCorreccionDeUsuario(message)) {
+        console.log('🧠 Corrección detectada, enviando al servidor...');
+
+        // Buscar el último mensaje del bot en el contenedor del chat
+        const allBotMessages = chatContainer.querySelectorAll('.bot-message .bot-bubble');
+        const lastBotMessage = allBotMessages.length > 0 ? allBotMessages[allBotMessages.length - 1] : null;
+
+        if (lastBotMessage) {
+            const botResponse = lastBotMessage.textContent.trim();
+            await guardarCorreccion(sessionId, message, botResponse);
+            addBotMessage("✅ Gracias, he registrado tu corrección para aprendizaje.", "Ahora");
+        } else {
+            addBotMessage("⚠️ No hay respuesta anterior para corregir.", "Ahora");
+        }
+
+        return; // 🚫 Salir para no enviar a Flask
+    }
+
+
     // Mostrar indicador de escritura
     const typingId = showTypingIndicator();
-    
+
     try {
         // Enviar a Flask backend con session_id
         const response = await fetch('/send_message', {
@@ -43,34 +82,35 @@ chatForm.addEventListener('submit', async (e) => {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 message: message,
                 session_id: sessionId  // ✅ AGREGAR session_id
             })
         });
-        
+
         const data = await response.json();
 
         if (data.session_id) {
             sessionId = data.session_id;
         }
-        
+
         // Remover indicador de escritura
         removeTypingIndicator(typingId);
-        
+
         if (data.success) {
             // Agregar respuesta del bot
             addBotMessage(data.bot_message, data.timestamp);
         } else {
             addBotMessage('Lo siento, hubo un error al procesar tu mensaje. Por favor intenta nuevamente.', 'Ahora');
         }
-        
+
     } catch (error) {
         console.error('Error:', error);
         removeTypingIndicator(typingId);
         addBotMessage('Error de conexión. Verifica que el servidor esté activo.', 'Ahora');
     }
 });
+
 
 // =====================================================
 // AGREGAR MENSAJE DEL USUARIO
@@ -290,6 +330,46 @@ async function sendFeedback(userMessage, botResponse, feedbackType, comment) {
         console.error('Error al enviar feedback:', error);
     }
 }
+
+// =====================================================
+// GUARDAR CORRECCIONES MANUALES
+// =====================================================
+
+async function guardarCorreccion(sessionId, userMessage, botResponse) {
+    try {
+        // Extraer el texto corregido por el usuario (parte después de “debes responder con...”)
+        let correctedText = userMessage.toLowerCase()
+            .replace("debes responder con", "")
+            .replace("deberías responder con", "")
+            .replace("tienes que responder con", "")
+            .trim();
+
+        const response = await fetch('/save_correction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: sessionId,
+                user_message: userMessage,
+                bot_response: botResponse,
+                corrected_response: correctedText
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            console.log("✅ Corrección guardada:", correctedText);
+            showToast("✅ Corrección registrada");
+        } else {
+            console.error("Error al guardar corrección:", data.error);
+            showToast("⚠️ No se pudo guardar la corrección");
+        }
+    } catch (error) {
+        console.error("Error guardando corrección:", error);
+        showToast("❌ Error de conexión al guardar corrección");
+    }
+}
+
 
 // =====================================================
 // MODAL DE COMENTARIOS

@@ -864,6 +864,42 @@ def debug_status():
     return jsonify(status)
 
 # =====================================================
+# ✨ NUEVA RUTA: Guardar corrección manual del usuario
+# =====================================================
+@app.route('/save_correction', methods=['POST'])
+def save_correction():
+    """Guarda una corrección manual del usuario hacia el bot"""
+    try:
+        from conversation_logger import save_user_correction
+
+        data = request.json
+        session_id = data.get('session_id')
+        user_message = data.get('user_message')
+        bot_response = data.get('bot_response')
+        corrected_response = data.get('corrected_response')
+
+        if not all([session_id, user_message, bot_response, corrected_response]):
+            return jsonify({
+                "success": False,
+                "error": "Faltan campos requeridos"
+            }), 400
+
+        save_user_correction(session_id, user_message, bot_response, corrected_response)
+
+        return jsonify({
+            "success": True,
+            "message": "Corrección guardada correctamente"
+        })
+
+    except Exception as e:
+        logger.error(f"❌ Error guardando corrección: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# =====================================================
 # EJECUTAR APP
 # =====================================================
 
@@ -904,3 +940,57 @@ if __name__ == '__main__':
             logger.warning(f"⚠️ No se pudo inicializar logging mejorado: {e}")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
+    
+    
+# =====================================================
+# 🧠 API - Correcciones de Usuario
+# =====================================================
+
+@app.route('/api/dashboard/user-corrections')
+def get_user_corrections():
+    import psycopg2
+    import json
+
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            host="localhost",
+            database="chatbotdb",
+            user="botuser",
+            password="root"
+        )
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, session_id, user_message, bot_response, corrected_response, created_at
+            FROM feedback_training_data
+            ORDER BY created_at DESC
+            LIMIT 50;
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        data = []
+        for r in rows:
+            data.append({
+                "id": r[0],
+                "session_id": r[1],
+                "user_message": r[2],
+                "bot_response": r[3],
+                "corrected_response": r[4],
+                "timestamp": r[5].strftime("%Y-%m-%d %H:%M:%S")
+            })
+
+        return {
+            "success": True,
+            "data": data
+        }
+
+    except Exception as e:
+        if conn:
+            conn.close()
+        return {
+            "success": False,
+            "error": str(e)
+        }
+

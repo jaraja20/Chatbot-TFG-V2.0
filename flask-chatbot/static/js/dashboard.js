@@ -44,6 +44,9 @@ async function loadDashboardData() {
         
         // Cargar conversaciones
         await loadConversations();
+
+        // 🧠 Cargar correcciones de usuario
+        await loadUserCorrections();
         
         // Resetear botón
         refreshBtn.textContent = '🔄 Actualizar';
@@ -58,6 +61,7 @@ async function loadDashboardData() {
         }, 2000);
     }
 }
+
 
 // =====================================================
 // CARGAR ESTADÍSTICAS
@@ -221,6 +225,67 @@ async function loadConversations() {
         `;
     }
 }
+
+// =====================================================
+// CARGAR CORRECCIONES DE USUARIO
+// =====================================================
+
+async function loadUserCorrections() {
+    try {
+        const response = await fetch('/api/dashboard/user-corrections');
+        const data = await response.json();
+
+        const correctionsList = document.getElementById('correctionsList');
+
+        if (!data.success || data.data.length === 0) {
+            correctionsList.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">🧘</div>
+                    <div class="empty-state-text">Sin correcciones registradas</div>
+                    <div class="empty-state-hint">Los usuarios aún no corrigieron respuestas del bot</div>
+                </div>
+            `;
+            return;
+        }
+
+        correctionsList.innerHTML = data.data.map(item => `
+            <div class="feedback-item" style="border-left-color:#6366f1">
+                <div class="feedback-header">
+                    <span class="feedback-date">📅 ${item.timestamp}</span>
+                    <span class="feedback-badge none">Session: ${item.session_id}</span>
+                </div>
+
+                <div class="feedback-content">
+                    <div class="feedback-message">
+                        <div class="message-label">👤 Usuario (Mensaje original)</div>
+                        <div class="message-text">${escapeHtml(item.user_message)}</div>
+                    </div>
+
+                    <div class="feedback-message">
+                        <div class="message-label">🤖 Respuesta del bot</div>
+                        <div class="message-text">${escapeHtml(item.bot_response)}</div>
+                    </div>
+
+                    <div class="feedback-message" style="background:#ecfdf5;border-left:4px solid #10b981">
+                        <div class="message-label">✅ Corrección sugerida</div>
+                        <div class="message-text">${escapeHtml(item.corrected_response)}</div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        console.log(`✅ Correcciones cargadas (${data.data.length})`);
+    } catch (error) {
+        console.error('Error cargando correcciones:', error);
+        document.getElementById('correctionsList').innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">❌</div>
+                <div class="empty-state-text">Error cargando correcciones</div>
+            </div>
+        `;
+    }
+}
+
 
 // =====================================================
 // CAMBIAR TABS

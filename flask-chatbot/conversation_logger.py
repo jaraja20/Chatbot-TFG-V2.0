@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from contextlib import contextmanager
-
+from sqlalchemy import create_engine
 from sqlalchemy import create_engine, Column, String, Integer, DateTime, Float, Boolean, Text, JSON, SmallInteger, func, Date
 from sqlalchemy.orm import declarative_base, sessionmaker, Session as DBSession
 from sqlalchemy.exc import SQLAlchemyError
@@ -971,6 +971,9 @@ def log_rasa_interaction_improved(logger_instance, tracker, bot_response,
     except Exception as e:
         logger.error(f"❌ Error en log mejorado: {e}")
         return -1
+
+DATABASE_URL = "postgresql://botuser:root@localhost:5432/chatbotdb"
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 def save_user_correction(session_id, user_message, bot_response, corrected_response):
     """Guarda una corrección de respuesta del usuario"""

@@ -293,6 +293,12 @@ rules:
         - cedula: "primera_vez"
     - action: turno_form
 
+- rule: Usuario informa primera vez fuera del formulario
+  steps:
+    - intent: informar_cedula_primera_vez
+    - action: utter_informar_cedula_primera_vez
+
+
 - rule: Guardar corrección del usuario
   steps:
     - intent: corregir_respuesta

@@ -66,6 +66,7 @@
         <div class="tabs">
             <button class="tab-btn active" data-tab="negative">👎 Feedback Negativo</button>
             <button class="tab-btn" data-tab="conversations">💬 Conversaciones Recientes</button>
+            <button class="tab-btn" data-tab="corrections">🧠 Correcciones</button>
         </div>
 
         <!-- Contenido de Tabs -->
@@ -81,6 +82,18 @@
                     <div class="loading">Cargando feedback...</div>
                 </div>
             </div>
+            
+            <!-- Tab: Correcciones -->
+            <div class="tab-panel" id="corrections-panel">
+                <div class="panel-header">
+                    <h3>🧠 Correcciones de Usuario</h3>
+                    <p class="help-text">Mensajes donde los usuarios corrigieron manualmente al bot</p>
+                </div>
+                <div id="correctionsList" class="corrections-list">
+                    <div class="loading">Cargando correcciones...</div>
+                </div>
+            </div>
+
 
             <!-- Tab: Conversaciones -->
             <div class="tab-panel" id="conversations-panel">

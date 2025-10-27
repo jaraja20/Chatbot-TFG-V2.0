@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # CONFIGURACIÓN
 # =====================================================
 
-LM_STUDIO_URL = "http://192.168.3.118:1234/v1/chat/completions"
+LM_STUDIO_URL = "http://192.168.0.218:1234/v1/chat/completions"
 
 INTENTS_DISPONIBLES = [
     "greet",
