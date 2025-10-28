@@ -72,7 +72,7 @@ def validar_nombre_real(nombre: str) -> Tuple[bool, str]:
             return False, "Por favor, ingresá tu nombre real completo"
     
     # Verificar que no sea una frase o expresión
-    if len(partes) > 4:
+    if len(partes) > 6:
         return False, "Por favor, solo nombre y apellido(s)"
     
     return True, ""
@@ -601,36 +601,51 @@ class ValidateFormularioTurno(FormValidationAction):
         if not slot_value:
             return {"fecha": None}
         
-        # ✅ NUEVA: Detectar referencias al contexto previo
+        # ✅ MEJORADO: Detectar referencias contextuales con MEMORIA
         referencias_contexto = [
             "ese martes", "ese dia", "ese día", "esa fecha", 
-            "el martes", "ese mismo", "lo mismo", "esa misma"
+            "el martes", "el viernes", "el lunes", "el miércoles", "el jueves",
+            "ese mismo", "lo mismo", "esa misma", "para el", "entonces"
         ]
         
-        if any(ref in texto_usuario for ref in referencias_contexto):
-            # Buscar última fecha mencionada en el historial
-            eventos = tracker.events
-            ultima_fecha_mencionada = None
+        # ✅ PRIMERO: Intentar usar el slot de última recomendación
+        ultima_recomendada_str = tracker.get_slot("ultima_fecha_recomendada")
+        
+        if any(ref in texto_usuario for ref in referencias_contexto) and ultima_recomendada_str:
+            try:
+                # Convertir string ISO a date
+                ultima_recomendada = datetime.datetime.fromisoformat(ultima_recomendada_str).date()
+                
+                # Verificar si el día de la semana coincide
+                dia_semana_recomendada = ultima_recomendada.weekday()
+                nombre_dia_recomendada = _DIAS_ES[dia_semana_recomendada].lower()
+                
+                # Diccionario de días
+                dias_mencionados = {
+                    "lunes": 0, "martes": 1, "miércoles": 2, "miercoles": 2,
+                    "jueves": 3, "viernes": 4, "sábado": 5, "sabado": 5, "domingo": 6
+                }
+                
+                # Detectar qué día menciona el usuario
+                dia_usuario = None
+                for dia, num in dias_mencionados.items():
+                    if dia in texto_usuario:
+                        dia_usuario = num
+                        break
+                
+                # Si menciona un día Y coincide con la recomendación, usar esa fecha
+                # Si solo dice "entonces" o "esa fecha", también usar la recomendación
+                if dia_usuario is None or dia_usuario == dia_semana_recomendada:
+                    bot_response = f"Perfecto, registré la fecha para el **{format_fecha_es(ultima_recomendada, True)}** ✅"
+                    dispatcher.utter_message(text=bot_response)
+                    log_interaction_improved(tracker, bot_response, {
+                        "fecha_confirmada_contexto": True,
+                        "fecha_usada": ultima_recomendada.isoformat()
+                    })
+                    return {"fecha": ultima_recomendada.isoformat()}
             
-            for evento in reversed(eventos):
-                if evento.get("event") == "bot" and "texto" in evento:
-                    texto_bot = evento["texto"].lower()
-                    # Buscar fechas en formato "martes 4 de noviembre"
-                    match = re.search(r'(\w+\s+\d{1,2}\s+de\s+\w+)', texto_bot)
-                    if match:
-                        try:
-                            fecha_parseada = normalizar_fecha(match.group(1))
-                            if fecha_parseada:
-                                ultima_fecha_mencionada = fecha_parseada
-                                break
-                        except:
-                            pass
-            
-            if ultima_fecha_mencionada:
-                bot_response = f"Perfecto, confirmo la fecha: {format_fecha_es(ultima_fecha_mencionada, True)}"
-                dispatcher.utter_message(text=bot_response)
-                log_interaction_improved(tracker, bot_response, {"fecha_confirmada_contexto": True})
-                return {"fecha": ultima_fecha_mencionada.isoformat()}
+            except Exception as e:
+                logger.warning(f"⚠️ Error procesando última recomendación: {e}")
         
         # 🔍 Detección de frases ambiguas
         if es_frase_ambigua(texto_usuario):
@@ -661,13 +676,21 @@ class ValidateFormularioTurno(FormValidationAction):
                 for i, dia in enumerate(dias_ordenados[:5], 1):
                     emoji = "🟢" if dia['ocupacion'] < 50 else "🟡" if dia['ocupacion'] < 80 else "🔴"
                     mensaje += f"{emoji} {dia['dia_nombre']}: {dia['ocupacion']:.0f}% ocupado\n"
+                
+                fecha_recomendada = dias_ordenados[0]['fecha']
                 mensaje += f"\n💡 Te recomiendo: **{dias_ordenados[0]['dia_nombre']}**"
-                mensaje += "\n\n✍️ Decime para qué fecha querés (ej: 'ese martes', 'viernes', '15 de octubre')"
+                mensaje += "\n\n✍️ Decime para qué fecha querés (ej: 'el miércoles entonces', 'ese viernes', '15 de octubre')"
+                
                 dispatcher.utter_message(text=mensaje)
                 log_interaction_improved(tracker, mensaje, {"recomendacion_fecha": True, "tipo": "fuzzy_ambiguous"})
-                return {"fecha": None}
+                
+                # ✅ GUARDAR fecha recomendada en slot para uso posterior
+                return {
+                    "fecha": None,
+                    "ultima_fecha_recomendada": fecha_recomendada.isoformat()
+                }
         
-        # 🔍 Intentar parsear fecha
+        # 🔍 Intentar parsear fecha (DEBE ESTAR AQUÍ, NO DENTRO DEL IF)
         fecha_normalizada = normalizar_fecha(texto_usuario)
         hoy = datetime.date.today()
         

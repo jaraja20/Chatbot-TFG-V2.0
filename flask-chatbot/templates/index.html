@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bot Gestor de Turnos - Ciudad del Este</title>
+    <title>Departamento de Identificaciones  - Ciudad del Este</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -34,15 +34,15 @@
                         
                         <!-- Botones de feedback DENTRO de la burbuja -->
                         <div class="feedback-buttons">
-                            <button class="feedback-btn like-btn" type="button" data-message-id="0" data-type="positive">
-                                <img src="{{ url_for('static', filename='images/like.webp') }}" alt="Me gusta" class="feedback-icon">
-                                Útil
-                            </button>
-                            <button class="feedback-btn dislike-btn" type="button" data-message-id="0" data-type="negative">
-                                <img src="{{ url_for('static', filename='images/dislike.png') }}" alt="No me gusta" class="feedback-icon">
-                                Mejorar
-                            </button>
-                        </div>
+                        <button class="feedback-btn like-btn" type="button" data-message-id="0" data-type="positive">
+                            <img src="{{ url_for('static', filename='images/like.webp') }}" alt="Me gusta" class="feedback-icon">
+                            Útil
+                        </button>
+                        <button class="feedback-btn dislike-btn" type="button" data-message-id="0" data-type="negative">
+                            <img src="{{ url_for('static', filename='images/dislike.png') }}" alt="No me gusta" class="feedback-icon">
+                            Mejorar
+                        </button>
+                    </div>
                     </div>
                     <div class="message-time">Ahora</div>
                 </div>

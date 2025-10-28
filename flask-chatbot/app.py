@@ -47,21 +47,10 @@ except ImportError as e:
     LOGGER_AVAILABLE = False
     logger.warning(f"⚠️ Logger mejorado no disponible: {e}")
 
-# =====================================================
-# ✨ NUEVO: IMPORTAR ORQUESTADOR INTELIGENTE
-# =====================================================
-try:
-    from orquestador_inteligente import procesar_mensaje_inteligente
-    ORQUESTADOR_DISPONIBLE = True
-    logger.info("✅ Orquestador inteligente cargado")
-except ImportError as e:
-    ORQUESTADOR_DISPONIBLE = False
-    logger.warning(f"⚠️ Orquestador no disponible: {e}")
-    logger.warning("   El sistema funcionará con Rasa tradicional")
 
-# =====================================================
-# FUNCIONES DE BASE DE DATOS
-# =====================================================
+ORQUESTADOR_DISPONIBLE = False
+logger.info("ℹ️ Orquestador DESHABILITADO - Usando Rasa puro para mejor flujo")
+
 
 def get_db_connection():
     """Conexión a PostgreSQL"""
@@ -506,42 +495,91 @@ def get_dashboard_stats():
             'error': str(e)
         }), 500
 
-@app.route('/api/dashboard/negative-feedback', methods=['GET'])
-def get_dashboard_negative_feedback():
-    """Obtener feedback negativo"""
+@app.route('/api/dashboard/negative-feedback')
+def get_negative_feedback():
+    """Obtener feedback negativo - CORREGIDO para campo 'reviewed'"""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify([]), 200
+    
     try:
-        feedback_list = get_negative_feedback()
+        cursor = conn.cursor()
         
-        return jsonify({
-            'success': True,
-            'feedback': feedback_list
-        })
+        # Query correcto con campo 'reviewed' en lugar de 'resolved'
+        query = """
+        SELECT id, user_message, bot_response, feedback_comment, timestamp, reviewed
+        FROM conversation_messages
+        WHERE feedback_thumbs = -1
+        ORDER BY reviewed ASC, timestamp DESC
+        LIMIT 50
+        """
+        
+        cursor.execute(query)
+        results = cursor.fetchall()
+        
+        feedback_list = []
+        for row in results:
+            feedback_list.append({
+                'id': row[0],
+                'user_message': row[1],
+                'bot_response': row[2],
+                'feedback_comment': row[3],
+                'timestamp': row[4].strftime('%Y-%m-%d %H:%M:%S') if row[4] else None,
+                'resolved': row[5] if len(row) > 5 and row[5] is not None else False
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(feedback_list)
         
     except Exception as e:
         logger.error(f"Error obteniendo feedback negativo: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        if conn:
+            conn.close()
+        return jsonify([]), 200
 
-@app.route('/api/dashboard/conversations', methods=['GET'])
-def get_dashboard_conversations():
-    """Obtener conversaciones recientes"""
+@app.route('/api/dashboard/conversations')
+def get_conversations():
+    """Obtener conversaciones recientes - CORREGIDO"""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify([]), 200
+    
     try:
-        limit = request.args.get('limit', 20, type=int)
-        conversations = get_recent_conversations(limit)
+        cursor = conn.cursor()
         
-        return jsonify({
-            'success': True,
-            'conversations': conversations
-        })
+        query = """
+        SELECT user_message, bot_response, timestamp, feedback_thumbs
+        FROM conversation_messages
+        ORDER BY timestamp DESC
+        LIMIT 20
+        """
+        
+        cursor.execute(query)
+        results = cursor.fetchall()
+        
+        conversations = []
+        for row in results:
+            feedback_type = 'positive' if row[3] == 1 else 'negative' if row[3] == -1 else 'none'
+            
+            conversations.append({
+                'user_message': row[0],
+                'bot_response': row[1],
+                'timestamp': row[2].strftime('%Y-%m-%d %H:%M:%S') if row[2] else None,
+                'feedback_type': feedback_type
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(conversations)
         
     except Exception as e:
         logger.error(f"Error obteniendo conversaciones: {e}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        if conn:
+            conn.close()
+        return jsonify([]), 200
 
 # =====================================================
 # APIs DASHBOARD - GRÁFICOS
@@ -898,6 +936,137 @@ def save_correction():
             "error": str(e)
         }), 500
 
+# =====================================================
+# NUEVOS ENDPOINTS PARA DASHBOARD MEJORADO
+# =====================================================
+
+@app.route('/api/dashboard/performance', methods=['GET'])
+def get_performance_metrics():
+    """Obtener métricas de rendimiento del bot - CORREGIDO"""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        # 1. Confianza promedio
+        cursor.execute("""
+            SELECT AVG(confidence), COUNT(*) as total
+            FROM conversation_messages
+            WHERE confidence IS NOT NULL
+        """)
+        conf_result = cursor.fetchone()
+        avg_confidence = conf_result[0] if conf_result and conf_result[0] else 0.0
+        total_interactions = conf_result[1] if conf_result else 0
+        
+        # 2. Tasa de fallback - CORREGIDO: usa intent_detected
+        cursor.execute("""
+            SELECT COUNT(*) as fallback_count
+            FROM conversation_messages
+            WHERE intent_detected IN ('nlu_fallback', 'out_of_scope')
+        """)
+        fallback_result = cursor.fetchone()
+        fallback_count = fallback_result[0] if fallback_result else 0
+        fallback_rate = fallback_count / total_interactions if total_interactions > 0 else 0
+        
+        # 3. Tasa de éxito (confianza > 0.7)
+        cursor.execute("""
+            SELECT COUNT(*) as success_count
+            FROM conversation_messages
+            WHERE confidence > 0.7
+        """)
+        success_result = cursor.fetchone()
+        success_count = success_result[0] if success_result else 0
+        success_rate = success_count / total_interactions if total_interactions > 0 else 0
+        
+        # 4. Top 10 intents más usados - CORREGIDO: usa intent_detected
+        cursor.execute("""
+            SELECT 
+                intent_detected as intent_name, 
+                COUNT(*) as count,
+                AVG(confidence) as avg_confidence
+            FROM conversation_messages
+            WHERE intent_detected IS NOT NULL AND intent_detected != ''
+            GROUP BY intent_detected
+            ORDER BY count DESC
+            LIMIT 10
+        """)
+        top_intents = []
+        for row in cursor.fetchall():
+            top_intents.append({
+                'intent_name': row[0],
+                'count': row[1],
+                'avg_confidence': float(row[2]) if row[2] else 0.0
+            })
+        
+        # 5. Distribución de confianza
+        cursor.execute("""
+            SELECT 
+                COUNT(CASE WHEN confidence >= 0.9 THEN 1 END) as high,
+                COUNT(CASE WHEN confidence >= 0.75 AND confidence < 0.9 THEN 1 END) as medium_high,
+                COUNT(CASE WHEN confidence >= 0.6 AND confidence < 0.75 THEN 1 END) as medium,
+                COUNT(CASE WHEN confidence < 0.6 THEN 1 END) as low
+            FROM conversation_messages
+            WHERE confidence IS NOT NULL
+        """)
+        dist_result = cursor.fetchone()
+        confidence_distribution = {
+            'high': dist_result[0] if dist_result else 0,
+            'medium_high': dist_result[1] if dist_result else 0,
+            'medium': dist_result[2] if dist_result else 0,
+            'low': dist_result[3] if dist_result else 0
+        }
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'avg_confidence': float(avg_confidence),
+            'total_interactions': total_interactions,
+            'fallback_rate': float(fallback_rate),
+            'success_rate': float(success_rate),
+            'top_intents': top_intents,
+            'confidence_distribution': confidence_distribution
+        })
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo métricas: {e}")
+        if conn:
+            conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dashboard/feedback/<int:feedback_id>/resolve', methods=['POST'])
+def mark_feedback_resolved(feedback_id):
+    """Marcar feedback como resuelto - CORREGIDO para campo 'reviewed'"""
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Error de conexión a BD'}), 500
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Actualizar campo 'reviewed' (no 'resolved')
+        cursor.execute("""
+            UPDATE conversation_messages
+            SET reviewed = TRUE
+            WHERE id = %s
+        """, (feedback_id,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Feedback marcado como resuelto'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error marcando como resuelto: {e}")
+        if conn:
+            conn.close()
+        return jsonify({'error': str(e)}), 500
 
 # =====================================================
 # EJECUTAR APP
@@ -993,4 +1162,3 @@ def get_user_corrections():
             "success": False,
             "error": str(e)
         }
-

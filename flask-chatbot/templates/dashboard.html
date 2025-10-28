@@ -6,6 +6,165 @@
     <title>Dashboard - Análisis de Conversaciones</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        /* Estilos adicionales para mejoras */
+        .resolved-badge {
+            background: #10b981;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .btn-resolve {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        
+        .btn-resolve:hover {
+            background: #059669;
+            transform: translateY(-2px);
+        }
+        
+        .btn-resolve:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .metric-card.success {
+            border-left-color: #10b981;
+        }
+        
+        .metric-card.warning {
+            border-left-color: #f59e0b;
+        }
+        
+        .metric-card.info {
+            border-left-color: #6366f1;
+        }
+        
+        .metric-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #1f2937;
+            margin: 8px 0;
+        }
+        
+        .metric-label {
+            font-size: 14px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .metric-sublabel {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 4px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transition: width 0.5s ease;
+        }
+        
+        .progress-fill.success {
+            background: linear-gradient(90deg, #10b981, #059669);
+        }
+        
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .chart-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 16px;
+        }
+        
+        .intent-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .intent-row:last-child {
+            border-bottom: none;
+        }
+        
+        .intent-name {
+            font-weight: 500;
+            color: #374151;
+            flex: 1;
+        }
+        
+        .intent-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .stat-item .label {
+            color: #6b7280;
+        }
+        
+        .stat-item .value {
+            font-weight: 600;
+            color: #1f2937;
+        }
+    </style>
 </head>
 <body>
     <!-- Navegación -->
@@ -23,7 +182,7 @@
         <!-- Header -->
         <div class="dashboard-header">
             <h2>Dashboard de Aprendizaje</h2>
-            <p class="subtitle">Análisis de conversaciones y feedback</p>
+            <p class="subtitle">Análisis de conversaciones y métricas de rendimiento</p>
             <button id="refreshBtn" class="btn-refresh">🔄 Actualizar</button>
         </div>
 
@@ -64,445 +223,98 @@
 
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab-btn active" data-tab="negative">👎 Feedback Negativo</button>
-            <button class="tab-btn" data-tab="conversations">💬 Conversaciones Recientes</button>
-            <button class="tab-btn" data-tab="corrections">🧠 Correcciones</button>
+            <button class="tab-btn active" data-tab="performance">📈 Rendimiento</button>
+            <button class="tab-btn" data-tab="negative">👎 Feedback Negativo</button>
+            <button class="tab-btn" data-tab="conversations">💬 Conversaciones</button>
         </div>
 
         <!-- Contenido de Tabs -->
         <div class="tab-content">
-            <!-- Tab: Feedback Negativo -->
-            <div class="tab-panel active" id="negative-panel">
+            <!-- Tab: NUEVA - Rendimiento -->
+            <div class="tab-panel active" id="performance-panel">
+                <div class="panel-header">
+                    <h3>📈 Métricas de Rendimiento</h3>
+                    <p class="help-text">Análisis de precisión y confianza del bot</p>
+                </div>
+                
+                <!-- Métricas Principales -->
+                <div class="metrics-grid">
+                    <div class="metric-card success">
+                        <div class="metric-label">Precisión Promedio</div>
+                        <div class="metric-value" id="avgConfidence">0%</div>
+                        <div class="metric-sublabel">Confianza en clasificación de intents</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill success" id="confidenceProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card info">
+                        <div class="metric-label">Total de Interacciones</div>
+                        <div class="metric-value" id="totalInteractions">0</div>
+                        <div class="metric-sublabel">Mensajes procesados</div>
+                    </div>
+                    
+                    <div class="metric-card warning">
+                        <div class="metric-label">Tasa de Fallback</div>
+                        <div class="metric-value" id="fallbackRate">0%</div>
+                        <div class="metric-sublabel">Mensajes no comprendidos</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill warning" id="fallbackProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-label">Tasa de Éxito</div>
+                        <div class="metric-value" id="successRate">0%</div>
+                        <div class="metric-sublabel">Interpretaciones correctas</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="successProgress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Intents Más Usados -->
+                <div class="chart-container">
+                    <div class="chart-title">🎯 Intents Más Frecuentes</div>
+                    <div id="topIntentsChart">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                </div>
+                
+                <!-- Distribución de Confianza -->
+                <div class="chart-container">
+                    <div class="chart-title">📊 Distribución de Confianza</div>
+                    <div id="confidenceDistribution">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab: Feedback Negativo (MEJORADO con botón Resuelto) -->
+            <div class="tab-panel" id="negative-panel">
                 <div class="panel-header">
                     <h3>Feedback Negativo con Comentarios</h3>
                     <p class="help-text">Analiza los comentarios para mejorar el bot</p>
                 </div>
                 <div id="negativeFeedbackList" class="feedback-list">
-                    <!-- Se llenará dinámicamente -->
+                    <!-- Se llenará dinámicamente con botones "Resuelto" -->
                     <div class="loading">Cargando feedback...</div>
                 </div>
             </div>
-            
-            <!-- Tab: Correcciones -->
-            <div class="tab-panel" id="corrections-panel">
-                <div class="panel-header">
-                    <h3>🧠 Correcciones de Usuario</h3>
-                    <p class="help-text">Mensajes donde los usuarios corrigieron manualmente al bot</p>
-                </div>
-                <div id="correctionsList" class="corrections-list">
-                    <div class="loading">Cargando correcciones...</div>
-                </div>
-            </div>
-
 
             <!-- Tab: Conversaciones -->
             <div class="tab-panel" id="conversations-panel">
                 <div class="panel-header">
-                    <h3>Conversaciones Recientes</h3>
-                    <p class="help-text">Últimas 20 interacciones</p>
+                    <h3>💬 Conversaciones Recientes</h3>
+                    <p class="help-text">Últimas 20 conversaciones</p>
                 </div>
                 <div id="conversationsList" class="conversations-list">
-                    <!-- Se llenará dinámicamente -->
                     <div class="loading">Cargando conversaciones...</div>
                 </div>
             </div>
         </div>
-
-        <!-- =====================================================
-             ✅ NUEVA SECCIÓN: ANÁLISIS AVANZADO
-             ===================================================== -->
-        <div class="advanced-analytics">
-            <h2 class="section-title">📊 Análisis Avanzado</h2>
-            
-            <!-- Gráfico principal: Feedback en el tiempo -->
-            <div class="chart-card large">
-                <h3>📈 Tendencia de Feedback (Últimos 7 días)</h3>
-                <canvas id="feedbackTimeChart"></canvas>
-            </div>
-            
-            <!-- Grid de 2 gráficos -->
-            <div class="charts-grid-2">
-                <!-- Intents más comunes -->
-                <div class="chart-card">
-                    <h3>🎯 Top 10 Intents Detectados</h3>
-                    <canvas id="intentsChart"></canvas>
-                </div>
-                
-                <!-- Mensajes por hora -->
-                <div class="chart-card">
-                    <h3>🕐 Actividad por Hora</h3>
-                    <canvas id="hourlyChart"></canvas>
-                </div>
-            </div>
-            
-            <!-- Estadísticas de confianza -->
-            <div class="stats-cards">
-                <div class="stat-card-mini">
-                    <div class="stat-icon">🎯</div>
-                    <div class="stat-details">
-                        <h4>Confianza Promedio</h4>
-                        <p id="avgConfidence" class="stat-value">0%</p>
-                    </div>
-                </div>
-                
-                <div class="stat-card-mini">
-                    <div class="stat-icon">📉</div>
-                    <div class="stat-details">
-                        <h4>Baja Confianza</h4>
-                        <p id="lowConfidenceCount" class="stat-value">0</p>
-                    </div>
-                </div>
-                
-                <div class="stat-card-mini">
-                    <div class="stat-icon">📝</div>
-                    <div class="stat-details">
-                        <h4>Necesitan Revisión</h4>
-                        <p id="needsReviewCount" class="stat-value">0</p>
-                    </div>
-                </div>
-                
-                <div class="stat-card-mini">
-                    <div class="stat-icon">💬</div>
-                    <div class="stat-details">
-                        <h4>Total Mensajes (30d)</h4>
-                        <p id="totalMessages" class="stat-value">0</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Tab de mensajes que necesitan revisión -->
-            <div class="review-section">
-                <h3>⚠️ Mensajes que Necesitan Revisión</h3>
-                <div id="needsReviewList" class="review-list">
-                    <div class="loading">Cargando...</div>
-                </div>
-            </div>
-        </div>
-        <!-- FIN DE ANÁLISIS AVANZADO -->
-
     </div>
 
-    <!-- Script dashboard.js original -->
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-
-    <!-- =====================================================
-         ✅ SCRIPTS NUEVOS: Chart.js y funciones de gráficos
-         ===================================================== -->
-    
-    <!-- Chart.js desde CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-    <script>
-    // =====================================================
-    // HELPER FUNCTION: Escape HTML
-    // =====================================================
-    function escapeHtml(text) {
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return text.replace(/[&<>"']/g, m => map[m]);
-    }
-
-    // =====================================================
-    // VARIABLES GLOBALES PARA LOS CHARTS
-    // =====================================================
-    let feedbackTimeChart = null;
-    let intentsChart = null;
-    let hourlyChart = null;
-
-    // =====================================================
-    // CARGAR GRÁFICO DE FEEDBACK EN EL TIEMPO
-    // =====================================================
-    async function loadFeedbackTimeChart() {
-        try {
-            const response = await fetch('/api/dashboard/feedback-over-time');
-            const data = await response.json();
-            
-            if (data.success && data.data.length > 0) {
-                const ctx = document.getElementById('feedbackTimeChart').getContext('2d');
-                
-                if (feedbackTimeChart) {
-                    feedbackTimeChart.destroy();
-                }
-                
-                feedbackTimeChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: data.data.map(d => {
-                            const date = new Date(d.fecha);
-                            return date.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
-                        }),
-                        datasets: [
-                            {
-                                label: 'Positivos 👍',
-                                data: data.data.map(d => d.positivos),
-                                borderColor: '#10b981',
-                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                tension: 0.4,
-                                fill: true
-                            },
-                            {
-                                label: 'Negativos 👎',
-                                data: data.data.map(d => d.negativos),
-                                borderColor: '#ef4444',
-                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                tension: 0.4,
-                                fill: true
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'top'
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    stepSize: 1
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                console.log('✅ Gráfico de feedback cargado');
-            }
-        } catch (error) {
-            console.error('Error cargando feedback chart:', error);
-        }
-    }
-
-    // =====================================================
-    // CARGAR GRÁFICO DE INTENTS
-    // =====================================================
-    async function loadIntentsChart() {
-        try {
-            const response = await fetch('/api/dashboard/intents-distribution');
-            const data = await response.json();
-            
-            if (data.success && data.data.length > 0) {
-                const ctx = document.getElementById('intentsChart').getContext('2d');
-                
-                if (intentsChart) {
-                    intentsChart.destroy();
-                }
-                
-                // Colores para las barras
-                const colors = [
-                    '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b',
-                    '#10b981', '#06b6d4', '#ef4444', '#f97316',
-                    '#84cc16', '#14b8a6'
-                ];
-                
-                intentsChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: data.data.map(d => d.intent),
-                        datasets: [{
-                            label: 'Cantidad',
-                            data: data.data.map(d => d.count),
-                            backgroundColor: colors,
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    stepSize: 1
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                console.log('✅ Gráfico de intents cargado');
-            }
-        } catch (error) {
-            console.error('Error cargando intents chart:', error);
-        }
-    }
-
-    // =====================================================
-    // CARGAR GRÁFICO DE ACTIVIDAD POR HORA
-    // =====================================================
-    async function loadHourlyChart() {
-        try {
-            const response = await fetch('/api/dashboard/messages-per-hour');
-            const data = await response.json();
-            
-            if (data.success && data.data.length > 0) {
-                const ctx = document.getElementById('hourlyChart').getContext('2d');
-                
-                if (hourlyChart) {
-                    hourlyChart.destroy();
-                }
-                
-                hourlyChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: data.data.map(d => `${d.hora}:00`),
-                        datasets: [{
-                            label: 'Mensajes',
-                            data: data.data.map(d => d.cantidad),
-                            backgroundColor: '#6366f1',
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    stepSize: 1
-                                }
-                            }
-                        }
-                    }
-                });
-                
-                console.log('✅ Gráfico de actividad por hora cargado');
-            }
-        } catch (error) {
-            console.error('Error cargando hourly chart:', error);
-        }
-    }
-
-    // =====================================================
-    // CARGAR ESTADÍSTICAS DE CONFIANZA
-    // =====================================================
-    async function loadConfidenceStats() {
-        try {
-            const response = await fetch('/api/dashboard/confidence-stats');
-            const data = await response.json();
-            
-            if (data.success) {
-                const stats = data.stats;
-                
-                document.getElementById('avgConfidence').textContent = 
-                    (stats.avg_confidence * 100).toFixed(1) + '%';
-                document.getElementById('lowConfidenceCount').textContent = 
-                    stats.low_confidence_count;
-                document.getElementById('totalMessages').textContent = 
-                    stats.total_messages;
-                
-                console.log('✅ Estadísticas de confianza cargadas');
-            }
-        } catch (error) {
-            console.error('Error cargando confidence stats:', error);
-        }
-    }
-
-    // =====================================================
-    // CARGAR MENSAJES QUE NECESITAN REVISIÓN
-    // =====================================================
-    async function loadNeedsReview() {
-        try {
-            const response = await fetch('/api/dashboard/needs-review');
-            const data = await response.json();
-            
-            const container = document.getElementById('needsReviewList');
-            
-            // Actualizar contador
-            document.getElementById('needsReviewCount').textContent = data.data.length;
-            
-            if (data.success && data.data.length > 0) {
-                container.innerHTML = data.data.map(item => `
-                    <div class="review-item">
-                        <div class="review-header">
-                            <span class="review-date">📅 ${item.timestamp}</span>
-                            <span class="confidence-badge ${item.confidence < 0.5 ? 'low' : 'medium'}">
-                                Confianza: ${(item.confidence * 100).toFixed(0)}%
-                            </span>
-                        </div>
-                        <div class="review-content">
-                            <div class="review-message user">
-                                <strong>Usuario:</strong> ${escapeHtml(item.user_message)}
-                            </div>
-                            <div class="review-message bot">
-                                <strong>Bot:</strong> ${escapeHtml(item.bot_response)}
-                            </div>
-                            <div class="review-meta">
-                                <span class="intent-badge">${item.intent || 'Sin clasificar'}</span>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-                
-                console.log(`✅ ${data.data.length} mensajes para revisar cargados`);
-            } else {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">✅</div>
-                        <div class="empty-state-text">No hay mensajes para revisar</div>
-                    </div>
-                `;
-            }
-        } catch (error) {
-            console.error('Error cargando needs review:', error);
-        }
-    }
-
-    // =====================================================
-    // CARGAR TODOS LOS GRÁFICOS Y STATS
-    // =====================================================
-    function loadAdvancedAnalytics() {
-        console.log('📊 Cargando análisis avanzado...');
-        
-        loadFeedbackTimeChart();
-        loadIntentsChart();
-        loadHourlyChart();
-        loadConfidenceStats();
-        loadNeedsReview();
-    }
-
-    // =====================================================
-    // INICIALIZACIÓN - Ejecutar cuando el DOM esté listo
-    // =====================================================
-    
-    // Esperar a que dashboard.js cargue primero
-    window.addEventListener('load', function() {
-        console.log('📊 Iniciando dashboard avanzado...');
-        
-        // Pequeño delay para asegurar que dashboard.js se ejecutó
-        setTimeout(() => {
-            loadAdvancedAnalytics();
-            
-            // Auto-refresh cada 30 segundos
-            setInterval(() => {
-                console.log('🔄 Auto-refresh de gráficos');
-                loadAdvancedAnalytics();
-            }, 30000);
-        }, 500);
-    });
-
-    console.log('📊 Dashboard avanzado inicializado');
-    </script>
-
 </body>
 </html>

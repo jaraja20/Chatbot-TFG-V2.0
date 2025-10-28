@@ -143,6 +143,12 @@ slots:
     mappings:
       - type: custom
 
+
+  ultima_fecha_recomendada:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: custom
 forms:
   turno_form:
     required_slots:
