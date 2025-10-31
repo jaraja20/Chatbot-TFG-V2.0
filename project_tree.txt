@@ -1,0 +1,104 @@
+C:\tfg funcional\Chatbot-TFG-V2.0\
+
+app_public.py
+app2.py
+calendar_utils.py
+cloudflare-config.yml
+cloudflared.exe
+config.yml
+credentials.json
+credentials.yml
+domain.yml
+endpoints.yml
+learning_dashboard.py
+requirements.txt
+run_cloudflare.py
+story_graph.dot
+test_session_id.py
+token.pkl
+verificar_estructura_sistema.py
+.gitignore
+
+actions\
+  __init__.py
+  actions.py
+  actions.py.backup
+  __pycache__\
+
+data\
+  nlu.yml
+  stories.yml
+  rules.yml
+
+flask-chatbot\
+  app.py
+  conversation_logger.py
+  llm_classifier.py
+  llm_fallback_handler.py
+  motor_difuso.py
+  orquestador_inteligente.py
+  llm_prompts\
+    system_prompt_turnos.txt
+  static\
+    css\
+      style.css
+      dashboard.css
+    js\
+      chat.js
+      dashboard.js
+    images\
+      like.webp
+      gobierno.webp
+      dislike.png
+      bot.png
+  templates\
+    index.html
+    dashboard.html
+    flask-chatbot\
+      app3.py
+      README.md
+      requirements.txt
+      static\
+        css\
+          style.css
+        js\
+          chat.js
+      templates\
+        index.html
+
+models\
+  (carpeta para modelos)
+
+notificaciones\
+  confirmation_server.py
+  email_sender.py
+  qr_generator.py
+
+tests\
+  test_1_modelo_nlu.py
+  test_2_conversaciones_completas.py
+  test_3_motor_difuso_tiempos.py
+  test_bd_disponibilidad.py
+  test_insert.py
+  test_lm.py
+  test_stories.yml
+  populate_turnos.py
+  sync_calendar.py
+  resultados_testing\
+    reporte_conversaciones_definitivo.md
+    reporte_modelo_nlu_definitivo.md
+    reporte_motor_CORREGIDO.md
+    resultados_conversaciones_definitivo.csv
+    resultados_modelo_nlu_definitivo.csv
+    resultados_motor_CORREGIDO.csv
+    tiempos_sistema_CORREGIDO.csv
+    graficos_modelo_nlu_definitivo.png
+    graficos_conversaciones_definitivo.png
+    graficos_motor_CORREGIDO.png
+
+other files detected in repo root:
+  cloudflare-config.yml
+  token.pkl
+  story_graph.dot
+
+(Archivo generado automáticamente el: 2025-10-31)

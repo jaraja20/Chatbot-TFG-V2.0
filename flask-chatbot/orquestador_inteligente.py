@@ -1,9 +1,7 @@
 """
-ORQUESTADOR INTELIGENTE
+ORQUESTADOR INTELIGENTE MEJORADO V2.0
 Integra: LLM + Rasa + Motor Difuso + Base de Datos
-
-Este módulo coordina todos los componentes para dar respuestas contextuales
-y precisas usando la información real del sistema.
+Versión optimizada para interpretar cualquier mensaje
 """
 
 import requests
@@ -11,21 +9,8 @@ import logging
 from typing import Dict, Optional, Tuple, List
 from datetime import datetime, date, timedelta
 import psycopg2
-
-# Imports de tus módulos existentes
-try:
-    from llm_classifier import LLMIntentClassifier
-    from llm_fallback_handler import manejar_fallback_inteligente
-    from motor_difuso import (
-        calcular_espera,
-        analizar_disponibilidad_dia,
-        obtener_mejor_recomendacion,
-        generar_respuesta_recomendacion
-    )
-    MODULOS_DISPONIBLES = True
-except ImportError as e:
-    logging.warning(f"⚠️ Algunos módulos no disponibles: {e}")
-    MODULOS_DISPONIBLES = False
+import re
+import traceback
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -35,7 +20,13 @@ logger = logging.getLogger(__name__)
 # =====================================================
 
 RASA_URL = "http://localhost:5005/webhooks/rest/webhook"
-LM_STUDIO_URL = "http://192.168.3.118:1234/v1/chat/completions"
+
+# Múltiples URLs del LLM (probar en orden)
+LM_STUDIO_URLS = [
+    "http://localhost:1234/v1/chat/completions",  # Local primero
+    "http://192.168.3.118:1234/v1/chat/completions",  # Red local 1
+    "http://192.168.0.218:1234/v1/chat/completions",  # Red local 2
+]
 
 DB_CONFIG = {
     'host': 'localhost',
@@ -44,11 +35,24 @@ DB_CONFIG = {
     'password': 'root'
 }
 
+# Importar módulos con manejo de errores
+try:
+    from motor_difuso import (
+        calcular_espera,
+        analizar_disponibilidad_dia,
+        obtener_mejor_recomendacion,
+        generar_respuesta_recomendacion
+    )
+    MOTOR_DIFUSO_OK = True
+    logger.info("✅ Motor difuso importado")
+except ImportError as e:
+    MOTOR_DIFUSO_OK = False
+    logger.warning(f"⚠️ Motor difuso no disponible: {e}")
+
 # =====================================================
 # CONTEXTO DE SESIONES
 # =====================================================
 
-# Almacena contexto de cada sesión
 SESSION_CONTEXTS = {}
 
 class SessionContext:
@@ -64,13 +68,15 @@ class SessionContext:
         self.intent_actual = None
         self.ultimo_mensaje = None
         self.conversacion_historial = []
-        self.datos_difusos = {}  # Para guardar cálculos del motor difuso
+        self.datos_difusos = {}
+        self.ultimo_intent_confianza = 0.0
         
     def actualizar(self, **kwargs):
         """Actualiza el contexto con nuevos datos"""
         for key, value in kwargs.items():
-            if hasattr(self, key):
+            if hasattr(self, key) and value is not None:
                 setattr(self, key, value)
+                logger.info(f"📝 Contexto actualizado: {key} = {value}")
     
     def tiene_datos_completos(self) -> bool:
         """Verifica si tiene todos los datos para agendar"""
@@ -87,495 +93,370 @@ class SessionContext:
             'intent_actual': self.intent_actual
         }
 
+def get_or_create_context(session_id: str) -> SessionContext:
+    """Obtiene o crea contexto de sesión"""
+    if session_id not in SESSION_CONTEXTS:
+        SESSION_CONTEXTS[session_id] = SessionContext(session_id)
+        logger.info(f"🆕 Nuevo contexto creado para: {session_id}")
+    return SESSION_CONTEXTS[session_id]
+
 # =====================================================
-# CLASE PRINCIPAL: ORQUESTADOR
+# CLASIFICADOR DE INTENTS MEJORADO
 # =====================================================
 
-class OrquestadorInteligente:
+class ClasificadorIntentsMejorado:
     """
-    Orquesta todos los componentes del sistema para dar
-    respuestas inteligentes y contextuales
+    Clasifica intents usando múltiples estrategias:
+    1. Patrones de palabras clave (rápido y confiable)
+    2. LLM cuando está disponible (más inteligente)
+    3. Rasa como backup
     """
+    
+    PATRONES_INTENT = {
+        # Agendamiento (ALTA PRIORIDAD)
+        'agendar_turno': [
+            r'\b(quiero|necesito|deseo|me gustaria)\s+(un\s+)?(turno|cita|hora)\b',
+            r'\b(sacar|agendar|reservar|pedir|solicitar)\s+(un\s+)?(turno|cita)\b',
+            r'\b(turno|cita)\s+(por favor|porfavor|pls)\b',
+            r'\bquiero\s+turno\b',
+            r'\bsacar\s+turno\b',
+        ],
+        
+        # Consultas de horarios
+        'consultar_disponibilidad': [
+            r'\b(que|cuales|qu[eé])\s+(horarios|horas|turnos)\s+(hay|tienen|est[aá]n|disponible)',
+            r'\b(horarios|horas)\s+(disponible|libre)',
+            r'\bcuando\s+(puedo|hay|tienen|est[aá])\b',
+            r'\bque\s+d[ií]as\b',
+        ],
+        
+        'frase_ambigua': [
+            r'\b(primera\s+hora|temprano|ma[ñn]ana\s+temprano)\b',
+            r'\b(lo\s+antes|cuanto\s+antes|lo\s+m[aá]s\s+pronto)\b',
+            r'\b(mejor\s+horario|recomiend|conveniente)\b',
+        ],
+        
+        # Datos personales
+        'informar_nombre': [
+            r'\b(mi\s+nombre\s+es|me\s+llamo|soy)\s+[A-Z]',
+            r'^[A-Z][a-z]+\s+[A-Z][a-z]+$',  # Nombre completo
+        ],
+        
+        'informar_cedula': [
+            r'\b\d{6,8}\b',  # Número de cédula
+            r'\bci\s*:?\s*\d+',
+            r'\bcedula\s*:?\s*\d+',
+        ],
+        
+        'informar_fecha': [
+            r'\b(ma[ñn]ana|pasado\s+ma[ñn]ana|hoy)\b',
+            r'\b(lunes|martes|mi[eé]rcoles|jueves|viernes)\b',
+            r'\b\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?\b',  # Formato fecha
+            r'\bpara\s+el\s+\d+',
+        ],
+        
+        'elegir_horario': [
+            r'\b\d{1,2}:\d{2}\b',  # Formato HH:MM
+            r'\ba\s+las\s+\d+',
+            r'\b\d{1,2}\s*(am|pm|hs|horas)\b',
+        ],
+        
+        # Información
+        'consultar_requisitos': [
+            r'\b(que|cuales)\s+(requisitos|documentos|necesito|debo)\b',
+            r'\brequisitos\b',
+            r'\bdocumentos?\b',
+        ],
+        
+        'consultar_ubicacion': [
+            r'\b(donde|ubicaci[oó]n|direcci[oó]n|como\s+llego)\b',
+            r'\bqueda\b.*\b(oficina|lugar)\b',
+        ],
+        
+        'consultar_costo': [
+            r'\b(cuanto|cu[aá]nto)\s+(cuesta|sale|vale)\b',
+            r'\b(precio|costo|arancel)\b',
+        ],
+        
+        # Consulta de tiempo de espera
+        'consulta_tiempo_espera': [
+            r'\b(cuanto|cu[aá]nto)\s+(tiempo|demor[ao]|espera|tarda)\b',
+            r'\btiempo\s+de\s+espera\b',
+            r'\bcu[aá]nto\s+hay\s+que\s+esperar\b',
+        ],
+        
+        # Saludos y despedidas
+        'greet': [
+            r'\b(hola|buenas|buen\s+d[ií]a|buenos\s+d[ií]as)\b',
+            r'^(hola|hey|hi)$',
+        ],
+        
+        'goodbye': [
+            r'\b(chau|adi[oó]s|hasta\s+luego|nos\s+vemos)\b',
+            r'^(bye|chao)$',
+        ],
+        
+        # Afirmaciones y negaciones
+        'affirm': [
+            r'\b(s[ií]|si|ok|okay|dale|perfecto|correcto|exacto|confirmo)\b',
+            r'^(si|s[ií])$',
+        ],
+        
+        'deny': [
+            r'\b(no|nop|nope|neg|cancelar)\b',
+            r'^no$',
+        ],
+        
+        'agradecimiento': [
+            r'\b(gracias|muchas\s+gracias|agradezco|grax)\b',
+        ],
+    }
     
     def __init__(self):
-        self.llm_classifier = LLMIntentClassifier() if MODULOS_DISPONIBLES else None
-        logger.info("✅ Orquestador inicializado")
+        self.llm_url = self._encontrar_llm_disponible()
+        logger.info(f"🔧 Clasificador inicializado (LLM: {self.llm_url or 'No disponible'})")
     
-    def procesar_mensaje(self, user_message: str, session_id: str) -> Dict:
+    def _encontrar_llm_disponible(self) -> Optional[str]:
+        """Encuentra una URL del LLM que funcione"""
+        for url in LM_STUDIO_URLS:
+            try:
+                response = requests.get(url.replace('/v1/chat/completions', '/v1/models'), timeout=2)
+                if response.status_code == 200:
+                    logger.info(f"✅ LLM encontrado en: {url}")
+                    return url
+            except:
+                continue
+        logger.warning("⚠️ No se encontró LLM Studio disponible")
+        return None
+    
+    def clasificar(self, mensaje: str, contexto: SessionContext) -> Tuple[str, float]:
         """
-        Función principal que procesa un mensaje del usuario
+        Clasifica el intent del mensaje usando múltiples métodos
         
-        Args:
-            user_message: Mensaje del usuario
-            session_id: ID de sesión
-            
         Returns:
-            Dict con la respuesta y metadata
+            (intent, confidence)
         """
+        mensaje_lower = mensaje.lower().strip()
         
-        # 1. Obtener o crear contexto de sesión
-        context = self._get_or_create_context(session_id)
-        context.ultimo_mensaje = user_message
+        # 1. MÉTODO RÁPIDO: Patrones de palabras clave
+        intent_patron, confianza_patron = self._clasificar_por_patrones(mensaje_lower)
         
-        # 2. Clasificar intent con LLM
-        intent, confidence = self._clasificar_intent(user_message, context)
-        context.intent_actual = intent
+        if confianza_patron > 0.8:
+            logger.info(f"🎯 Intent detectado por patrón: {intent_patron} ({confianza_patron:.2f})")
+            return intent_patron, confianza_patron
         
-        logger.info(f"📊 Intent: {intent} (confianza: {confidence:.2f})")
+        # 2. MÉTODO INTELIGENTE: Usar LLM si está disponible
+        if self.llm_url:
+            try:
+                intent_llm, confianza_llm = self._clasificar_con_llm(mensaje, contexto)
+                if confianza_llm > 0.7:
+                    logger.info(f"🤖 Intent detectado por LLM: {intent_llm} ({confianza_llm:.2f})")
+                    return intent_llm, confianza_llm
+            except Exception as e:
+                logger.warning(f"⚠️ Error en LLM: {e}")
         
-        # 3. Extraer entidades del mensaje
-        entities = self._extraer_entidades(user_message, intent)
-        context.actualizar(**entities)
+        # 3. FALLBACK: Usar el patrón si encontró algo
+        if intent_patron and confianza_patron > 0.5:
+            logger.info(f"📋 Usando intent de patrón: {intent_patron}")
+            return intent_patron, confianza_patron
         
-        # 4. Decidir estrategia de respuesta
-        if confidence < 0.6:
-            # Baja confianza → Usar fallback con LLM contextual
-            response = self._generar_respuesta_llm_contextual(
-                user_message, context
-            )
-        elif intent == "agendar_turno":
-            response = self._manejar_agendamiento(context)
-        elif intent in ["frase_ambigua", "consultar_disponibilidad"]:
-            response = self._manejar_consulta_horarios(user_message, context)
-        elif intent == "consulta_tiempo_espera":
-            response = self._calcular_tiempo_espera_real(context)
-        elif intent in ["consultar_requisitos", "consultar_costo", "consultar_ubicacion"]:
-            # Información estática → Enviar a Rasa
-            response = self._consultar_rasa(user_message, session_id)
-        else:
-            # Otros intents → Rasa con enriquecimiento
-            response = self._consultar_rasa_enriquecido(
-                user_message, session_id, intent, context
-            )
-        
-        # 5. Guardar en historial
-        context.conversacion_historial.append({
-            'timestamp': datetime.now(),
-            'user': user_message,
-            'bot': response.get('text', ''),
-            'intent': intent,
-            'confidence': confidence
-        })
-        
-        return {
-            'text': response.get('text', 'Lo siento, hubo un error'),
-            'intent': intent,
-            'confidence': confidence,
-            'context': context.to_dict()
-        }
+        # 4. ÚLTIMO RECURSO: Intent genérico
+        logger.warning(f"❓ No se pudo clasificar: '{mensaje}'")
+        return 'nlu_fallback', 0.3
     
-    def _get_or_create_context(self, session_id: str) -> SessionContext:
-        """Obtiene o crea contexto de sesión"""
-        if session_id not in SESSION_CONTEXTS:
-            SESSION_CONTEXTS[session_id] = SessionContext(session_id)
-        return SESSION_CONTEXTS[session_id]
+    def _clasificar_por_patrones(self, mensaje: str) -> Tuple[str, float]:
+        """Clasifica usando patrones de regex"""
+        mejor_intent = None
+        mejor_score = 0.0
+        
+        for intent, patrones in self.PATRONES_INTENT.items():
+            for patron in patrones:
+                if re.search(patron, mensaje, re.IGNORECASE):
+                    # Calcular score basado en longitud del match
+                    match = re.search(patron, mensaje, re.IGNORECASE)
+                    score = len(match.group()) / len(mensaje)
+                    score = min(0.95, score + 0.3)  # Boost y cap
+                    
+                    if score > mejor_score:
+                        mejor_score = score
+                        mejor_intent = intent
+        
+        return mejor_intent or 'nlu_fallback', mejor_score
     
-    def _clasificar_intent(self, message: str, context: SessionContext) -> Tuple[str, float]:
-        # Si estamos en flujo de agendar, prioriza captura de datos
-        if context.intent_actual in ["agendar_turno", "proporcionar_datos_turno"]:
-            if not context.nombre and self._parece_nombre(message):
-                return "informar_nombre", 0.98
-            if not context.cedula and self._parece_cedula(message):
-                return "informar_cedula", 0.98
-            if not context.fecha and self._parece_fecha(message):
-                return "informar_fecha", 0.95
-            if not context.hora and self._parece_hora(message):
-                return "elegir_horario", 0.95
+    def _clasificar_con_llm(self, mensaje: str, contexto: SessionContext) -> Tuple[str, float]:
+        """Clasifica usando LLM (si está disponible)"""
+        if not self.llm_url:
+            return 'nlu_fallback', 0.0
+        
+        intents_str = '\n'.join([
+            'agendar_turno', 'consultar_disponibilidad', 'frase_ambigua',
+            'informar_nombre', 'informar_cedula', 'informar_fecha', 'elegir_horario',
+            'consultar_requisitos', 'consultar_ubicacion', 'consultar_costo',
+            'consulta_tiempo_espera', 'greet', 'goodbye', 'affirm', 'deny'
+        ])
+        
+        prompt = f"""Eres un clasificador de intents para un chatbot de turnos de cédulas.
 
-        if not self.llm_classifier:
-            return ("nlu_fallback", 0.3)
+Mensaje del usuario: "{mensaje}"
 
-        intent, confidence = self.llm_classifier.classify_intent(message)
+Contexto actual:
+- Nombre: {contexto.nombre or 'No proporcionado'}
+- Cédula: {contexto.cedula or 'No proporcionada'}
+- Fecha: {contexto.fecha or 'No seleccionada'}
+- Intent previo: {contexto.intent_actual or 'Ninguno'}
 
-        # Normaliza nombres del LLM al catálogo local
-        normaliza = {
-            "consulta_tiempo_espera": "consulta_tiempo_espera",
-            "consultar_disponibilidad": "consultar_disponibilidad",
-            "consultar_horarios": "consultar_horarios",
-            "consultar_requisitos": "consultar_requisitos",
-            "consultar_ubicacion": "consultar_ubicacion",
-            "consultar_costo": "consultar_costo",
-            "cancelar_turno": "cancelar_turno",
-            "agendar_turno": "agendar_turno",
-            "greet": "greet",
-            "goodbye": "goodbye",
-            "affirm": "affirm",
-            "deny": "deny",
-            "agradecimiento": "agradecimiento",
-            "nlu_fallback": "nlu_fallback",
-            "out_of_scope": "nlu_fallback"
-        }
-        intent = normaliza.get(intent, "nlu_fallback")
-        return intent, float(confidence or 0.6)
+Intents disponibles:
+{intents_str}
 
-    
-    def _extraer_entidades(self, message: str, intent: str) -> Dict:
-        """Extrae entidades específicas del mensaje"""
-        entities = {}
-        
-        # Nombre
-        if intent == "informar_nombre" or "mi nombre es" in message.lower():
-            # Extraer todo después de "mi nombre es" o "me llamo"
-            for frase in ["mi nombre es", "me llamo", "soy"]:
-                if frase in message.lower():
-                    nombre = message.lower().split(frase)[-1].strip()
-                    entities['nombre'] = nombre.title()
-                    break
-        
-        # Cédula (números)
-        if intent in ["informar_cedula", "informar_cedula_primera_vez"]:
-            import re
-            numeros = re.findall(r'\d+', message)
-            if numeros:
-                entities['cedula'] = numeros[0]
-        
-        # Fecha
-        if intent == "informar_fecha":
-            fecha_parseada = self._parsear_fecha(message)
-            if fecha_parseada:
-                entities['fecha'] = fecha_parseada
-        
-        # Hora
-        if intent == "elegir_horario":
-            hora_parseada = self._parsear_hora(message)
-            if hora_parseada:
-                entities['hora'] = hora_parseada
-        
-        # Email
-        import re
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-        emails = re.findall(email_pattern, message)
-        if emails:
-            entities['email'] = emails[0]
-        
-        return entities
-    
-    def _manejar_agendamiento(self, context: SessionContext) -> Dict:
-        """Maneja el flujo de agendamiento paso a paso"""
-        
-        # Verificar qué falta
-        if not context.nombre:
-            return {
-                'text': "Perfecto, vamos a agendar tu turno. ¿Cuál es tu nombre completo?"
-            }
-        
-        if not context.cedula:
-            return {
-                'text': f"Gracias {context.nombre}. ¿Cuál es tu número de cédula?"
-            }
-        
-        if not context.fecha:
-            # Aquí usar motor difuso para recomendar
-            hoy = date.today()
-            manana = hoy + timedelta(days=1)
-            
-            mejor_franja, datos = obtener_mejor_recomendacion(manana)
-            
-            return {
-                'text': f"¿Para qué día necesitás el turno?\n\n"
-                        f"💡 Recomendación: Para mañana ({manana.strftime('%d/%m')}) "
-                        f"te sugiero {mejor_franja} ({datos['rango']}), "
-                        f"menor ocupación estimada ({datos['ocupacion']:.0f}%)."
-            }
-        
-        if not context.hora:
-            # Calcular horarios disponibles con motor difuso
-            fecha_obj = datetime.strptime(context.fecha, '%Y-%m-%d').date()
-            analisis = analizar_disponibilidad_dia(fecha_obj)
-            
-            # Encontrar mejor franja
-            mejor_franja = min(analisis.items(), key=lambda x: x[1]['ocupacion'])
-            nombre_franja, datos = mejor_franja
-            
-            horarios_str = ", ".join(datos['horarios_sugeridos'])
-            
-            return {
-                'text': f"¿Qué horario preferís para el {context.fecha}?\n\n"
-                        f"🌟 Mejores horarios (menos ocupación):\n"
-                        f"{horarios_str}\n\n"
-                        f"O decime tu horario preferido."
-            }
-        
-        # Tiene todos los datos → Confirmar
-        return {
-            'text': f"✅ Resumen de tu turno:\n\n"
-                    f"👤 Nombre: {context.nombre}\n"
-                    f"🆔 Cédula: {context.cedula}\n"
-                    f"📅 Fecha: {context.fecha}\n"
-                    f"🕐 Hora: {context.hora}\n\n"
-                    f"¿Está todo correcto? (Decí 'confirmo' o tu email para recibir invitación)"
-        }
-    
-    def _manejar_consulta_horarios(self, message: str, context: SessionContext) -> Dict:
-        """Maneja consultas de horarios usando motor difuso"""
-        
-        # Determinar fecha objetivo
-        if context.fecha:
-            fecha_obj = datetime.strptime(context.fecha, '%Y-%m-%d').date()
-        else:
-            # Usar mañana por defecto
-            fecha_obj = date.today() + timedelta(days=1)
-        
-        # Generar respuesta con motor difuso
-        respuesta_difusa = generar_respuesta_recomendacion(fecha_obj, message)
-        
-        return {
-            'text': respuesta_difusa + "\n\n¿Te gustaría agendar para alguno de estos horarios?"
-        }
-    
-    def _calcular_tiempo_espera_real(self, context: SessionContext) -> Dict:
-        """Calcula tiempo de espera usando motor difuso"""
-        
-        if not context.fecha or not context.hora:
-            # Sin datos específicos, dar estimación general
-            ahora = datetime.now()
-            hora_actual = ahora.hour + ahora.minute / 60
-            
-            # Simular ocupación actual (en producción vendría de BD)
-            ocupacion = 50  # Valor por defecto
-            urgencia = 5  # Media
-            
-            espera_min = calcular_espera(ocupacion, urgencia, hora_actual)
-            
-            return {
-                'text': f"⏱️ Tiempo de espera estimado actual: {espera_min:.0f} minutos.\n\n"
-                        f"📊 Ocupación actual: {ocupacion:.0f}%\n\n"
-                        f"¿Querés agendar un turno para evitar la espera?"
-            }
-        else:
-            # Con fecha y hora específica
-            fecha_obj = datetime.strptime(context.fecha, '%Y-%m-%d').date()
-            hora_decimal = float(context.hora.split(':')[0])
-            
-            analisis = analizar_disponibilidad_dia(fecha_obj)
-            
-            # Encontrar la franja correspondiente
-            for nombre_franja, datos in analisis.items():
-                if hora_decimal >= 7 and hora_decimal < 9:
-                    franja_elegida = 'temprano'
-                elif hora_decimal >= 9 and hora_decimal < 12:
-                    franja_elegida = 'manana'
-                elif hora_decimal >= 12 and hora_decimal < 14:
-                    franja_elegida = 'mediodia'
-                else:
-                    franja_elegida = 'tarde'
-                
-                if nombre_franja == franja_elegida:
-                    return {
-                        'text': f"⏱️ Para {context.fecha} a las {context.hora}:\n\n"
-                                f"📊 Ocupación estimada: {datos['ocupacion']:.0f}%\n"
-                                f"⏰ Espera estimada: {datos['espera_estimada']:.0f} minutos\n\n"
-                                f"¿Querés confirmar este turno?"
-                    }
-            
-            return {'text': "No pude calcular la espera para ese horario."}
-    
-    def _generar_respuesta_llm_contextual(self, message: str, context: SessionContext) -> Dict:
-        """Genera respuesta usando LLM con TODO el contexto del sistema"""
-        
-        # Construir prompt con contexto completo
-        system_prompt = f"""Eres un asistente para agendar turnos de cédulas en Ciudad del Este.
+Responde SOLO con el nombre del intent más apropiado. Sin explicaciones."""
 
-CONTEXTO DE LA CONVERSACIÓN ACTUAL:
-- Nombre: {context.nombre or 'No proporcionado'}
-- Cédula: {context.cedula or 'No proporcionado'}
-- Fecha deseada: {context.fecha or 'No proporcionado'}
-- Hora deseada: {context.hora or 'No proporcionado'}
-- Intent actual: {context.intent_actual or 'Desconocido'}
-
-INFORMACIÓN DEL SISTEMA:
-- Ubicación: Av. Pioneros del Este, Ciudad del Este
-- Horario: Lunes a viernes, 07:00 a 15:00
-- Costo: 25.000 Guaraníes (SOLO EFECTIVO)
-- Turnos cada 15 minutos, máximo 3 personas por horario
-
-INSTRUCCIONES:
-1. Responde de forma útil y natural
-2. Si falta información para agendar, pedila específicamente
-3. Usa los datos del contexto para personalizar la respuesta
-4. Sé breve (máximo 3-4 líneas)
-5. Siempre termina con una pregunta o acción sugerida
-
-Usuario pregunta: {message}
-
-Responde de forma útil:"""
-        
-        try:
-            payload = {
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message}
-                ],
-                "temperature": 0.7,
-                "max_tokens": 150,
-                "stream": False
-            }
-            
-            response = requests.post(LM_STUDIO_URL, json=payload, timeout=10)
-            
-            if response.status_code == 200:
-                result = response.json()
-                respuesta_llm = result['choices'][0]['message']['content'].strip()
-                
-                logger.info(f"✅ LLM respondió: {respuesta_llm[:60]}...")
-                return {'text': respuesta_llm}
-            else:
-                # Fallback a handler existente
-                return {'text': manejar_fallback_inteligente(message)}
-                
-        except Exception as e:
-            logger.error(f"Error en LLM contextual: {e}")
-            return {'text': manejar_fallback_inteligente(message)}
-    
-    def _consultar_rasa(self, message: str, session_id: str) -> Dict:
-        """Consulta directa a Rasa (para info estática)"""
         try:
             response = requests.post(
-                RASA_URL,
-                json={'sender': session_id, 'message': message},
-                timeout=10
+                self.llm_url,
+                json={
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                    "max_tokens": 50
+                },
+                timeout=5
             )
             
             if response.status_code == 200:
-                bot_responses = response.json()
-                if bot_responses:
-                    texts = [r.get('text', '') for r in bot_responses if 'text' in r]
-                    return {'text': ' '.join(texts)}
-            
-            return {'text': "Lo siento, hubo un problema al consultar esa información."}
-            
+                content = response.json()['choices'][0]['message']['content'].strip()
+                intent = content.lower().replace('.', '').strip()
+                
+                # Validar que el intent sea válido
+                if intent in self.PATRONES_INTENT:
+                    return intent, 0.85
+        
         except Exception as e:
-            logger.error(f"Error consultando Rasa: {e}")
-            return {'text': "Error de conexión con el sistema."}
+            logger.warning(f"Error en LLM: {e}")
+        
+        return 'nlu_fallback', 0.0
+
+# =====================================================
+# EXTRACTOR DE ENTIDADES
+# =====================================================
+
+def extraer_entidades(mensaje: str, intent: str) -> Dict:
+    """Extrae entidades del mensaje según el intent"""
+    entidades = {}
+    mensaje_lower = mensaje.lower()
     
-    def _consultar_rasa_enriquecido(self, message: str, session_id: str, 
-                                     intent: str, context: SessionContext) -> Dict:
-        """Consulta Rasa pero enriquece la respuesta con contexto"""
-        
-        # Primero obtener respuesta de Rasa
-        rasa_response = self._consultar_rasa(message, session_id)
-        
-        # Enriquecer según el intent
-        if intent == "consultar_horarios" and context.fecha:
-            # Agregar análisis difuso
-            fecha_obj = datetime.strptime(context.fecha, '%Y-%m-%d').date()
-            analisis = analizar_disponibilidad_dia(fecha_obj)
-            
-            mejor_franja = min(analisis.items(), key=lambda x: x[1]['ocupacion'])
-            nombre_franja, datos = mejor_franja
-            
-            rasa_response['text'] += f"\n\n💡 Recomendación: {nombre_franja} " \
-                                      f"({datos['rango']}) tiene menor ocupación " \
-                                      f"({datos['ocupacion']:.0f}%)."
-        
-        return rasa_response
-    
-    # =====================================================
-    # FUNCIONES AUXILIARES
-    # =====================================================
-    
-    def _parece_nombre(self, text: str) -> bool:
-        """Heurística simple para detectar si es un nombre"""
-        words = text.split()
-        return len(words) >= 2 and all(w.replace(' ', '').isalpha() for w in words)
-    
-    def _parece_cedula(self, text: str) -> bool:
-        """Detecta si parece número de cédula"""
-        import re
-        numeros = re.findall(r'\d+', text)
-        return len(numeros) > 0 and len(numeros[0]) >= 6
-    
-    def _parece_fecha(self, text: str) -> bool:
-        """Detecta si menciona fecha"""
-        palabras_fecha = ['mañana', 'lunes', 'martes', 'miércoles', 'jueves', 
-                          'viernes', 'sábado', 'día', 'mes', '/']
-        return any(p in text.lower() for p in palabras_fecha)
-    
-    def _parece_hora(self, text: str) -> bool:
-        """Detecta si menciona hora"""
-        import re
-        # Patrones de hora: "10", "10:00", "a las 10", etc.
-        return bool(re.search(r'\d{1,2}(?::\d{2})?', text)) or \
-               any(p in text.lower() for p in ['mañana', 'tarde', 'hora'])
-    
-    def _parsear_fecha(self, text: str) -> Optional[str]:
-        """Parsea fecha del texto a formato YYYY-MM-DD"""
-        text_lower = text.lower()
-        
-        hoy = date.today()
-        
-        if 'mañana' in text_lower or 'manana' in text_lower:
-            return (hoy + timedelta(days=1)).strftime('%Y-%m-%d')
-        
-        dias_semana = {
-            'lunes': 0, 'martes': 1, 'miércoles': 2, 'miercoles': 2,
-            'jueves': 3, 'viernes': 4, 'sábado': 5, 'sabado': 5
-        }
-        
-        for dia_nombre, dia_num in dias_semana.items():
-            if dia_nombre in text_lower:
-                # Encontrar el próximo día de la semana
-                dias_hasta = (dia_num - hoy.weekday()) % 7
-                if dias_hasta == 0:
-                    dias_hasta = 7
-                fecha_resultado = hoy + timedelta(days=dias_hasta)
-                return fecha_resultado.strftime('%Y-%m-%d')
-        
-        # Intentar parsear formato DD/MM o DD-MM
-        import re
-        match = re.search(r'(\d{1,2})[/-](\d{1,2})', text)
+    # Extraer NOMBRE
+    if intent == 'informar_nombre' or 'me llamo' in mensaje_lower or 'mi nombre es' in mensaje_lower:
+        match = re.search(r'(me\s+llamo|mi\s+nombre\s+es|soy)\s+([A-Z][a-zñáéíóú]+(?:\s+[A-Z][a-zñáéíóú]+)*)', mensaje, re.IGNORECASE)
         if match:
-            dia = int(match.group(1))
-            mes = int(match.group(2))
+            entidades['nombre'] = match.group(2).title()
+        else:
+            # Buscar nombre al inicio del mensaje
+            match = re.match(r'^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)', mensaje)
+            if match:
+                entidades['nombre'] = match.group(1)
+    
+    # Extraer CÉDULA
+    cedula_match = re.search(r'\b(\d{6,8})\b', mensaje)
+    if cedula_match:
+        entidades['cedula'] = cedula_match.group(1)
+    
+    # Extraer FECHA
+    if 'mañana' in mensaje_lower or 'manana' in mensaje_lower:
+        fecha = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        entidades['fecha'] = fecha
+    elif 'pasado mañana' in mensaje_lower or 'pasado manana' in mensaje_lower:
+        fecha = (datetime.now() + timedelta(days=2)).strftime('%Y-%m-%d')
+        entidades['fecha'] = fecha
+    elif 'hoy' in mensaje_lower:
+        entidades['fecha'] = datetime.now().strftime('%Y-%m-%d')
+    else:
+        # Buscar formato DD/MM o DD-MM
+        fecha_match = re.search(r'\b(\d{1,2})[/-](\d{1,2})([/-](\d{2,4}))?\b', mensaje)
+        if fecha_match:
+            dia = int(fecha_match.group(1))
+            mes = int(fecha_match.group(2))
+            anio = int(fecha_match.group(4)) if fecha_match.group(4) else datetime.now().year
+            if anio < 100:
+                anio += 2000
             try:
-                fecha_resultado = date(hoy.year, mes, dia)
-                if fecha_resultado < hoy:
-                    # Si ya pasó, usar año siguiente
-                    fecha_resultado = date(hoy.year + 1, mes, dia)
-                return fecha_resultado.strftime('%Y-%m-%d')
+                entidades['fecha'] = f"{anio}-{mes:02d}-{dia:02d}"
             except:
                 pass
-        
-        return None
     
-    def _parsear_hora(self, text: str) -> Optional[str]:
-        """Parsea hora del texto a formato HH:MM"""
-        import re
-        
-        # Buscar formato HH:MM o HH
-        match = re.search(r'(\d{1,2})(?::(\d{2}))?', text)
-        if match:
-            hora = int(match.group(1))
-            minuto = int(match.group(2)) if match.group(2) else 0
-            
-            # Validar rango
-            if 7 <= hora <= 17 and 0 <= minuto < 60:
-                return f"{hora:02d}:{minuto:02d}"
-        
-        # Palabras clave
-        text_lower = text.lower()
-        if 'primera hora' in text_lower or 'temprano' in text_lower:
-            return "07:00"
-        elif 'mediodía' in text_lower or 'mediodia' in text_lower:
-            return "12:00"
-        elif 'tarde' in text_lower:
-            return "15:00"
-        
-        return None
+    # Extraer HORA
+    hora_match = re.search(r'\b(\d{1,2}):(\d{2})\b', mensaje)
+    if hora_match:
+        entidades['hora'] = f"{int(hora_match.group(1)):02d}:{hora_match.group(2)}"
+    else:
+        # Buscar formato "a las X" o "X hs"
+        hora_match = re.search(r'\b(\d{1,2})\s*(am|pm|hs|horas?)\b', mensaje_lower)
+        if hora_match:
+            hora = int(hora_match.group(1))
+            sufijo = hora_match.group(2)
+            if sufijo == 'pm' and hora < 12:
+                hora += 12
+            entidades['hora'] = f"{hora:02d}:00"
+    
+    # Extraer EMAIL
+    email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', mensaje)
+    if email_match:
+        entidades['email'] = email_match.group(0)
+    
+    if entidades:
+        logger.info(f"📦 Entidades extraídas: {entidades}")
+    
+    return entidades
 
 # =====================================================
-# INSTANCIA GLOBAL
+# CONSULTAS A BASE DE DATOS
 # =====================================================
 
-orquestador = OrquestadorInteligente()
+def obtener_disponibilidad_real(fecha: str = None) -> Dict:
+    """Obtiene disponibilidad real de la base de datos"""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        
+        if not fecha:
+            fecha = datetime.now().strftime('%Y-%m-%d')
+        
+        # Contar turnos por hora
+        cursor.execute("""
+            SELECT 
+                DATE_TRUNC('hour', fecha_hora) as hora,
+                COUNT(*) as ocupados
+            FROM turnos
+            WHERE DATE(fecha_hora) = %s
+            AND estado = 'activo'
+            GROUP BY DATE_TRUNC('hour', fecha_hora)
+            ORDER BY hora
+        """, (fecha,))
+        
+        resultados = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        # Convertir a dict
+        ocupacion_por_hora = {}
+        for hora, ocupados in resultados:
+            hora_str = hora.strftime('%H:00')
+            ocupacion_por_hora[hora_str] = ocupados
+        
+        logger.info(f"📊 Disponibilidad obtenida para {fecha}: {len(ocupacion_por_hora)} horas")
+        return ocupacion_por_hora
+        
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo disponibilidad: {e}")
+        return {}
 
 # =====================================================
-# FUNCIÓN PRINCIPAL PARA USAR EN FLASK
+# FUNCIÓN PRINCIPAL: PROCESAR MENSAJE
 # =====================================================
+
+clasificador = ClasificadorIntentsMejorado()
 
 def procesar_mensaje_inteligente(user_message: str, session_id: str) -> Dict:
     """
-    Función principal para usar en app.py
+    Función principal que procesa cualquier mensaje del usuario
     
     Args:
         user_message: Mensaje del usuario
@@ -584,36 +465,208 @@ def procesar_mensaje_inteligente(user_message: str, session_id: str) -> Dict:
     Returns:
         Dict con respuesta y metadata
     """
-    return orquestador.procesar_mensaje(user_message, session_id)
+    
+    try:
+        # 1. Obtener contexto
+        contexto = get_or_create_context(session_id)
+        contexto.ultimo_mensaje = user_message
+        
+        # 2. Clasificar intent
+        intent, confidence = clasificador.clasificar(user_message, contexto)
+        contexto.intent_actual = intent
+        contexto.ultimo_intent_confianza = confidence
+        
+        logger.info(f"🎯 Intent: {intent} | Confianza: {confidence:.2f}")
+        
+        # 3. Extraer entidades
+        entidades = extraer_entidades(user_message, intent)
+        contexto.actualizar(**entidades)
+        
+        # 4. Generar respuesta según intent
+        respuesta = generar_respuesta_inteligente(intent, confidence, contexto, user_message)
+        
+        return {
+            'respuesta': respuesta,
+            'metadata': {
+                'intent': intent,
+                'confidence': confidence,
+                'entidades': entidades,
+                'contexto': contexto.to_dict()
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error en procesar_mensaje_inteligente: {e}")
+        logger.error(traceback.format_exc())
+        
+        return {
+            'respuesta': (
+                "Disculpa, tuve un problema procesando tu mensaje. "
+                "¿Podrías reformularlo? Por ejemplo: 'Quiero un turno para mañana'"
+            ),
+            'metadata': {
+                'intent': 'error',
+                'confidence': 0.0,
+                'error': str(e)
+            }
+        }
+
+def generar_respuesta_inteligente(intent: str, confidence: float, 
+                                  contexto: SessionContext, mensaje: str) -> str:
+    """Genera respuesta apropiada según el intent"""
+    
+    # Intent: AGENDAR TURNO
+    if intent == 'agendar_turno':
+        if not contexto.nombre:
+            return "¡Perfecto! Para agendar tu turno, necesito algunos datos. ¿Cuál es tu nombre completo?"
+        elif not contexto.cedula:
+            return f"Gracias {contexto.nombre}. ¿Cuál es tu número de cédula?"
+        elif not contexto.fecha:
+            return "¿Para qué día necesitas el turno? Puedes decir 'mañana' o una fecha específica."
+        elif not contexto.hora:
+            # Mostrar horarios disponibles
+            disponibilidad = obtener_disponibilidad_real(contexto.fecha)
+            if MOTOR_DIFUSO_OK:
+                try:
+                    mejor_hora = obtener_mejor_recomendacion(disponibilidad)
+                    return f"Para el {contexto.fecha}, te recomiendo {mejor_hora}. ¿Te parece bien esta hora?"
+                except:
+                    pass
+            return "¿A qué hora prefieres? Por ejemplo: 09:00, 14:30, etc."
+        else:
+            # Todos los datos completos - confirmar
+            return (
+                f"📋 Resumen de tu turno:\n"
+                f"Nombre: {contexto.nombre}\n"
+                f"Cédula: {contexto.cedula}\n"
+                f"Fecha: {contexto.fecha}\n"
+                f"Hora: {contexto.hora}\n\n"
+                f"¿Confirmas estos datos? (Responde 'sí' para confirmar)"
+            )
+    
+    # Intent: CONSULTAR DISPONIBILIDAD
+    elif intent == 'consultar_disponibilidad':
+        fecha = contexto.fecha or datetime.now().strftime('%Y-%m-%d')
+        disponibilidad = obtener_disponibilidad_real(fecha)
+        
+        if MOTOR_DIFUSO_OK and disponibilidad:
+            try:
+                analisis = analizar_disponibilidad_dia(disponibilidad)
+                return generar_respuesta_recomendacion(analisis, fecha)
+            except:
+                pass
+        
+        return f"Los horarios disponibles para el {fecha} son de 08:00 a 17:00. ¿A qué hora prefieres?"
+    
+    # Intent: FRASE AMBIGUA (temprano, lo antes posible, etc.)
+    elif intent == 'frase_ambigua':
+        fecha = contexto.fecha or datetime.now().strftime('%Y-%m-%d')
+        disponibilidad = obtener_disponibilidad_real(fecha)
+        
+        if MOTOR_DIFUSO_OK:
+            try:
+                mejor_hora = obtener_mejor_recomendacion(disponibilidad)
+                contexto.hora = mejor_hora
+                return f"Te recomiendo {mejor_hora} que es el horario con menos espera. ¿Te parece bien?"
+            except:
+                pass
+        
+        return "El mejor horario suele ser a las 08:00. ¿Te sirve ese horario?"
+    
+    # Intent: TIEMPO DE ESPERA
+    elif intent == 'consulta_tiempo_espera':
+        if MOTOR_DIFUSO_OK:
+            try:
+                # Obtener datos reales de ocupación
+                disponibilidad = obtener_disponibilidad_real()
+                hora_actual = datetime.now().hour
+                ocupacion = disponibilidad.get(f"{hora_actual:02d}:00", 3) * 20  # Estimar %
+                
+                tiempo = calcular_espera(ocupacion, urgencia=5)
+                return f"El tiempo de espera estimado ahora es de aproximadamente {int(tiempo)} minutos."
+            except:
+                pass
+        
+        return "El tiempo de espera promedio es de 15-30 minutos, dependiendo de la hora."
+    
+    # Intent: INFORMAR DATOS
+    elif intent in ['informar_nombre', 'informar_cedula', 'informar_fecha', 'elegir_horario']:
+        # Ya se actualizó el contexto, preguntar siguiente dato
+        if not contexto.nombre:
+            return "¿Cuál es tu nombre completo?"
+        elif not contexto.cedula:
+            return f"Gracias {contexto.nombre}. ¿Cuál es tu número de cédula?"
+        elif not contexto.fecha:
+            return "¿Para qué día necesitas el turno?"
+        elif not contexto.hora:
+            return "¿A qué hora prefieres?"
+        else:
+            return (
+                f"Perfecto. Turno para:\n"
+                f"{contexto.nombre} - CI: {contexto.cedula}\n"
+                f"{contexto.fecha} a las {contexto.hora}\n"
+                f"¿Confirmas? (sí/no)"
+            )
+    
+    # Intent: SALUDOS
+    elif intent == 'greet':
+        return (
+            "¡Hola! Soy el asistente virtual de turnos para cédulas de identidad. "
+            "¿En qué puedo ayudarte hoy? Puedes decir cosas como:\n"
+            "- 'Quiero sacar un turno'\n"
+            "- '¿Qué horarios tienen disponibles?'\n"
+            "- '¿Cuánto demora el trámite?'"
+        )
+    
+    # Intent: DESPEDIDA
+    elif intent == 'goodbye':
+        return "¡Hasta luego! Si necesitas algo más, aquí estaré. 👋"
+    
+    # Intent: AFIRMAR
+    elif intent == 'affirm':
+        if contexto.tiene_datos_completos():
+            # TODO: Aquí iría la lógica para guardar en BD y enviar QR
+            return (
+                f"✅ ¡Turno confirmado!\n"
+                f"Te llegará un email con el código QR a tu correo.\n"
+                f"Recuerda llegar 10 minutos antes. ¡Hasta pronto!"
+            )
+        return "Perfecto, continuemos. ¿Qué necesitas?"
+    
+    # Intent: NEGAR
+    elif intent == 'deny':
+        return "Entendido. ¿Hay algo más en lo que pueda ayudarte?"
+    
+    # Intent: AGRADECIMIENTO
+    elif intent == 'agradecimiento':
+        return "¡De nada! Estoy aquí para ayudarte. 😊"
+    
+    # Intent: FALLBACK - Consultar Rasa
+    else:
+        try:
+            response = requests.post(
+                RASA_URL,
+                json={"sender": contexto.session_id, "message": mensaje},
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                rasa_responses = response.json()
+                if rasa_responses:
+                    return rasa_responses[0].get('text', 'Lo siento, no entendí.')
+        except:
+            pass
+        
+        return (
+            "No estoy seguro de entender. ¿Podrías reformular? "
+            "Puedo ayudarte con:\n"
+            "- Agendar turnos\n"
+            "- Consultar horarios\n"
+            "- Información sobre requisitos"
+        )
 
 # =====================================================
-# TESTING
+# EXPORTAR FUNCIÓN PRINCIPAL
 # =====================================================
 
-if __name__ == "__main__":
-    print("=" * 70)
-    print("🧪 TEST DEL ORQUESTADOR INTELIGENTE")
-    print("=" * 70)
-    print()
-    
-    # Simular conversación completa
-    session_test = "test_session_001"
-    
-    mensajes_test = [
-        "hola",
-        "quiero sacar un turno",
-        "Juan Pérez",
-        "1234567",
-        "para mañana",
-        "qué horarios me recomendás",
-        "a las 9",
-        "confirmo"
-    ]
-    
-    for i, mensaje in enumerate(mensajes_test, 1):
-        print(f"👤 Usuario: {mensaje}")
-        resultado = procesar_mensaje_inteligente(mensaje, session_test)
-        print(f"🤖 Bot: {resultado['text'][:100]}...")
-        print(f"📊 Intent: {resultado['intent']} (conf: {resultado['confidence']:.2f})")
-        print("-" * 70)
-        print()
+__all__ = ['procesar_mensaje_inteligente']

@@ -1,0 +1,44 @@
+id,texto,intent_esperado,intent_predicho,confidence,correcto,tiempo_ms,servidor_real
+1,Hola buenos días,greet,greet,0.9883040189743042,True,2060.894727706909,True
+2,Buenos días,greet,greet,0.9845557808876038,True,2094.560384750366,True
+3,Buenas tardes,greet,greet,0.9841151237487793,True,2094.606876373291,True
+4,Que tal,greet,greet,0.9744588136672974,True,2076.531171798706,True
+5,Hola,greet,greet,0.9913133978843689,True,2067.6350593566895,True
+6,Quiero agendar un turno,agendar_turno,agendar_turno,0.9894970655441284,True,2098.395347595215,True
+7,Necesito sacar turno,agendar_turno,agendar_turno,0.9414927363395691,True,2064.876079559326,True
+8,Quiero reservar una cita,agendar_turno,agendar_turno,0.994975209236145,True,2086.379051208496,True
+9,Me gustaría agendar,agendar_turno,agendar_turno,0.9692314267158508,True,2072.590112686157,True
+10,Necesito un turno para mañana,agendar_turno,agendar_turno,0.9246076941490173,True,2074.291229248047,True
+11,¿Qué documentos necesito?,consultar_requisitos,consultar_requisitos,0.930834949016571,True,2068.9375400543213,True
+12,¿Qué papeles debo llevar?,consultar_requisitos,consultar_requisitos,0.9900628924369812,True,2066.429376602173,True
+13,¿Cuáles son los requisitos?,consultar_requisitos,consultar_requisitos,0.8944861888885498,True,2043.5948371887207,True
+14,¿Qué necesito para tramitar?,consultar_requisitos,agendar_turno,0.6391061544418335,False,2066.9772624969482,True
+15,Documentos requeridos,consultar_requisitos,consultar_requisitos,0.9660219550132751,True,2101.7749309539795,True
+16,¿Cuánto cuesta?,consultar_costo,consultar_costo,0.9425737857818604,True,2074.040174484253,True
+17,¿Cuál es el precio?,consultar_costo,consultar_costo,0.9692468047142029,True,2125.4262924194336,True
+18,¿Cuánto tengo que pagar?,consultar_costo,nlu_fallback,0.25,False,2094.4528579711914,True
+19,Precio del trámite,consultar_costo,consultar_costo,0.9665543437004089,True,2080.9526443481445,True
+20,¿Cuánto vale la cédula?,consultar_costo,consultar_costo,0.6945759057998657,True,2100.529909133911,True
+21,¿Qué horarios tienen?,consultar_horarios,nlu_fallback,0.25,False,2098.802328109741,True
+22,¿A qué hora atienden?,consultar_horarios,consultar_horarios,0.9836403727531433,True,2092.6859378814697,True
+23,¿Cuándo están abiertos?,consultar_horarios,consultar_horarios,0.9428268074989319,True,2097.1834659576416,True
+24,Horarios de atención,consultar_horarios,consultar_horarios,0.9686967730522156,True,2065.416097640991,True
+25,¿Hasta qué hora?,consultar_horarios,nlu_fallback,0.25,False,2089.334011077881,True
+26,¿Dónde están ubicados?,consultar_ubicacion,consultar_ubicacion,0.980064332485199,True,2081.6285610198975,True
+27,¿Cuál es la dirección?,consultar_ubicacion,consultar_ubicacion,0.9645519256591797,True,2072.632074356079,True
+28,¿Dónde queda la oficina?,consultar_ubicacion,consultar_ubicacion,0.9733548760414124,True,2088.064193725586,True
+29,¿Cómo llego?,consultar_ubicacion,consultar_ubicacion,0.9601713418960571,True,2059.502124786377,True
+30,Ubicación de la oficina,consultar_ubicacion,consultar_ubicacion,0.9123533368110657,True,2087.6829624176025,True
+31,Juan Pérez,informar_nombre,informar_nombre,0.9884329438209534,True,2093.994617462158,True
+32,María García López,informar_nombre,informar_nombre,0.9939086437225342,True,2086.5609645843506,True
+33,Carlos Rodríguez,informar_nombre,informar_nombre,0.992953360080719,True,2111.243724822998,True
+34,12345678,informar_cedula,informar_cedula,0.9167492985725403,True,2098.7229347229004,True
+35,87654321,informar_cedula,informar_cedula,0.9167492985725403,True,2080.226421356201,True
+36,Mi cédula es 11223344,informar_cedula,informar_cedula,0.9745008945465088,True,2119.8506355285645,True
+37,Muchas gracias,agradecimiento,agradecimiento,0.9516600370407104,True,2109.0197563171387,True
+38,Adiós,goodbye,goodbye,0.9800018668174744,True,2055.8040142059326,True
+39,Hasta luego,goodbye,goodbye,0.9736241102218628,True,2087.193489074707,True
+40,Sí,affirm,affirm,0.9929625391960144,True,2081.2346935272217,True
+41,Correcto,affirm,affirm,0.9821565747261047,True,2101.745367050171,True
+42,No,deny,deny,0.9855798482894897,True,2101.497173309326,True
+43,No es correcto,deny,deny,0.9593460559844971,True,2098.7963676452637,True

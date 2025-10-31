@@ -20,6 +20,9 @@ import re
 import logging
 import time
 from contextlib import contextmanager
+from qr_confirmation import qr_system
+import schedule
+import threading
 
 
 # Configurar logging
