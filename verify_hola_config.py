@@ -14,6 +14,8 @@ def check_yaml_syntax(filepath):
         with open(filepath, 'r', encoding='utf-8') as f:
             yaml.safe_load(f)
         return True, "✓ Valid YAML syntax"
+    except FileNotFoundError:
+        return False, f"✗ File not found: {filepath}"
     except Exception as e:
         return False, f"✗ YAML syntax error: {e}"
 
@@ -51,6 +53,8 @@ def check_hola_in_nlu(nlu_path):
         
         return True, "✓ 'hola' is properly configured in greet intent"
     
+    except FileNotFoundError:
+        return False, f"✗ File not found: {nlu_path}"
     except Exception as e:
         return False, f"✗ Error checking nlu.yml: {e}"
 
@@ -77,6 +81,8 @@ def check_greet_in_domain(domain_path):
         
         return True, "✓ greet intent and utter_greet response properly configured"
     
+    except FileNotFoundError:
+        return False, f"✗ File not found: {domain_path}"
     except Exception as e:
         return False, f"✗ Error checking domain.yml: {e}"
 
@@ -109,6 +115,8 @@ def check_greet_rule(rules_path):
         
         return True, "✓ Greeting rule properly configured (greet -> utter_greet)"
     
+    except FileNotFoundError:
+        return False, f"✗ File not found: {rules_path}"
     except Exception as e:
         return False, f"✗ Error checking rules.yml: {e}"
 
