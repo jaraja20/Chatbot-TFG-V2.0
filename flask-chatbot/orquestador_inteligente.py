@@ -12,6 +12,8 @@ import psycopg2
 import re
 import traceback
 import os
+import random
+import string
 from dotenv import load_dotenv
 from copilot_handler import procesar_mensaje_copilot
 
@@ -107,6 +109,20 @@ def get_or_create_context(session_id: str) -> SessionContext:
         SESSION_CONTEXTS[session_id] = SessionContext(session_id)
         logger.info(f"🆕 Nuevo contexto creado para: {session_id}")
     return SESSION_CONTEXTS[session_id]
+
+# =====================================================
+# GENERADOR DE CÓDIGO ÚNICO
+# =====================================================
+
+def generar_codigo_turno() -> str:
+    """
+    Genera un código único alfanumérico de 5 caracteres
+    Formato: Mayúsculas y números (ej: A3X9K, B7Y2M)
+    """
+    caracteres = string.ascii_uppercase + string.digits
+    codigo = ''.join(random.choices(caracteres, k=5))
+    logger.info(f"🎫 Código generado: {codigo}")
+    return codigo
 
 # =====================================================
 # CLASIFICADOR DE INTENTS MEJORADO
@@ -617,29 +633,36 @@ def obtener_disponibilidad_real(fecha: str = None) -> Dict:
         cursor.close()
         conn.close()
         
-        # Crear estructura completa de horarios (8:00 a 17:00)
+        # Crear estructura completa de horarios (7:00 AM a 3:00 PM = 15:00)
+        # 2 turnos cada media hora: 7:00, 7:30, 8:00, 8:30 ... 14:30, 15:00
         horarios_completos = {}
-        for hora in range(8, 18):  # 8:00 a 17:00
-            hora_str = f"{hora:02d}:00"
-            horarios_completos[hora_str] = 0  # Por defecto, disponible
+        for hora in range(7, 16):  # 7:00 a 15:00
+            for minuto in [0, 30]:
+                if hora == 15 and minuto == 30:  # No incluir 15:30
+                    break
+                hora_str = f"{hora:02d}:{minuto:02d}"
+                horarios_completos[hora_str] = 0  # Por defecto, disponible
         
         # Actualizar con ocupación real
         for hora_str, ocupados in resultados:
             if hora_str in horarios_completos:
                 horarios_completos[hora_str] = ocupados
         
-        # Contar cuántas horas tienen disponibilidad
-        horas_disponibles = sum(1 for ocupacion in horarios_completos.values() if ocupacion < 5)
+        # Contar cuántos horarios tienen disponibilidad (máximo 2 personas por turno)
+        horarios_disponibles = sum(1 for ocupacion in horarios_completos.values() if ocupacion < 2)
         
-        logger.info(f"📊 {fecha}: {horas_disponibles}/10 horas disponibles")
+        logger.info(f"📊 {fecha}: {horarios_disponibles}/{len(horarios_completos)} horarios disponibles")
         return horarios_completos
         
     except Exception as e:
         logger.error(f"❌ Error obteniendo disponibilidad: {e}")
         # Si hay error, asumir que hay disponibilidad
         horarios_default = {}
-        for hora in range(8, 18):
-            horarios_default[f"{hora:02d}:00"] = 0
+        for hora in range(7, 16):  # 7:00 a 15:00
+            for minuto in [0, 30]:
+                if hora == 15 and minuto == 30:  # No incluir 15:30
+                    break
+                horarios_default[f"{hora:02d}:{minuto:02d}"] = 0
         return horarios_default
 
 # =====================================================
@@ -920,6 +943,67 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
             )
         
         # Ya tenemos nombre y cédula, podemos mostrar disponibilidad
+        
+        # ==========================================
+        # DETECTAR CONSULTA POR FRANJA HORARIA ESPECÍFICA
+        # ==========================================
+        consulta_manana = any(palabra in mensaje_lower for palabra in ['mañana', 'manana', 'temprano', 'madrugada', 'antes del mediodia', 'antes del mediodía'])
+        consulta_tarde = any(palabra in mensaje_lower for palabra in ['tarde', 'después del mediodía', 'despues del mediodia', 'mediodia', 'mediodía'])
+        
+        # Detectar si tiene fecha específica en el contexto
+        fecha_contexto = contexto.fecha
+        
+        if (consulta_manana or consulta_tarde) and fecha_contexto:
+            # Consulta personalizada por franja horaria
+            try:
+                disponibilidad = obtener_disponibilidad_real(fecha_contexto)
+                
+                if consulta_manana:
+                    # Filtrar horarios de mañana: 7:00 - 11:30
+                    horarios_manana = {h: o for h, o in disponibilidad.items() 
+                                      if h >= "07:00" and h <= "11:30" and o < 2}
+                    
+                    if horarios_manana:
+                        lista_horarios = ', '.join(sorted(horarios_manana.keys()))
+                        respuesta = (
+                            f"🌅 **Disponibilidad en la mañana del {fecha_contexto}:**\n\n"
+                            f"Tenemos {len(horarios_manana)} horarios disponibles de 7:00 AM a 11:30 AM:\n"
+                            f"📋 {lista_horarios}\n\n"
+                            f"¿A qué hora prefieres tu turno?"
+                        )
+                    else:
+                        respuesta = (
+                            f"😔 Lo siento, no hay horarios disponibles en la mañana del {fecha_contexto}.\n\n"
+                            f"¿Te gustaría revisar los horarios de la tarde (12:00 - 15:00) o elegir otro día?"
+                        )
+                    return respuesta
+                
+                elif consulta_tarde:
+                    # Filtrar horarios de tarde: 12:00 - 15:00
+                    horarios_tarde = {h: o for h, o in disponibilidad.items() 
+                                     if h >= "12:00" and h <= "15:00" and o < 2}
+                    
+                    if horarios_tarde:
+                        lista_horarios = ', '.join(sorted(horarios_tarde.keys()))
+                        respuesta = (
+                            f"🌆 **Disponibilidad en la tarde del {fecha_contexto}:**\n\n"
+                            f"Tenemos {len(horarios_tarde)} horarios disponibles de 12:00 PM a 3:00 PM:\n"
+                            f"📋 {lista_horarios}\n\n"
+                            f"¿A qué hora prefieres tu turno?"
+                        )
+                    else:
+                        respuesta = (
+                            f"😔 Lo siento, no hay horarios disponibles en la tarde del {fecha_contexto}.\n\n"
+                            f"¿Te gustaría revisar los horarios de la mañana (7:00 - 11:30) o elegir otro día?"
+                        )
+                    return respuesta
+                    
+            except Exception as e:
+                logger.error(f"Error consultando disponibilidad por franja: {e}")
+        
+        # ==========================================
+        # CONSULTAS GENERALES (sin especificar franja)
+        # ==========================================
         # Detectar si pregunta por "esta semana" o "próxima semana"
         if any(frase in mensaje_lower for frase in ['esta semana', 'semana actual']):
             # Mostrar disponibilidad del resto de esta semana (desde hoy hasta viernes)
@@ -940,7 +1024,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                     fecha_dia = lunes_proxima + timedelta(days=i)
                     fecha_str = fecha_dia.strftime('%Y-%m-%d')
                     disponibilidad = obtener_disponibilidad_real(fecha_str)
-                    horarios_disponibles = [h for h, o in disponibilidad.items() if o < 5]
+                    horarios_disponibles = [h for h, o in disponibilidad.items() if o < 2]
                     
                     if horarios_disponibles:
                         respuesta += f"✅ **{dia_nombre} {fecha_dia.strftime('%d/%m')}**: {len(horarios_disponibles)} horarios disponibles\n"
@@ -954,7 +1038,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                     dia_nombre = dias_nombres[fecha_dia.weekday()]
                     fecha_str = fecha_dia.strftime('%Y-%m-%d')
                     disponibilidad = obtener_disponibilidad_real(fecha_str)
-                    horarios_disponibles = [h for h, o in disponibilidad.items() if o < 5]
+                    horarios_disponibles = [h for h, o in disponibilidad.items() if o < 2]
                     
                     prefijo = "🔵" if i == 0 else "✅"  # Marcar hoy con diferente emoji
                     if horarios_disponibles:
@@ -983,7 +1067,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                 fecha_str = fecha_dia.strftime('%Y-%m-%d')
                 disponibilidad = obtener_disponibilidad_real(fecha_str)
                 
-                horarios_disponibles = [h for h, o in disponibilidad.items() if o < 5]
+                horarios_disponibles = [h for h, o in disponibilidad.items() if o < 2]
                 
                 if horarios_disponibles:
                     respuesta += f"✅ **{dia_nombre} {fecha_dia.strftime('%d/%m')}**: {len(horarios_disponibles)} horarios disponibles\n"
@@ -1023,7 +1107,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
         horarios_ocupados = []
         
         for hora, ocupacion in disponibilidad.items():
-            if ocupacion < 5:  # Disponible
+            if ocupacion < 2:  # Disponible (2 turnos por horario)
                 horarios_disponibles.append((hora, ocupacion))
             else:  # Ocupado
                 horarios_ocupados.append((hora, ocupacion))
@@ -1099,7 +1183,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                 # Buscar el horario más temprano disponible
                 horarios_disponibles = []
                 for hora, ocupacion in disponibilidad.items():
-                    if ocupacion < 5:  # Disponible
+                    if ocupacion < 2:  # Disponible (2 turnos por horario)
                         horarios_disponibles.append(hora)
                 
                 if horarios_disponibles:
@@ -1176,11 +1260,11 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                 # Validar que no sea fin de semana
                 fecha_obj = datetime.strptime(fecha, '%Y-%m-%d')
                 if fecha_obj.weekday() >= 5:  # Sábado o domingo
-                    return "😔 Lo siento, no atendemos los fines de semana. Nuestro horario es de lunes a viernes, 07:00 a 17:00. ¿Prefieres agendar para el lunes?"
+                    return "😔 Lo siento, no atendemos los fines de semana. Nuestro horario es de lunes a viernes, 07:00 a 15:00. ¿Prefieres agendar para el lunes?"
                 
                 # Obtener disponibilidad
                 disponibilidad = obtener_disponibilidad_real(fecha)
-                horarios_disponibles = [(h, o) for h, o in disponibilidad.items() if o < 5]
+                horarios_disponibles = [(h, o) for h, o in disponibilidad.items() if o < 2]
                 
                 if not horarios_disponibles:
                     return f"😔 Lo siento, para el {fecha} ya no hay horarios disponibles. ¿Te gustaría revisar otro día?"
@@ -1264,6 +1348,11 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                 encuesta_url = "https://docs.google.com/forms/d/e/1FAIpQLSfNorudi36-q0VjKTWk2GwM277wCiypOTU_qMoPhHD0aWkG8A/viewform"
                 
                 # ==========================================
+                # GENERAR CÓDIGO ÚNICO DE TURNO
+                # ==========================================
+                codigo_turno = generar_codigo_turno()
+                
+                # ==========================================
                 # GUARDAR EN BASE DE DATOS
                 # ==========================================
                 try:
@@ -1273,18 +1362,22 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                     # Verificar si la cédula es "SIN_CEDULA" o un número real
                     cedula_valor = None if contexto.cedula == "SIN_CEDULA" else contexto.cedula
                     
-                    # Insertar turno en la base de datos
+                    # Combinar fecha y hora en un timestamp
+                    fecha_hora_completa = f"{contexto.fecha} {contexto.hora}:00"
+                    
+                    # Insertar turno en la base de datos CON código único
+                    # Nota: La tabla usa 'fecha_hora' (timestamp), 'codigo', 'created_at'
                     cursor.execute("""
-                        INSERT INTO turnos (nombre, cedula, fecha, hora, email, estado, fecha_creacion)
-                        VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                        INSERT INTO turnos (nombre, cedula, fecha_hora, email, codigo, estado)
+                        VALUES (%s, %s, %s, %s, %s, %s)
                         RETURNING id
                     """, (
                         contexto.nombre,
                         cedula_valor,
-                        contexto.fecha,
-                        contexto.hora,
+                        fecha_hora_completa,
                         contexto.email,
-                        'pendiente'
+                        codigo_turno,
+                        'activo'
                     ))
                     
                     turno_id = cursor.fetchone()[0]
@@ -1292,7 +1385,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                     cursor.close()
                     conn.close()
                     
-                    logger.info(f"✅ Turno guardado en BD con ID: {turno_id}")
+                    logger.info(f"✅ Turno guardado en BD con ID: {turno_id}, Código: {codigo_turno}")
                     
                     # ==========================================
                     # GENERAR CÓDIGO QR (opcional - requiere setup)
@@ -1309,10 +1402,11 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                             'cedula': contexto.cedula,
                             'fecha': contexto.fecha,
                             'hora': contexto.hora,
-                            'numero_turno': str(turno_id)
+                            'numero_turno': str(turno_id),
+                            'codigo_turno': codigo_turno
                         }
                         qr_data = qr_gen.generate_qr_confirmation(turno_data_qr)
-                        logger.info(f"✅ QR generado para turno {turno_id}")
+                        logger.info(f"✅ QR generado para turno {turno_id} con código {codigo_turno}")
                         
                         # ==========================================
                         # ENVIAR EMAIL CON QR
@@ -1350,13 +1444,15 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                 # RESPUESTA AL USUARIO
                 # ==========================================
                 respuesta = f"✅ ¡Turno confirmado exitosamente!\n\n"
-                respuesta += f"📋 Resumen:\n"
+                respuesta += f"🎫 **CÓDIGO DE TURNO: {codigo_turno}**\n"
+                respuesta += f"   � Presenta este código al llegar a la oficina\n\n"
+                respuesta += f"�📋 Resumen:\n"
                 respuesta += f"• Nombre: {contexto.nombre}\n"
                 respuesta += f"• Cédula: {contexto.cedula}\n"
                 respuesta += f"• Fecha: {contexto.fecha}\n"
                 respuesta += f"• Hora: {contexto.hora}\n"
                 respuesta += f"• Email: {contexto.email}\n\n"
-                respuesta += f"📧 Te enviaremos un email de confirmación con el código QR a: {contexto.email}\n"
+                respuesta += f"📧 Te enviaremos un email de confirmación con el código QR y tu código de turno a: {contexto.email}\n"
                 respuesta += f"   (Si no recibes el email, revisa tu carpeta de spam)\n\n"
                 respuesta += f"📅 Agrega el turno a tu Google Calendar:\n{google_calendar_link}\n\n"
                 respuesta += f"⏰ Recuerda llegar 10 minutos antes de tu hora asignada.\n\n"
@@ -1366,9 +1462,12 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                 return respuesta
             except Exception as e:
                 logger.error(f"Error al confirmar turno: {e}")
+                # Generar código de emergencia aunque falle la BD
+                codigo_emergencia = generar_codigo_turno()
                 return (
                     f"✅ ¡Turno confirmado!\n"
-                    f"Te llegará un email con el código QR a: {contexto.email}\n"
+                    f"🎫 Tu código de turno: {codigo_emergencia}\n"
+                    f"Te llegará un email con más detalles a: {contexto.email}\n"
                     f"Recuerda llegar 10 minutos antes. ¡Hasta pronto!"
                 )
         return "Perfecto, continuemos. ¿Qué necesitas?"

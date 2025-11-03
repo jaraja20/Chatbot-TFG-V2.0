@@ -11,6 +11,11 @@ from datetime import datetime
 from orquestador_inteligente import procesar_mensaje_inteligente
 import json
 import logging
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
