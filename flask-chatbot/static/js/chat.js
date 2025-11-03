@@ -42,11 +42,43 @@ function esCorreccionDeUsuario(texto) {
 // ENVIAR MENSAJE
 // =====================================================
 
+let isProcessing = false; // 🔒 Evitar doble envío
+
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const message = userInput.value.trim();
-    if (!message) return;
+    if (!message || isProcessing) return;
+    
+    isProcessing = true; // 🔒 Bloquear nuevos envíos
+    
+    // DESHABILITADO: Copilot (puerto 5001)
+    // Solo usar si necesitas el copilot agent separado
+    /*
+    try {
+        console.log("🤖 Intentando usar Copilot...");
+        const copilotResponse = await fetch('http://localhost:5001/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: message,
+                session_id: sessionId
+            })
+        });
+        
+        if (copilotResponse.ok) {
+            const copilotData = await copilotResponse.json();
+            addUserMessage(message);
+            userInput.value = '';
+            addBotMessage(copilotData.response, "Ahora");
+            return;
+        }
+    } catch (error) {
+        console.log("❌ Copilot no disponible, usando sistema normal:", error);
+    }
+    */
 
     // Agregar mensaje del usuario
     addUserMessage(message);
@@ -108,6 +140,8 @@ chatForm.addEventListener('submit', async (e) => {
         console.error('Error:', error);
         removeTypingIndicator(typingId);
         addBotMessage('Error de conexión. Verifica que el servidor esté activo.', 'Ahora');
+    } finally {
+        isProcessing = false; // 🔓 Desbloquear para siguiente mensaje
     }
 });
 
@@ -160,14 +194,23 @@ function addBotMessage(text, time = 'Ahora') {
     messageWrapper.dataset.userMessage = userInput.value;
     messageWrapper.dataset.botResponse = text;
     
+    // Configurar marked para permitir emojis y otros caracteres especiales
+    marked.setOptions({
+        breaks: true,
+        gfm: true,
+        mangle: false,
+        headerIds: false
+    });
+    
+    // Renderizar el markdown a HTML
+    const renderedText = marked.parse(text);
+    
     messageWrapper.innerHTML = `
         <div class="avatar bot-avatar">
             <img src="/static/images/bot.png" alt="Bot">
         </div>
         <div class="message-content">
-            <div class="message-bubble bot-bubble">
-                ${escapeHtml(text)}
-                
+            <div class="message-bubble bot-bubble markdown-content">${renderedText}
                 <!-- Botones de feedback DENTRO de la burbuja -->
                 <div class="feedback-buttons">
                     <button class="feedback-btn like-btn" data-message-id="${messageCount}" data-type="positive">

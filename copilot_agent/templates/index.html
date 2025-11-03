@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Copilot Agent - Chat Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#0078D4" stroke="#0078D4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="#0078D4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="#0078D4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <h1>GitHub Copilot Agent</h1>
+                </div>
+                <div class="header-actions">
+                    <button id="clearBtn" class="btn-icon" title="Limpiar conversación">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                    <span class="status-indicator">
+                        <span class="status-dot"></span>
+                        <span id="statusText">Conectado</span>
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Chat Container -->
+        <main class="chat-container">
+            <div id="chatMessages" class="chat-messages">
+                <!-- Mensaje de bienvenida -->
+                <div class="message assistant-message">
+                    <div class="message-avatar">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" fill="#0078D4"/>
+                            <path d="M12 8v4M12 16h.01" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="message-author">GitHub Copilot</span>
+                            <span class="message-time">Ahora</span>
+                        </div>
+                        <div class="message-text">
+                            <p>👋 ¡Hola! Soy <strong>GitHub Copilot</strong>, tu asistente de IA.</p>
+                            <p>Puedo ayudarte con:</p>
+                            <ul>
+                                <li>💻 Programación y código</li>
+                                <li>🤔 Responder preguntas técnicas</li>
+                                <li>📚 Explicar conceptos</li>
+                                <li>🔧 Resolver problemas</li>
+                                <li>✨ Y mucho más!</li>
+                            </ul>
+                            <p>¿En qué puedo ayudarte hoy?</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="Escribe tu mensaje aquí... (presiona Enter para enviar)"
+                        rows="1"
+                    ></textarea>
+                    <button id="sendBtn" class="btn-send" title="Enviar mensaje">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+                <div class="input-hint">
+                    <span>💡 Presiona <kbd>Enter</kbd> para enviar, <kbd>Shift + Enter</kbd> para nueva línea</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+        <div class="loading-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='chat.js') }}"></script>
+</body>
+</html>

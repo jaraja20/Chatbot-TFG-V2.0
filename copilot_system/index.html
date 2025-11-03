@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copilot System Chat Demo</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Copilot System Chat Demo</h1>
+        <div class="controls">
+            <label for="backendSelect">Backend:</label>
+            <select id="backendSelect">
+                <option value="demo">Demo (local)</option>
+                <option value="real">Proyecto (localhost:5001)</option>
+            </select>
+            <span id="sessionIdDisplay" style="margin-left:16px;font-size:12px;color:#666"></span>
+        </div>
+        <div id="chatContainer" class="chat-container"></div>
+        <form id="chatForm" class="chat-form">
+            <input type="text" id="userInput" placeholder="Escribe tu mensaje..." autocomplete="off" />
+            <button type="submit">Enviar</button>
+        </form>
+    </div>
+    <script src="chat.js"></script>
+</body>
+</html>

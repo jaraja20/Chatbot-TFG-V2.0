@@ -220,6 +220,16 @@ nlu:
     - a las [nueve](hora)
     - a las [dos](hora)
     - [ocho y media](hora)
+    - para las [10](hora)
+    - para las [10](hora) de la mañana
+    - para las [10](hora) de la mañana se puede
+    - las [10](hora) está bien
+    - a las [10](hora) me viene bien
+    - me sirve a las [10](hora)
+    - [10](hora) de la mañana
+    - a las [10](hora) hs
+    - tipo [10](hora)
+    - cerca de las [10](hora)
 
 - intent: informar_fecha
   examples: |

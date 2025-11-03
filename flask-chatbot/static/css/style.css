@@ -218,12 +218,41 @@ body {
 }
 
 .message-bubble {
-    padding: 14px 18px;
-    border-radius: 18px;
+    padding: 12px 16px;
+    border-radius: 15px;
+    max-width: 80%;
     word-wrap: break-word;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    color: #1e293b;
-    line-height: 1.5;
+    line-height: 1.4;
+    position: relative;
+    font-size: 15px;
+}
+
+/* Estilos para el contenido Markdown */
+.bot-bubble {
+    white-space: pre-line;
+}
+.bot-bubble strong, 
+.bot-bubble b {
+    font-weight: 600;
+}
+.bot-bubble ul, 
+.bot-bubble ol {
+    margin-left: 20px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+.bot-bubble li {
+    margin-bottom: 4px;
+}
+.bot-bubble p {
+    margin-bottom: 8px;
+}
+.bot-bubble h1, 
+.bot-bubble h2, 
+.bot-bubble h3 {
+    margin-top: 16px;
+    margin-bottom: 8px;
+    font-weight: 600;
 }
 
 /* Burbuja del BOT (azul claro) */

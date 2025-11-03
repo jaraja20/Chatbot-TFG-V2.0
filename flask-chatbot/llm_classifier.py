@@ -6,7 +6,7 @@ from typing import Tuple, Optional, List, Dict
 import re
 import json
 import os
-
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,7 +15,124 @@ logger = logging.getLogger(__name__)
 # CONFIGURACIÓN
 # =====================================================
 
-LM_STUDIO_URL = "http://192.168.0.218:1234/v1/chat/completions"
+LM_STUDIO_URL = "http://localhost:1234/v1/chat/completions"  # URL local por defecto
+LM_STUDIO_URLS_ALTERNATIVAS = [
+    "http://localhost:1234/v1/chat/completions",
+    "http://192.168.0.218:1234/v1/chat/completions",
+    "http://192.168.3.118:1234/v1/chat/completions"
+]
+
+# Configuración BD
+DB_CONFIG = {
+    'host': 'localhost',
+    'database': 'chatbotdb',
+    'user': 'botuser',
+    'password': 'root'
+}
+
+# =====================================================
+# CONTEXTO DEL PROYECTO (Cargado en memoria)
+# =====================================================
+
+PROJECT_CONTEXT = {
+    'domain_content': None,
+    'nlu_examples': {},
+    'motor_difuso_docs': None,
+    'actions_list': [],
+    'loaded': False
+}
+
+def cargar_contexto_completo_proyecto():
+    """Carga TODO el contenido del proyecto en memoria para dárselo a Llama"""
+    if PROJECT_CONTEXT['loaded']:
+        return PROJECT_CONTEXT
+    
+    logger.info("📚 Cargando contexto COMPLETO del proyecto para Llama 3.1...")
+    
+    try:
+        project_root = Path(__file__).parent.parent
+        
+        # 1. Cargar domain.yml completo
+        domain_path = project_root / 'domain.yml'
+        if domain_path.exists():
+            with open(domain_path, 'r', encoding='utf-8') as f:
+                PROJECT_CONTEXT['domain_content'] = f.read()
+                logger.info("✅ domain.yml cargado")
+        
+        # 2. Cargar nlu.yml con ejemplos
+        nlu_path = project_root / 'data' / 'nlu.yml'
+        if nlu_path.exists():
+            with open(nlu_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                current_intent = None
+                
+                for line in content.split('\n'):
+                    if line.startswith('- intent:'):
+                        current_intent = line.split('intent:')[1].strip()
+                        PROJECT_CONTEXT['nlu_examples'][current_intent] = []
+                    elif line.strip().startswith('- ') and current_intent:
+                        example = line.strip()[2:]
+                        if example and len(PROJECT_CONTEXT['nlu_examples'][current_intent]) < 10:
+                            PROJECT_CONTEXT['nlu_examples'][current_intent].append(example)
+                
+                logger.info(f"✅ nlu.yml cargado con {len(PROJECT_CONTEXT['nlu_examples'])} intents")
+        
+        # 3. Cargar documentación del motor difuso
+        motor_path = project_root / 'flask-chatbot' / 'motor_difuso.py'
+        if motor_path.exists():
+            with open(motor_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                # Extraer solo las funciones principales y su documentación
+                PROJECT_CONTEXT['motor_difuso_docs'] = """
+MOTOR DIFUSO DISPONIBLE:
+
+Funciones principales:
+- calcular_espera(ocupacion, urgencia, hora): Calcula tiempo de espera en minutos
+  * ocupacion: 0-100 (porcentaje)
+  * urgencia: 0-10 (nivel)
+  * hora: 7-17 (hora del día)
+  * Retorna: minutos de espera
+
+- evaluar_recomendacion(ocupacion, hora): Evalúa qué tan bueno es un horario
+  * ocupacion: 0-100
+  * hora: 7-17
+  * Retorna: score 0-100 (más alto = mejor)
+
+- analizar_disponibilidad_dia(fecha): Analiza todo un día
+  * Retorna: análisis por franjas horarias
+
+Reglas difusas activas:
+- Ocupación baja (0-35%) → Espera muy corta
+- Ocupación media (25-75%) → Espera media
+- Ocupación alta (65-100%) → Espera larga
+- Temprano (7-9) → Mejor recomendación
+- Mediodía (11-15) → Peor recomendación
+"""
+                logger.info("✅ Motor difuso documentado")
+        
+        # 4. Cargar lista de acciones
+        actions_path = project_root / 'actions' / 'actions.py'
+        if actions_path.exists():
+            with open(actions_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                for line in content.split('\n'):
+                    if 'class Action' in line and '(Action)' in line:
+                        action_name = line.split('class ')[1].split('(')[0]
+                        PROJECT_CONTEXT['actions_list'].append(action_name)
+                
+                logger.info(f"✅ {len(PROJECT_CONTEXT['actions_list'])} acciones disponibles")
+        
+        PROJECT_CONTEXT['loaded'] = True
+        
+        logger.info("🎉 Contexto completo cargado exitosamente")
+        
+    except Exception as e:
+        logger.error(f"❌ Error cargando contexto: {e}", exc_info=True)
+    
+    return PROJECT_CONTEXT
+
+# Cargar contexto al importar el módulo
+cargar_contexto_completo_proyecto()
 
 INTENTS_DISPONIBLES = [
     "greet",
@@ -237,6 +354,62 @@ class LLMIntentClassifier:
             logger.warning(f"⚠️ LM Studio no disponible: {e}")
             return False
     
+    def _generar_prompt_con_contexto_completo(self, user_message: str) -> str:
+        """
+        Genera un prompt enriquecido con TODO el contexto del proyecto.
+        Incluye: domain.yml, ejemplos de nlu.yml, documentación de motor_difuso, actions disponibles.
+        
+        Args:
+            user_message: Mensaje del usuario a clasificar
+            
+        Returns:
+            Prompt completo con contexto del proyecto
+        """
+        prompt_parts = [f"MENSAJE DEL USUARIO: '{user_message}'\n"]
+        
+        # 1️⃣ Agregar información de DOMAIN.YML si está disponible
+        if PROJECT_CONTEXT.get('loaded') and PROJECT_CONTEXT.get('domain_content'):
+            prompt_parts.append("\n📋 CONTEXTO DEL DOMINIO (domain.yml):")
+            prompt_parts.append(PROJECT_CONTEXT['domain_content'][:3000])  # Primeros 3000 caracteres
+            prompt_parts.append("...[contexto completo del dominio disponible]\n")
+        
+        # 2️⃣ Agregar EJEMPLOS DE NLU.YML (muy importante para clasificación)
+        if PROJECT_CONTEXT.get('nlu_examples'):
+            prompt_parts.append("\n💡 EJEMPLOS DE ENTRENAMIENTO (nlu.yml):")
+            ejemplo_count = 0
+            for intent_name, examples in PROJECT_CONTEXT['nlu_examples'].items():
+                if ejemplo_count >= 15:  # Limitar a 15 intents para no saturar
+                    break
+                if examples:
+                    prompt_parts.append(f"\n  Intent: {intent_name}")
+                    for ex in examples[:3]:  # 3 ejemplos por intent
+                        prompt_parts.append(f"    - {ex}")
+                    ejemplo_count += 1
+            prompt_parts.append("")
+        
+        # 3️⃣ Agregar DOCUMENTACIÓN DE MOTOR DIFUSO
+        if PROJECT_CONTEXT.get('motor_difuso_docs'):
+            prompt_parts.append("\n🧠 SISTEMA DE LÓGICA DIFUSA DISPONIBLE:")
+            prompt_parts.append(PROJECT_CONTEXT['motor_difuso_docs'])
+            prompt_parts.append("\n⚠️ IMPORTANTE: Si el usuario pregunta sobre tiempos de espera, disponibilidad,")
+            prompt_parts.append("o recomendaciones de horarios, el sistema puede usar estas funciones del motor difuso.")
+            prompt_parts.append("")
+        
+        # 4️⃣ Agregar ACTIONS DISPONIBLES
+        if PROJECT_CONTEXT.get('actions_list'):
+            prompt_parts.append("\n⚙️ ACTIONS DISPONIBLES EN EL SISTEMA:")
+            for action in PROJECT_CONTEXT['actions_list'][:20]:  # Top 20 actions
+                prompt_parts.append(f"  - {action}")
+            prompt_parts.append("")
+        
+        # 5️⃣ INSTRUCCIÓN FINAL CLARA
+        prompt_parts.append("\n🎯 TU TAREA:")
+        prompt_parts.append("Con TODO este contexto del proyecto, clasifica el mensaje del usuario en uno de los intents disponibles.")
+        prompt_parts.append("Considera los ejemplos de entrenamiento, el dominio del chatbot, y las capacidades del motor difuso.")
+        prompt_parts.append("Responde SOLO con el formato JSON requerido: {\"intent\":\"<intent>\",\"confidence\":0.0,\"explanation\":\"...\"}")
+        
+        return "\n".join(prompt_parts)
+    
     def classify_intent(self, user_message: str) -> Tuple[str, float]:
         # 1️⃣ Keywords primero
         kw = self._classify_by_keywords(user_message)
@@ -249,19 +422,22 @@ class LLMIntentClassifier:
             logger.warning("LM Studio no disponible, usando nlu_fallback")
             return ("nlu_fallback", 0.3)
 
-        # 3️⃣ Consulta al modelo local (espera JSON)
+        # 3️⃣ Consulta al modelo local CON CONTEXTO COMPLETO DEL PROYECTO
         try:
+            # Construir prompt enriquecido con todo el contexto del proyecto
+            enhanced_prompt = self._generar_prompt_con_contexto_completo(user_message)
+            
             payload = {
                 "messages": [
                     {"role": "system", "content": self.system_prompt},
-                    {"role": "user", "content": user_message}
+                    {"role": "user", "content": enhanced_prompt}
                 ],
                 "temperature": 0.0,
-                "max_tokens": 60,
+                "max_tokens": 100,
                 "stream": False
             }
 
-            response = requests.post(self.model_url, json=payload, timeout=10)
+            response = requests.post(self.model_url, json=payload, timeout=15)
             if response.status_code != 200:
                 logger.error(f"Error en LM Studio: {response.status_code}")
                 return ("nlu_fallback", 0.4)

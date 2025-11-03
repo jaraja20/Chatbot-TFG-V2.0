@@ -904,8 +904,10 @@ class ImprovedConversationLogger:
 
 def setup_improved_logging_system(database_url: str) -> ImprovedConversationLogger:
     """Inicializa el sistema mejorado"""
+    global _global_improved_logger
     try:
         logger_instance = ImprovedConversationLogger(database_url)
+        _global_improved_logger = logger_instance  # ✅ Guardar en variable global
         logger.info("✅ Sistema de logging mejorado inicializado")
         return logger_instance
     except Exception as e:

@@ -48,8 +48,8 @@ except ImportError as e:
     logger.warning(f"⚠️ Logger mejorado no disponible: {e}")
 
 
-ORQUESTADOR_DISPONIBLE = False
-logger.info("ℹ️ Orquestador DESHABILITADO - Usando Rasa puro para mejor flujo")
+ORQUESTADOR_DISPONIBLE = True
+logger.info("✅ Orquestador HABILITADO - Usando Llama 3.1 con contexto completo del proyecto")
 
 
 def get_db_connection():
@@ -269,15 +269,16 @@ def send_message():
     try:
         data = request.json
         user_message = data.get('message', '')
-        session_id = data.get('session_id', 'user')
+        session_id = data.get('session_id', None)
         
         if not user_message:
             return jsonify({'error': 'Mensaje vacío'}), 400
         
-        # Generar session_id si no existe
-        if session_id == 'user':
+        # Generar session_id si no existe o es None
+        if not session_id or session_id == 'user':
             import uuid
             session_id = f"web_{uuid.uuid4().hex[:12]}"
+            logger.info(f"🆕 Nuevo session_id generado: {session_id}")
         
         # =====================================================
         # ✨ NUEVO: USAR ORQUESTADOR INTELIGENTE
