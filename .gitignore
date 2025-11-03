@@ -100,3 +100,5 @@ desktop.ini
 *.bak
 *.backup
 *~
+# Google OAuth tokens
+token.pkl
