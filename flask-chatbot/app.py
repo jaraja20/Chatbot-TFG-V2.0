@@ -308,16 +308,17 @@ def send_message():
                         log_interaction_improved(
                             session_id=session_id,
                             user_message=user_message,
-                            bot_response=bot_message,
+                            bot_response=bot_message if isinstance(bot_message, str) else bot_message.get('text', str(bot_message)),
                             intent_name=intent_detectado,
                             confidence=confidence
                         )
                     except Exception as e:
                         logger.warning(f"⚠️ Error en logger: {e}")
                 
-                return jsonify({
+                # Preparar respuesta base
+                response_data = {
                     'success': True,
-                    'bot_message': bot_message,
+                    'bot_message': bot_message if isinstance(bot_message, str) else bot_message.get('text', ''),
                     'session_id': session_id,
                     'timestamp': datetime.now().strftime('%H:%M'),
                     'metadata': {
@@ -325,7 +326,15 @@ def send_message():
                         'confidence': confidence,
                         'powered_by': 'orquestador_inteligente'
                     }
-                })
+                }
+                
+                # Si la respuesta incluye botón de dashboard, agregarlo (está en resultado, no en bot_message)
+                if resultado.get('show_dashboard_button'):
+                    response_data['show_dashboard_button'] = True
+                    response_data['dashboard_url'] = resultado.get('dashboard_url', '/dashboard')
+                    logger.info(f"📊 Agregando botón dashboard: {response_data['dashboard_url']}")
+                
+                return jsonify(response_data)
                 
             except Exception as orch_error:
                 logger.error(f"❌ Error en orquestador: {orch_error}")

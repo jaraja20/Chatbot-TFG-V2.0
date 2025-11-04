@@ -130,8 +130,22 @@ chatForm.addEventListener('submit', async (e) => {
         removeTypingIndicator(typingId);
 
         if (data.success) {
+            console.log('🔍 Respuesta del servidor:', data);
+            
+            // Preparar opciones para el mensaje del bot
+            const botMessageOptions = {};
+            
+            // Si incluye botón del dashboard, agregarlo a las opciones
+            if (data.show_dashboard_button) {
+                console.log('✅ Backend dice mostrar dashboard button!');
+                botMessageOptions.showDashboardButton = true;
+                botMessageOptions.dashboardUrl = data.dashboard_url || '/dashboard';
+            }
+            
+            console.log('🔍 botMessageOptions:', botMessageOptions);
+            
             // Agregar respuesta del bot
-            addBotMessage(data.bot_message, data.timestamp);
+            addBotMessage(data.bot_message, data.timestamp, botMessageOptions);
         } else {
             addBotMessage('Lo siento, hubo un error al procesar tu mensaje. Por favor intenta nuevamente.', 'Ahora');
         }
@@ -187,7 +201,9 @@ function addUserMessage(text) {
 // AGREGAR MENSAJE DEL BOT
 // =====================================================
 
-function addBotMessage(text, time = 'Ahora') {
+function addBotMessage(text, time = 'Ahora', options = {}) {
+    console.log('🔍 addBotMessage llamado con options:', options);
+    
     const messageWrapper = document.createElement('div');
     messageWrapper.className = 'message-wrapper bot-message';
     messageWrapper.dataset.messageId = messageCount;
@@ -205,23 +221,44 @@ function addBotMessage(text, time = 'Ahora') {
     // Renderizar el markdown a HTML
     const renderedText = marked.parse(text);
     
+    // Botón del dashboard si se especifica
+    console.log('🔍 showDashboardButton:', options.showDashboardButton);
+    const dashboardButton = options.showDashboardButton ? `
+        <a href="${options.dashboardUrl || '/dashboard'}" 
+           class="dashboard-button" 
+           target="_blank"
+           style="display: inline-block; margin-top: 15px; padding: 12px 24px; 
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                  color: white; text-decoration: none; border-radius: 8px; 
+                  font-weight: 600; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+                  transition: all 0.3s ease; text-align: center;"
+           onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)';"
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.3)';">
+            📊 Abrir Dashboard
+        </a>
+    ` : '';
+    
+    console.log('🔍 Dashboard button HTML:', dashboardButton);
+    
     messageWrapper.innerHTML = `
         <div class="avatar bot-avatar">
             <img src="/static/images/bot.png" alt="Bot">
         </div>
         <div class="message-content">
-            <div class="message-bubble bot-bubble markdown-content">${renderedText}
-                <!-- Botones de feedback DENTRO de la burbuja -->
-                <div class="feedback-buttons">
-                    <button class="feedback-btn like-btn" data-message-id="${messageCount}" data-type="positive">
-                        <img src="/static/images/like.webp" alt="Me gusta" class="feedback-icon">
-                        Útil
-                    </button>
-                    <button class="feedback-btn dislike-btn" data-message-id="${messageCount}" data-type="negative">
-                        <img src="/static/images/dislike.png" alt="No me gusta" class="feedback-icon">
-                        Mejorar
-                    </button>
-                </div>
+            <div class="message-bubble bot-bubble markdown-content">
+                ${renderedText}
+            </div>
+            ${dashboardButton}
+            <!-- Botones de feedback -->
+            <div class="feedback-buttons" style="margin-top: 10px;">
+                <button class="feedback-btn like-btn" data-message-id="${messageCount}" data-type="positive">
+                    <img src="/static/images/like.webp" alt="Me gusta" class="feedback-icon">
+                    Útil
+                </button>
+                <button class="feedback-btn dislike-btn" data-message-id="${messageCount}" data-type="negative">
+                    <img src="/static/images/dislike.png" alt="No me gusta" class="feedback-icon">
+                    Mejorar
+                </button>
             </div>
             <div class="message-time">${time}</div>
         </div>

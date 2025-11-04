@@ -1,0 +1,583 @@
+﻿====================================================================================================
+[1m[96mTEST MEGA - ENTRENAMIENTO CON CASOS REALES[0m
+[97m   Errores ortograficos, frases ambiguas, mal escritas, jerga, etc.[0m
+====================================================================================================
+
+
+[1m[94m====================================================================================================
+[*] [1] ERRORES ORTOGRAFICOS
+====================================================================================================[0m
+
+[93m[1/8] Usuario:[0m ola quisiera agendar un turno
+Ô£à [92mIntent: agendar_turno (85.17%)[0m
+Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+
+[93m[2/8] Usuario:[0m kiero sakar un turno
+Ô£à [92mIntent: agendar_turno (95.00%)[0m
+Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+
+[93m[3/8] Usuario:[0m nesecito un turno x favor
+Ô£à [92mIntent: agendar_turno (95.00%)[0m
+Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+
+[93m[4/8] Usuario:[0m q horarios tienen disponibles?
+Ô£à [92mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[5/8] Usuario:[0m ay turnos para ma├▒ana?
+ÔØî [91mIntent: informar_fecha (57.27%)[0m
+Bot: ┬┐Cu├íl es tu nombre completo?
+
+[93m[6/8] Usuario:[0m k documentos nececito llevar
+Ô£à [92mIntent: consultar_requisitos (95.00%)[0m
+Bot: ­ƒôï **Requisitos para C├ëDULA DE IDENTIDAD:**
+
+**Primera vez:**
+ÔÇó Partida de nacimiento original
+ÔÇó Presencia personal
+
+**Renovaci├│n:**
+ÔÇó C├®dula anterior
+...
+
+[93m[7/8] Usuario:[0m cuanto bale sacar la cedula?
+ÔØî [91mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[8/8] Usuario:[0m donde keda la oficina?
+Ô£à [92mIntent: consultar_ubicacion (95.00%)[0m
+Bot: ­ƒôì **Ubicaci├│n:**
+Av. San Blas, Ciudad del Este
+Alto Paran├í, Paraguay
+
+­ƒòÆ **Horario de atenci├│n:**
+Lunes a Viernes: 07:00 a 17:00
+
+­ƒÜù Estacionamiento dis...
+
+
+[1m[94m====================================================================================================
+[*] [2] FRASES AMBIGUAS
+====================================================================================================[0m
+
+[93m[1/9] Usuario:[0m necesito para ma├▒ana
+ÔØî [91mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[2/9] Usuario:[0m cuando es posible?
+Ô£à [92mIntent: consultar_disponibilidad (95.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[3/9] Usuario:[0m tienen algo libre?
+ÔØî [91mIntent: desconocido (0.00%)[0m
+Bot: Disculpa, no entend├¡ bien. Por favor, ind├¡came tu nombre completo (nombre y apellido). Por ejemplo: Juan P├®rez
+
+[93m[4/9] Usuario:[0m dame uno
+ÔØî [91mIntent: informar_nombre (95.00%)[0m
+Bot: Perfecto, Dame Uno. ┬┐Cu├íl es tu n├║mero de c├®dula?
+
+[93m[5/9] Usuario:[0m para hoy
+ÔØî [91mIntent: informar_nombre (95.00%)[0m
+Bot: Perfecto, Para Hoy. ┬┐Cu├íl es tu n├║mero de c├®dula?
+
+[93m[6/9] Usuario:[0m el mejor
+ÔØî [91mIntent: informar_nombre (95.00%)[0m
+Bot: Perfecto, Para Hoy. ┬┐Cu├íl es tu n├║mero de c├®dula?
+
+[93m[7/9] Usuario:[0m lo antes posible
+ÔØî [91mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Perfecto Para Hoy, para mostrarte la disponibilidad necesito completar tus datos.
+
+┬┐Cu├íl es tu n├║mero de c├®dula?
+
+[93m[8/9] Usuario:[0m temprano
+Ô£à [92mIntent: frase_ambigua (95.00%)[0m
+Bot: Gracias Para Hoy. ┬┐Cu├íl es tu n├║mero de c├®dula?
+
+[93m[9/9] Usuario:[0m que me recomiendas?
+ÔØî [91mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Perfecto Para Hoy, para mostrarte la disponibilidad necesito completar tus datos.
+
+┬┐Cu├íl es tu n├║mero de c├®dula?
+
+
+[1m[94m====================================================================================================
+[*] [3] GRAMATICA INCORRECTA
+====================================================================================================[0m
+
+[93m[1/6] Usuario:[0m yo querer turno
+ÔØî [91mIntent: nlu_fallback (30.00%)[0m
+Bot: No estoy seguro de entender. ┬┐Podr├¡as reformular? Puedo ayudarte con:
+- Agendar turnos
+- Consultar horarios
+- Informaci├│n sobre requisitos
+
+[93m[2/6] Usuario:[0m que hora hay libre?
+Ô£à [92mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[3/6] Usuario:[0m para sacar cedula que necesita?
+Ô£à [92mIntent: consultar_requisitos (95.00%)[0m
+Bot: ­ƒôï **Requisitos para C├ëDULA DE IDENTIDAD:**
+
+**Primera vez:**
+ÔÇó Partida de nacimiento original
+ÔÇó Presencia personal
+
+**Renovaci├│n:**
+ÔÇó C├®dula anterior
+...
+
+[93m[4/6] Usuario:[0m hay turno para mi?
+ÔØî [91mIntent: nlu_fallback (30.00%)[0m
+Bot: No estoy seguro de entender. ┬┐Podr├¡as reformular? Puedo ayudarte con:
+- Agendar turnos
+- Consultar horarios
+- Informaci├│n sobre requisitos
+
+[93m[5/6] Usuario:[0m yo poder ir ma├▒ana?
+ÔØî [91mIntent: desconocido (0.00%)[0m
+Bot: Disculpa, no entend├¡ bien. Por favor, ind├¡came tu nombre completo (nombre y apellido). Por ejemplo: Juan P├®rez
+
+[93m[6/6] Usuario:[0m cuanto es costo?
+Ô£à [92mIntent: consultar_costo (95.00%)[0m
+Bot: ­ƒÆ░ **Costos del tr├ímite:**
+
+ÔÇó Primera c├®dula: **GRATUITO** Ô£à
+ÔÇó Renovaci├│n: Gs. 25.000
+ÔÇó P├®rdida/Robo: Gs. 50.000
+ÔÇó Extranjeros: Gs. 100.000
+ÔÇó Menores (...
+
+
+[1m[94m====================================================================================================
+[*] [4] FRASES MUY CORTAS (1 PALABRA)
+====================================================================================================[0m
+
+[93m[1/8] Usuario:[0m turno
+Ô£à [92mIntent: agendar_turno (95.00%)[0m
+Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+
+[93m[2/8] Usuario:[0m hoy
+ÔØî [91mIntent: informar_fecha (95.00%)[0m
+Bot: ┬┐Cu├íl es tu nombre completo?
+
+[93m[3/8] Usuario:[0m ma├▒ana
+Ô£à [92mIntent: informar_fecha (95.00%)[0m
+Bot: ┬┐Cu├íl es tu nombre completo?
+
+[93m[4/8] Usuario:[0m requisitos
+Ô£à [92mIntent: consultar_requisitos (95.00%)[0m
+Bot: ­ƒôï **Requisitos para C├ëDULA DE IDENTIDAD:**
+
+**Primera vez:**
+ÔÇó Partida de nacimiento original
+ÔÇó Presencia personal
+
+**Renovaci├│n:**
+ÔÇó C├®dula anterior
+...
+
+[93m[5/8] Usuario:[0m costo
+Ô£à [92mIntent: consultar_costo (95.00%)[0m
+Bot: ­ƒÆ░ **Costos del tr├ímite:**
+
+ÔÇó Primera c├®dula: **GRATUITO** Ô£à
+ÔÇó Renovaci├│n: Gs. 25.000
+ÔÇó P├®rdida/Robo: Gs. 50.000
+ÔÇó Extranjeros: Gs. 100.000
+ÔÇó Menores (...
+
+[93m[6/8] Usuario:[0m horarios
+Ô£à [92mIntent: consultar_disponibilidad (95.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[7/8] Usuario:[0m ubicacion
+Ô£à [92mIntent: consultar_ubicacion (95.00%)[0m
+Bot: ­ƒôì **Ubicaci├│n:**
+Av. San Blas, Ciudad del Este
+Alto Paran├í, Paraguay
+
+­ƒòÆ **Horario de atenci├│n:**
+Lunes a Viernes: 07:00 a 17:00
+
+­ƒÜù Estacionamiento dis...
+
+[93m[8/8] Usuario:[0m documentos
+Ô£à [92mIntent: consultar_requisitos (95.00%)[0m
+Bot: ­ƒôï **Requisitos para C├ëDULA DE IDENTIDAD:**
+
+**Primera vez:**
+ÔÇó Partida de nacimiento original
+ÔÇó Presencia personal
+
+**Renovaci├│n:**
+ÔÇó C├®dula anterior
+...
+
+
+[1m[94m====================================================================================================
+[*] [5] JERGA Y COLOQUIALISMOS
+====================================================================================================[0m
+
+[93m[1/7] Usuario:[0m che, tienen lugar para hoy?
+Ô£à [92mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[2/7] Usuario:[0m buenas, para cuando hay hueco?
+Ô£à [92mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[3/7] Usuario:[0m vieja, necesito sacar turno urgente
+Ô£à [92mIntent: agendar_turno (67.14%)[0m
+Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+
+[93m[4/7] Usuario:[0m amigo quiero un turno nom├ís
+Ô£à [92mIntent: agendar_turno (85.56%)[0m
+Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+
+[93m[5/7] Usuario:[0m que onda con los turnos?
+ÔØî [91mIntent: nlu_fallback (30.00%)[0m
+Bot: No estoy seguro de entender. ┬┐Podr├¡as reformular? Puedo ayudarte con:
+- Agendar turnos
+- Consultar horarios
+- Informaci├│n sobre requisitos
+
+[93m[6/7] Usuario:[0m bo, hay turnos?
+Ô£à [92mIntent: consultar_disponibilidad (95.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[7/7] Usuario:[0m mba epa, como hago?
+ÔØî [91mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+
+[1m[94m====================================================================================================
+[*] [6] PREGUNTAS COMPLEJAS (MULTIPLES INTENTS)
+====================================================================================================[0m
+
+[93m[1/4] Usuario:[0m quiero saber si tienen turnos disponibles para ma├▒ana en la ma├▒ana temprano porque trabajo en la tarde
+ÔØî [91mIntent: affirm (51.96%)[0m
+Bot: Perfecto, continuemos. ┬┐Qu├® necesitas?
+
+[93m[2/4] Usuario:[0m necesito agendar un turno pero no se que documentos llevar ni cuanto cuesta
+ÔØî [91mIntent: consultar_requisitos (58.00%)[0m
+Bot: ­ƒôï **Requisitos para C├ëDULA DE IDENTIDAD:**
+
+**Primera vez:**
+ÔÇó Partida de nacimiento original
+ÔÇó Presencia personal
+
+**Renovaci├│n:**
+ÔÇó C├®dula anterior
+...
+
+[93m[3/4] Usuario:[0m hola buen d├¡a quisiera saber como hago para sacar la c├®dula por primera vez y que necesito traer
+ÔØî [91mIntent: negacion_sin_cedula (98.00%)[0m
+Bot: Entendido, sin problema. Continuamos con el agendamiento. ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+
+[93m[4/4] Usuario:[0m disculpa, me podr├¡as decir si para el viernes hay horarios libres? es que solo puedo ese d├¡a
+Ô£à [92mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+
+[1m[94m====================================================================================================
+[*] [7] CONSULTAS ESPECIALES DISPONIBILIDAD
+====================================================================================================[0m
+
+[93m[1/8] Usuario:[0m dame un dia intermedio de la semana
+Ô£à [92mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[2/8] Usuario:[0m que dia esta mas libre?
+Ô£à [92mIntent: consultar_disponibilidad (95.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[3/8] Usuario:[0m hoy no tienen disponible?
+ÔØî [91mIntent: desconocido (0.00%)[0m
+Bot: Disculpa, no entend├¡ bien. Por favor, ind├¡came tu nombre completo (nombre y apellido). Por ejemplo: Juan P├®rez
+
+[93m[4/8] Usuario:[0m para hoy no est├ín?
+ÔØî [91mIntent: desconocido (0.00%)[0m
+Bot: Disculpa, no entend├¡ bien. Por favor, ind├¡came tu nombre completo (nombre y apellido). Por ejemplo: Juan P├®rez
+
+[93m[5/8] Usuario:[0m cual es el mejor dia para ir?
+Ô£à [92mIntent: consultar_disponibilidad (95.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[6/8] Usuario:[0m que dia me recomendas?
+ÔØî [91mIntent: desconocido (0.00%)[0m
+Bot: Disculpa, no entend├¡ bien. Por favor, ind├¡came tu nombre completo (nombre y apellido). Por ejemplo: Juan P├®rez
+
+[93m[7/8] Usuario:[0m cuando hay menos gente?
+ÔØî [91mIntent: desconocido (0.00%)[0m
+Bot: Disculpa, no entend├¡ bien. Por favor, ind├¡came tu nombre completo (nombre y apellido). Por ejemplo: Juan P├®rez
+
+[93m[8/8] Usuario:[0m que d├¡a hay m├ís espacio?
+Ô£à [92mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+
+[1m[94m====================================================================================================
+[*] [8] MENSAJES INFORMALES
+====================================================================================================[0m
+
+[93m[1/6] Usuario:[0m hola quiero un turno
+Ô£à [92mIntent: agendar_turno (95.00%)[0m
+Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+
+[93m[2/6] Usuario:[0m necesito turno porfaaa
+Ô£à [92mIntent: agendar_turno (93.64%)[0m
+Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+
+[93m[3/6] Usuario:[0m hay para ma├▒ana???
+ÔØî [91mIntent: informar_fecha (63.33%)[0m
+Bot: ┬┐Cu├íl es tu nombre completo?
+
+[93m[4/6] Usuario:[0m gracias!!!
+Ô£à [92mIntent: agradecimiento (95.00%)[0m
+Bot: ┬íDe nada! Estoy aqu├¡ para ayudarte. ­ƒÿè
+
+[93m[5/6] Usuario:[0m no hay turnos?
+Ô£à [92mIntent: consultar_disponibilidad (95.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[6/6] Usuario:[0m porfa urgente!!!
+ÔØî [91mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+
+[1m[94m====================================================================================================
+[*] [9] NEGACIONES Y CORRECCIONES
+====================================================================================================[0m
+
+[93m[1/6] Usuario:[0m no, esa hora no me sirve
+Ô£à [92mIntent: negacion (95.00%)[0m
+Bot: No estoy seguro de entender. ┬┐Podr├¡as reformular? Puedo ayudarte con:
+- Agendar turnos
+- Consultar horarios
+- Informaci├│n sobre requisitos
+
+[93m[2/6] Usuario:[0m no puedo a esa hora
+Ô£à [92mIntent: negacion (92.11%)[0m
+Bot: No estoy seguro de entender. ┬┐Podr├¡as reformular? Puedo ayudarte con:
+- Agendar turnos
+- Consultar horarios
+- Informaci├│n sobre requisitos
+
+[93m[3/6] Usuario:[0m mejor otro d├¡a
+Ô£à [92mIntent: negacion (95.00%)[0m
+Bot: No estoy seguro de entender. ┬┐Podr├¡as reformular? Puedo ayudarte con:
+- Agendar turnos
+- Consultar horarios
+- Informaci├│n sobre requisitos
+
+[93m[4/6] Usuario:[0m no me llamo as├¡
+ÔØî [91mIntent: desconocido (0.00%)[0m
+Bot: Por favor, ind├¡came tu n├║mero de c├®dula (entre 5 y 8 d├¡gitos).
+
+[93m[5/6] Usuario:[0m no ese no es mi email
+Ô£à [92mIntent: negacion (88.10%)[0m
+Bot: No estoy seguro de entender. ┬┐Podr├¡as reformular? Puedo ayudarte con:
+- Agendar turnos
+- Consultar horarios
+- Informaci├│n sobre requisitos
+
+[93m[6/6] Usuario:[0m cancelar
+Ô£à [92mIntent: cancelar (95.00%)[0m
+Bot: No estoy seguro de entender. ┬┐Podr├¡as reformular? Puedo ayudarte con:
+- Agendar turnos
+- Consultar horarios
+- Informaci├│n sobre requisitos
+
+
+[1m[94m====================================================================================================
+[*] [10] CONSULTAS POR FRANJA HORARIA
+====================================================================================================[0m
+
+[93m[1/5] Usuario:[0m que horarios hay en la ma├▒ana?
+Ô£à [92mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[2/5] Usuario:[0m disponibilidad por la tarde?
+Ô£à [92mIntent: consultar_disponibilidad (95.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[3/5] Usuario:[0m tienen temprano?
+ÔØî [91mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[4/5] Usuario:[0m solo puedo ir despues del mediodia
+Ô£à [92mIntent: consultar_disponibilidad (85.00%)[0m
+Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+[93m[5/5] Usuario:[0m antes de las 10
+ÔØî [91mIntent: elegir_horario (98.00%)[0m
+Bot: Primero necesito que me digas tu nombre completo.
+
+
+====================================================================================================
+[1m[96m[*] RESUMEN FINAL[0m
+====================================================================================================
+
+[97mTotal de casos probados: [1m67[0m
+[92m[OK] Casos exitosos: [1m40[0m
+[91m[X] Casos con errores: [1m27[0m
+[96mTasa de exito: [1m59.7%[0m
+
+[93m====================================================================================================
+[!] CASOS QUE FALLARON:[0m
+====================================================================================================
+
+[91m[1][0m ay turnos para ma├▒ana?
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m informar_fecha (57.27%)
+
+[91m[2][0m cuanto bale sacar la cedula?
+    [93mEsperado:[0m consultar_costo
+    [91mDetectado:[0m consultar_disponibilidad (85.00%)
+
+[91m[3][0m necesito para ma├▒ana
+    [93mEsperado:[0m agendar_turno
+    [91mDetectado:[0m consultar_disponibilidad (85.00%)
+
+[91m[4][0m tienen algo libre?
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m desconocido (0.00%)
+
+[91m[5][0m dame uno
+    [93mEsperado:[0m agendar_turno
+    [91mDetectado:[0m informar_nombre (95.00%)
+
+[91m[6][0m para hoy
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m informar_nombre (95.00%)
+
+[91m[7][0m el mejor
+    [93mEsperado:[0m frase_ambigua
+    [91mDetectado:[0m informar_nombre (95.00%)
+
+[91m[8][0m lo antes posible
+    [93mEsperado:[0m frase_ambigua
+    [91mDetectado:[0m consultar_disponibilidad (85.00%)
+
+[91m[9][0m que me recomiendas?
+    [93mEsperado:[0m frase_ambigua
+    [91mDetectado:[0m consultar_disponibilidad (85.00%)
+
+[91m[10][0m yo querer turno
+    [93mEsperado:[0m agendar_turno
+    [91mDetectado:[0m nlu_fallback (30.00%)
+
+[91m[11][0m hay turno para mi?
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m nlu_fallback (30.00%)
+
+[91m[12][0m yo poder ir ma├▒ana?
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m desconocido (0.00%)
+
+[91m[13][0m hoy
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m informar_fecha (95.00%)
+
+[91m[14][0m que onda con los turnos?
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m nlu_fallback (30.00%)
+
+[91m[15][0m mba epa, como hago?
+    [93mEsperado:[0m saludos
+    [91mDetectado:[0m consultar_disponibilidad (85.00%)
+
+[91m[16][0m quiero saber si tienen turnos disponibles para ma├▒ana en la ma├▒ana temprano porque trabajo en la tarde
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m affirm (51.96%)
+
+[91m[17][0m necesito agendar un turno pero no se que documentos llevar ni cuanto cuesta
+    [93mEsperado:[0m agendar_turno
+    [91mDetectado:[0m consultar_requisitos (58.00%)
+
+[91m[18][0m hola buen d├¡a quisiera saber como hago para sacar la c├®dula por primera vez y que necesito traer
+    [93mEsperado:[0m consultar_requisitos
+    [91mDetectado:[0m negacion_sin_cedula (98.00%)
+
+[91m[19][0m hoy no tienen disponible?
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m desconocido (0.00%)
+
+[91m[20][0m para hoy no est├ín?
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m desconocido (0.00%)
+
+[91m[21][0m que dia me recomendas?
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m desconocido (0.00%)
+
+[91m[22][0m cuando hay menos gente?
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m desconocido (0.00%)
+
+[91m[23][0m hay para ma├▒ana???
+    [93mEsperado:[0m consultar_disponibilidad
+    [91mDetectado:[0m informar_fecha (63.33%)
+
+[91m[24][0m porfa urgente!!!
+    [93mEsperado:[0m agendar_turno
+    [91mDetectado:[0m consultar_disponibilidad (85.00%)
+
+[91m[25][0m no me llamo as├¡
+    [93mEsperado:[0m negacion
+    [91mDetectado:[0m desconocido (0.00%)
+
+[91m[26][0m tienen temprano?
+    [93mEsperado:[0m frase_ambigua
+    [91mDetectado:[0m consultar_disponibilidad (85.00%)
+
+[91m[27][0m antes de las 10
+    [93mEsperado:[0m frase_ambigua
+    [91mDetectado:[0m elegir_horario (98.00%)
+
+====================================================================================================
+

@@ -186,12 +186,21 @@ class ImprovedConversationLogger:
             int: ID del mensaje registrado
         """
         try:
+            # ✅ FILTRO: NO guardar mensajes automáticos/vacíos
+            mensajes_ignorados = ["Inicio de sesión", "", "null", "undefined"]
+            if not user_message or user_message.strip() in mensajes_ignorados:
+                return -1  # No guardar
+            
+            # ✅ FILTRO: NO guardar si es mensaje de sistema sin intent
+            if confidence == 0.0 and (not intent_detected or intent_detected.strip() == ""):
+                return -1
+            
             # Determinar si necesita revisión
             needs_review = self._should_review(intent_detected, confidence, llm_interpretation)
             
             message = ConversationMessage(
                 session_id=session_id,
-                user_message=user_message or "Mensaje no disponible",
+                user_message=user_message,
                 bot_response=bot_response,
                 intent_detected=intent_detected,
                 confidence=confidence,
@@ -926,7 +935,7 @@ def log_rasa_interaction_improved(logger_instance, tracker, bot_response,
         
         # Extraer mensaje del usuario
         events = getattr(tracker, 'events', [])
-        user_message = "Inicio de sesión"
+        user_message = None  # Cambiado de "Inicio de sesión" a None
         intent_detected = ""
         confidence = 0.0
         
@@ -939,6 +948,10 @@ def log_rasa_interaction_improved(logger_instance, tracker, bot_response,
                     intent_detected = intent_data.get('name', '')
                     confidence = intent_data.get('confidence', 0.0)
                 break
+        
+        # ✅ NO GUARDAR mensajes automáticos o vacíos
+        if not user_message or user_message.strip() == "":
+            return  # Salir sin guardar
         
         # Usar clasificación LLM si está disponible
         llm_interpretation = None
@@ -1013,6 +1026,22 @@ def log_interaction_improved(session_id: str, user_message: str, bot_response: s
     Registra una interacción simple en la BD usando ImprovedConversationLogger.
     """
     try:
+        # ✅ FILTRO: NO guardar mensajes vacíos, automáticos o de sistema
+        mensajes_ignorados = [
+            "Inicio de sesión",
+            "",
+            None,
+            "null",
+            "undefined"
+        ]
+        
+        if not user_message or user_message.strip() in mensajes_ignorados:
+            return  # No guardar mensajes automáticos
+        
+        # ✅ FILTRO: NO guardar si tiene confidence 0 e intent vacío (probable mensaje automático)
+        if confidence == 0.0 and (not intent_name or intent_name.strip() == ""):
+            return
+        
         logger_instance = get_improved_conversation_logger()
         if not logger_instance:
             print("⚠️ Logger no inicializado aún (log_interaction_improved)")

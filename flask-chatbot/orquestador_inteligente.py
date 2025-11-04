@@ -1,4 +1,4 @@
-"""
+﻿"""
 ORQUESTADOR INTELIGENTE MEJORADO V3.0
 Integra: GitHub Copilot + Motor Difuso + Base de Datos
 Versión optimizada con GitHub Copilot como modelo principal
@@ -71,7 +71,9 @@ class SessionContext:
         self.session_id = session_id
         self.nombre = None
         self.cedula = None
+        self.tipo_tramite = None  # 'primera_vez', 'perdida', 'renovacion', 'extranjero'
         self.fecha = None
+        self.franja_horaria = None  # 'manana', 'tarde'
         self.hora = None
         self.hora_recomendada = None  # Guardar última hora recomendada
         self.email = None
@@ -139,35 +141,135 @@ class ClasificadorIntentsMejorado:
     PATRONES_INTENT = {
         # Agendamiento (ALTA PRIORIDAD)
         'agendar_turno': [
-            r'\b(quiero|necesito|deseo|me gustaria)\s+(un\s+)?(turno|cita|hora)\b',
-            r'\b(sacar|agendar|reservar|pedir|solicitar)\s+(un\s+)?(turno|cita)\b',
-            r'\b(turno|cita)\s+(por favor|porfavor|pls)\b',
-            r'\bquiero\s+turno\b',
-            r'\bsacar\s+turno\b',
+            r'\b(quiero|kiero|kero|kieroo|necesito|nesecito|nesesito|deseo|me gustaria)\s+(un\s+)?(turno|cita|hora)\b',
+            r'\b(sacar|sakar|agendar|agend|ajendar|amrcar|reservar|apartar|conseguir|pedir|solicitar)\s+(un\s+|una\s+)?(turno|cita|horario|cupo)\b',
+            r'^\s*reservar\s+(un\s+|una\s+)?(turno|cita)\s*$',
+            r'\b(turno|cita)\s+(por favor|x favor|xfa|porfavor|pls|plss|porfa|porfaa+)\b',
+            r'\b(quiero|kiero|kero|kieroo)\s+turno\b',
+            r'\b(sacar|sakar)\s+turno\b',
+            r'^\s*turno\s*$',  # Solo la palabra "turno"
+            r'\bquiero\s+(sacar|sakar|un)\s+turno\b',
+            r'\b(necesito|nesecito|nesesito)\s+turno\b',
+            r'\bturno\s+(urgente|rapido|rápido)\b',
+            r'\b(podria|podría|quisiera)\s+(agendar|reservar)\b',
+            r'\bquiero\s+agendar\s+para\b',
+            r'\bnecesito\s+agendar\s+(pero|para)\b',
+            r'\b(dame|damelo|dame\s+un)\s+(horario|turno)\b',
+            r'\bquiero\s+reservar\b',
+            r'\bagendar\s+(para\s+)?antes\s+de(l)?\b',
+            # Frases largas descriptivas
+            r'\b(necesito|estoy\s+intentando).*\bagendar\s+un\s+turno\b',
+            r'\bcomunicarme.*\bagendar\s+un\s+turno\b',
+            r'\b(vieja|che|amigo|bo)\s*,?\s*(necesito|quiero|kiero)\s+turno\b',
+            r'\bnecesito\s+para\s+(ma[ñn]ana|hoy|el\s+(lunes|martes|miercoles|mi[eé]rcoles|jueves|viernes))\b',
+            r'\b(porfa|porfaa+)\s+(urgente|rapido|rápido)\b',
+            r'\b(yo|tu|el|ella)\s+(querer|necesitar|poder)\s+turno\b',
+            r'\b(che|vieja|amigo|bo)\s*,?\s+(tienen|hay)\s+(lugar|turno|espacio)\b(?!.*\bhoy\b)',  # No si pregunta por HOY
+            r'\bnecesito\s+agendar\s+un\s+turno\s+pero\b',
+            r'\bdame\s+uno\b',
         ],
         
         # Consultas de horarios
         'consultar_disponibilidad': [
-            r'\b(que|cuales|qu[eé])\s+(horarios|horas|turnos)\s+(hay|tienen|est[aá]n|disponible)',
-            r'\b(horarios|horas)\s+(disponible|libre)',
-            r'\bcuando\s+(puedo|hay|tienen|est[aá])\b',
-            r'\bque\s+d[ií]as\b',
+            r'\b(que|cuales|cu[aá]les|cual|cu[aá]l|qu[eé]|k|q|ke|qe)\s+(horarios|horas|hora|turnos|franjas|d[ií]as)\s+(hay|tienen|est[aá]n|son|disponible|libre|trabajan|atienden)',
+            r'\b(que|qu[eé])\s+tal\s+(la\s+)?(disponibilidad|horarios|turnos|esta\s+semana|para\s+la\s+pr[oó]xima|semana)\b',
+            r'\by\s+la\s+pr[oó]xima\s+semana\b',
+            r'\by\s+para\s+la\s+pr[oó]xima\b',
+            r'\bque\s+tal\s+para\s+la\s+pr[oó]xima\b',
+            r'\b(cual|cu[aá]l)\s+(es|ser[aá])\s+(la\s+)?(disponibilidad|horarios|turnos)\b',
+            r'\b(que|qu[eé]|cual|cu[aá]l)\s+(dia|d[ií]a)\s+(est[aá]|esta|hay|tienen)\s+(m[aá]s|mas)\s+(cerca|cercano|pr[oó]ximo|disponible)\b',
+            r'\b(el\s+)?(dia|d[ií]a)\s+(m[aá]s|mas)\s+(cerca|cercano|pr[oó]ximo)\s+(disponible|para\s+marcar)\b',
+            r'\b(ke|qe|que)\s+d[ií]as\s+trabajan\b',
+            r'\b(horarios|horas|franjas\s+horarias)\s+(disponible|libre|tienen)',
+            r'\bcuando\s+(puedo|hay|tienen|est[aá]|es\s+posible)\b',
+            r'\bque\s+d[ií]as\s+(trabajan|atienden)?\b',
+            r'\bhay\s+(turnos|horarios|lugar|hueco|espacio|turno)\b',
+            r'\b(tienen|hay)\s+(algo|algun|alguno|lugar)\s+(libre|disponible)\b',
+            r'\bhay\s+turno\s+para\s+(mi|m[ií])\b',
+            r'\b(yo|tu)\s+(poder|puedo|puede)\s+(ir|venir)\b',
+            r'\b(a\s+que|que)\s+hora\s+abren\b',
+            r'\b(me\s+gustaria|quisiera)\s+saber.*\bdisponibilidad\b',
+            r'\bser[aá]\s+posible\s+ir\b',
+            r'\btrabajo.*\bpuedo\s+ir\s+(despues|despu[eé]s)\b',
+            r'\bestudio.*\btienen\s+por\s+(la\s+)?(tarde|ma[ñn]ana)\b',
+            r'\binformaci[oó]n\s+sobre.*\bturnos\b',
+            r'\bcuando\s+es\s+lo\s+mas\s+pronto\b',
+            r'\b(nde+|ndee+)\s*,?\s+(tenes|tienen)\s+turno\b',
+            # Patrones existentes de consultas ambiguas
+            r'\b(que|cual)\s+d[ií]a\s+(est[aá]|tiene|hay)\s+(m[aá]s)?\s*(libre|disponible|mejor)',
+            r'\bd[ií]a\s+(intermedio|de\s+la\s+semana|medio)',
+            r'\b(cuando|cu[aá]ndo)\s+hay\s+(menos\s+gente|m[aá]s\s+espacio)\b',
+            r'\b(mejor|cu[aá]l\s+es\s+el\s+mejor)\s+d[ií]a\b',
+            r'\bque\s+d[ií]a\s+(me\s+)?(recomiend|suger)',
+            r'\b(recomiend|suger|dime|dame)\s*[aá]?\s*me\s+(un\s+)?(d[ií]a|horario|turno)\b',
+            r'\b(recomiend|suger)\s*[aá]?\s*(un\s+)?(d[ií]a|horario|fecha)\b',
+            r'\bdisponibilidad\s+(por\s+la\s+)?(ma[ñn]ana|tarde)\b',
+            r'\bhoy\s+no\s+tienen\s+disponible\b',
+            r'\bpara\s+hoy\s+no\s+est[aá]n\b',
+            r'\b(ay|ai|hai|hay)\s+(turnos|horarios|orarios)\s+(para\s+)?(pasado\s+)?ma[ñn]ana\b',
+            r'\bhay\s+para\s+ma[ñn]ana\b',
+            r'\bpara\s+(ma[ñn]ana|hoy|el\s+\w+)\s+(a\s+la\s+|de\s+la\s+|por\s+la\s+)?(ma[ñn]ana|tarde)\s+(puedo|pued|tiene|hay)\b',
+            r'\bpuedo\s+marcar\s+para\s+(ma[ñn]ana|hoy|el\s+\w+)\s+(a\s+la\s+|de\s+la\s+|por\s+la\s+)?(ma[ñn]ana|tarde)\b',
+            # Ortografía extrema
+            r'\b(kiero|nesecito)\s+(saver|saber)\s+(ke|que)\s+(orarios|horarios)\s+(ay|hay)\b',
+            r'\b(ke|que)\s+(orarios|horarios)\s+(ay|hay)\s+para\s+(la\s+)?semana\s+(ke|que)\s+(biene|viene)\b',
+            # Patrones para "próxima semana" + consulta
+            r'\b(quiero|necesito)\s+(para\s+)?la\s+pr[oó]xima\s+semana.*\b(que|qu[eé]|cual)\s+d[ií]a\b',
+            r'\bpr[oó]xima\s+semana.*\b(que|qu[eé])\s+d[ií]a.*\b(hay|tienen|tenes|disponible)\b',
+            r'\bpara.*pr[oó]xima\s+semana.*\b(hay|tienen|disponible)\b',
+            r'\bque\s+d[ií]a.*\bpr[oó]xima\s+semana\b',
+            # Consultas con día específico + pregunta
+            r'\bpara\s+(el\s+)?(lunes|martes|miercoles|mi[eé]rcoles|jueves|viernes).*\bhay\s+disponible\b',
+            r'\bturno\s+para\s+(el\s+)?(lunes|martes|miercoles|mi[eé]rcoles|jueves|viernes).*\bhay\b',
+            r'\b(quiero|necesito)\s+ir\s+(ma[ñn]ana|hoy|pasado\s+ma[ñn]ana).*\b(que|a\s+que)\s+hora\b',
+            r'\b(me\s+gustaria|quisiera)\s+ir.*\bcuando\s+hay\s+turnos\b',
+            r'\b(semana\s+que\s+viene|la\s+que\s+viene).*\bcuando\s+hay\b',
+            # Preguntas sobre disponibilidad con contexto
+            r'\bpuedo\s+(ir|venir|sacar\s+turno)\s+(para\s+)?(hoy|ma[ñn]ana|pasado)\b',
+            r'\btengo\s+libre\s+(el\s+)?(lunes|martes|miercoles|mi[eé]rcoles|jueves|viernes).*\bhay\b',
+            # Urgencias
+            r'\bturno\s+urgente.*\bcuando\s+es\s+lo\s+mas\s+(rapido|r[aá]pido|pronto)\b',
+            # Consultas indirectas sobre horarios
+            r'\b(trabajo|estudio|salgo).*\b(cierran|abren|atienden|est[aá]n)\b',
+            r'\b(puedo|podre|podr[eé])\s+(sacar|ir|venir).*\bsabados\b',
+            r'\b(que|k)\s+onda\s+con\s+(los\s+)?(turnos|horarios)\b',
+            r'\bcuando\s+hay\s+menos\s+gente\b',
+            r'\bque\s+d[ií]a\s+hay\s+(m[aá]s|mas|menos)\s+(espacio|gente)\b',
+            r'\bsolo\s+puedo\s+(ir|venir)\s+(despues|despu[eé]s)\b',
+            r'\b(che|vieja|bo)\s*,?\s+tienen\s+lugar\s+(para\s+)?hoy\b',
+            r'\b(tienen|hay)\s+algo\s+(libre|disponible)\b',
+            r'\byo\s+(poder|puedo|puede)\s+ir\s+ma[ñn]ana\b',
+            # Consultas condicionales
+            r'\b(reservar|agendar).*\b(no\s+se|no\s+s[eé])\s+si\s+(tienen|hay)\s+(lugar|turnos|espacio)\b',
+            r'\b(lunes|viernes)\s+o\s+(lunes|viernes)\b',
+            r'\bcuando\s+hay\s+(menos|m[aá]s)\s+gente\b',
+            # Frases largas descriptivas
+            r'\bquisiera\s+saber\s+que\s+d[ií]as\s+tienen\s+disponible\b',
+            r'\bnecesito\s+sacar.*\bquisiera\s+saber.*\bd[ií]as\s+(tienen|hay)\b',
+            r'\b(quiero|necesito)\s+saber\s+si\s+tienen\s+(turnos|horarios)\b',
+            r'\b(disculpa|perdona|perdon)\s*,?\s+.*(hay|tienen)\s+(horarios|turnos)\b',
         ],
         
         'frase_ambigua': [
             r'\b(primera\s+hora|temprano|ma[ñn]ana\s+temprano)\b',
             r'\b(lo\s+antes|cuanto\s+antes|lo\s+m[aá]s\s+pronto)\b',
             r'\b(mejor\s+horario|recomiend|conveniente)\b',
+            r'\bque\s+me\s+recomiendas\b',
+            r'\bdame\s+uno\b',
+            r'\bes\s+mejor.*\bo\s+',  # Comparaciones: "es mejor X o Y"
+            r'\b(cual|cu[aá]l)\s+es\s+mas\s+(rapido|r[aá]pido|conveniente)\b',
+            r'\bme\s+conviene\s+(sacar|ir|hacer)\b',
         ],
         
         # Datos personales
         'informar_nombre': [
-            r'\b(mi\s+nombre\s+es|me\s+llamo|soy)\s+[A-Z]',
-            r'^[A-Z][a-z]+\s+[A-Z][a-z]+$',  # Nombre completo
+            r'\b(mi\s+nombre\s+es|me\s+llamo|soy)\s+[A-Za-z]',
+            # Removido patrón estricto de mayúsculas - se maneja con detección contextual
         ],
         
         'informar_cedula': [
-            r'\b\d{5,8}\b',  # Número de cédula (5-8 dígitos)
+            r'\b\d{1,2}\.\d{3}\.\d{3}\b',  # Formato con puntos: XX.XXX.XXX
+            r'\b\d{5,8}\b',  # Número de cédula (5-8 dígitos sin puntos)
             r'\bci\s*:?\s*\d+',
             r'\bcedula\s*:?\s*\d+',
         ],
@@ -200,19 +302,79 @@ class ClasificadorIntentsMejorado:
         'consultar_requisitos': [
             r'\brequisitos\b',
             r'\bdocumentos?\b',
-            r'\b(que|qu[eé]|cuales|cu[aá]les)\s+(requisitos|documentos)\b',
-            r'\b(que|qu[eé])\s+necesito\b',
-            r'\b(que|qu[eé])\s+debo\s+(traer|llevar|presentar)\b',
+            r'\b(que|qu[eé]|k|ke|qe|cuales|cu[aá]les)\s+(requisitos|documentos|papeles)\b',
+            r'\b(que|qu[eé]|k|ke|qe)\s+(necesito|nececito|nesecito|tengo\s+que\s+llevar|traer)\b',
+            r'\b(que|qu[eé]|k|ke|qe)\s+debo\s+(traer|llevar|presentar)\b',
+            r'\b(que|qu[eé]|k|ke|qe)\s+(documentos|requisitos|papeles)\s+(necesito|nececito|nesecito|llevar|traer)\b',
+            r'\bpara\s+sacar\s+(cedula|cédula|sedula)\s+(que|qu[eé]|k)\s+necesita',
+            r'\b(como|c[oó]mo|komo)\s+hago\s+para\s+sacar\s+(la\s+)?(cedula|cédula|sedula)\b',
+            r'\bquisiera\s+saber\s+(como|c[oó]mo)\s+hago\s+para\s+sacar\b',
+            r'\btengo\s+que\s+llevar\s+(alg[uú]n|alguno)\s+(documento|papel)\b',
+            r'\b(es\s+mi\s+primer|primera|primer)\s+(cedula|cédula|sedula|tramite|trámite|vez).*\b(que|qu[eé]|k)\s+(necesito|tengo\s+que\s+hacer)\b',
+            r'\bnunca\s+fui\s*,?\s+(como|c[oó]mo)\s+hago\b',
+            r'\b(disculpe|perd[oó]n)\s+.*\bcu[aá]les\s+son\s+los\s+requisitos\b',
+            r'\b(podria|podr[ií]a)\s+decirme.*\brequisitos\b',
+            r'\binfo(rmaci[oó]n)?\s+(x\s+favor|por\s+favor|xfa|pls)?\b',
+            r'\b(tengo|soy).*\bpuedo\s+sacar\s+(la\s+)?(cedula|sedula)\b',
+            r'\bsoy\s+(extranjero|menor).*\bpuedo\s+sacar\b',
+            # Ortografía extrema
+            r'\b(k|ke)\s+(papeles|documentos)\s+(tengo|tenemos)\s+(k|ke)\s+(traer|llevar)\b',
+            r'\bpara\s+(sakar|sacar)\s+(la\s+)?sedula\b',
         ],
         
         'consultar_ubicacion': [
-            r'\b(donde|ubicaci[oó]n|direcci[oó]n|como\s+llego)\b',
-            r'\bqueda\b.*\b(oficina|lugar)\b',
+            # Números de contacto / teléfono (ALTA PRIORIDAD)
+            r'\b(hay|tienen|tenes|tenés)\s+(alg[uú]n|algun|un)?\s*n[uú]mero\b',
+            r'\bn[uú]mero\s+(de\s+)?(contacto|tel[eé]fono|telefono)\b',
+            r'\b(tienen|tenes|tenés|hay)\s+(un\s+)?(tel[eé]fono|telefono|contacto|n[uú]mero)\b',
+            r'\b(puedo|pwedo)\s+llamar\b',
+            r'\b(tienen|hay)\s+(un\s+)?n[uú]mero\s+(que|para)\s+(pueda|poder)\s+llamar\b',
+            r'^\s*(hay|tienen)\s+(numero|número)\s*\??\s*$',
+            # Contacto humano / hablar con persona
+            r'\b(quiero|kiero|necesito|nesecito)\s+(hablar|ablar)\s+con\s+(alguien|una\s+persona|un\s+humano)\b',
+            r'\b(puedo|pwedo)\s+(hablar|ablar)\s+con\s+(alguien|una\s+persona|un\s+operador)\b',
+            r'\b(contacto|kontacto)\s+(humano|con\s+persona)\b',
+            r'\b(hablar|ablar)\s+con\s+(un\s+)?(operador|persona|humano|alguien)\b',
+            r'\b(me\s+)?(comunico|comunicarme)\s+con\s+(alguien|una\s+persona)\b',
+            # Múltiples consultas: priorizar cuando "donde" aparece primero
+            r'^(hola\s*,?\s*)?(donde|dónde|d[oó]nde)\s+(quedan|queda|keda|est[aá]n|estan).*\by\s+(que|qu[eé])\s+(horarios|d[ií]as)',
+            r'\b(donde|dónde|adonde|ad[oó]nde|dnd|ubicaci[oó]n|direcci[oó]n|como\s+llego)\b',
+            r'\b(queda|keda|kedan|quedan)\b.*\b(oficina|lugar|ofi)\b',
+            r'\b(adonde|ad[oó]nde)\s+(queda|keda|kedan|quedan)\s+(la\s+)?(ofi|oficina)',
+            r'\b(donde|dónde|d[oó]nde)\s+(queda|keda|quedan|kedan|esta|está|est[aá]n)\b',
+            r'\b(tel[eé]fono|telefono|celular|contacto|n[uú]mero|numero|whatsapp|tlf)\b',
+            r'\b(como|c[oó]mo|komo)\s+(los\s+)?(puedo\s+|puedes\s+)?(contactar|llamar|comunicar|llegar)',
+            r'\b(como|c[oó]mo)\s+hago\s+para\s+llegar\b',
+            r'\bhay\s+(alg[uú]n|alguno)\s+(tel[eé]fono|telefono|contacto|n[uú]mero)\b',
+            r'\b(en\s+que|que)\s+lugar\s+se\s+encuentran\b',
+            r'\bcu[aá]l\s+es\s+la\s+direcci[oó]n\b',
+            r'\bcomo\s+puedo\s+(ir|llegar)\s+(hasta\s+)?all[ií]\b',
+            r'\bvivo\s+lejos.*\b(donde|vale\s+la\s+pena)\b',
+            r'\b(epa|ey)\s+(hermano|amigo).*\bdonde\s+est[aá]n\s+ubicados\b',
+            r'\b(soy\s+de|vengo\s+de).*\btienen\s+sucursal\b',
+            r'\b(necesito|quiero)\s+saber\s+donde\s+(est[aá]n|quedan)\b',
+            r'\bdonde\s+(est[aá]n|quedan).*\b(si\s+)?tienen\s+turnos\b',
+            r'\b(mi\s+hermano|mi\s+amigo).*\b(ahi|all[ií]).*\bcomo\s+puedo\s+ir\b',
+            r'^\s*tlf\s+(de\s+)?contacto\s*\??\s*$',
         ],
         
         'consultar_costo': [
-            r'\b(cuanto|cu[aá]nto)\s+(cuesta|sale|vale)\b',
+            # Múltiples consultas: priorizar cuando "cuanto" aparece primero
+            r'^(hola\s*,?\s*)?(cuanto|cu[aá]nto|kuanto)\s+(sale|cuesta|vale|bale).*\by\s+(que|qu[eé])\s+(documentos|requisitos|papeles)',
+            r'\b(cuanto|cu[aá]nto|kuanto|kwanto|cuant)\s+(cuesta|kuesta|sale|vale|bale|me\s+sale|cobran)\b',
             r'\b(precio|costo|arancel)\b',
+            r'\b(cuanto|cu[aá]nto|kuanto)\s+es\s+(el\s+)?(costo|precio)\b',
+            r'\bpara\s+sacar\s+(la\s+)?(cedula|cédula)\s+(cuanto|cu[aá]nto)\b',
+            r'\b(me\s+sale|sale|salir)\s+(el\s+)?(tramite|trámite|esto)\b',
+            r'\b(que\s+)?precio\s+tiene\b',
+            r'\bdebo\s+pagar\s+algo\b',
+            r'\bno\s+tengo\s+mucho.*\b(es\s+)?caro\b',
+            r'\bperdi\s+mi\s+cedula.*\bcuanto\s+me\s+cobran\b',
+            r'\bcuanto\s+me\s+(va\s+a\s+)?salir\b',
+            r'\bes\s+(muy\s+)?caro\s+sacar\b',
+            # Frases largas descriptivas
+            r'\bnecesito\s+saber\s+cuanto.*\b(costar|cobran|sale)\b',
+            r'\bperdi\s+mi\s+cedula.*\bcuanto\s+me\s+(va\s+a\s+)?costar\b',
         ],
         
         # Consulta de tiempo de espera
@@ -227,8 +389,11 @@ class ClasificadorIntentsMejorado:
         
         # Saludos y despedidas
         'greet': [
-            r'\b(hola|buenas|buen\s+d[ií]a|buenos\s+d[ií]as)\b',
-            r'^(hola|hey|hi)$',
+            r'\b(hola|ola|buenas|buen\s+d[ií]a|buenos\s+d[ií]as|buenas\s+tardes)\b',
+            r'^(hola|ola|hey|hi)$',
+            r'\b(mba\s+epa)\b',
+            r'\b(che|que\s+onda)\b.*\b(como|que|komo)\s+(hago|puedo)\b',
+            r'\b(ola|hola)\s+(kmo|como|k)\s+(estas|est[aá]s)\b',
         ],
         
         'goodbye': [
@@ -236,15 +401,55 @@ class ClasificadorIntentsMejorado:
             r'^(bye|chao)$',
         ],
         
-        # Afirmaciones y negaciones
+        # Afirmaciones y negaciones (solo frases cortas para evitar falsos positivos)
         'affirm': [
-            r'\b(s[ií]|si|ok|okay|dale|perfecto|correcto|exacto|confirmo)\b',
-            r'^(si|s[ií])$',
+            r'^(s[ií]|si|ok|okay|dale|perfecto|correcto|exacto|confirmo)\s*$',
+            r'^\s*(si|s[ií])\s+(por favor|porfavor|porfa|esta bien|está bien)\s*$',
+            r'\b(ese|esa|eso)\s+(d[ií]a|horario|hora)\s+(est[aá]|esta)\s+(bien|perfecto|ok)\b',
+            r'\b(ese|esa|eso)\s+(d[ií]a|horario|hora|mismo|misma)\b',
+            r'\bel\s+(horario|d[ií]a|hora)\s+que\s+me\s+(recomendaste|dijiste|sugeriste)\b',
+            r'\bme\s+(sirve|conviene|viene\s+bien|parece\s+bien)\b',
+        ],
+        
+        'negacion': [
+            r'\b(no|nop|nope)\s+(me\s+sirve|puedo|me\s+llamo|es\s+mi|es\s+el)\b',
+            r'\bno\s+ese\s+no\s+(es|está|esta)\b',
+            r'\bmejor\s+(otro|otra|lo\s+dejo)\s+(dia|día|hora|horario|para)\b',
+            r'\bprefiero\s+(otro|otra)\s+(dia|día|hora|horario)\b',
+            r'\bno\s+(me\s+)?(sirve|conviene|puedo|va|viene\s+bien)\b',
+            r'\bno\s+me\s+llamo\s+(as[ií]|asi)\b',
+            r'\bno\s+(ese|esa)\s+no\s+es\s+mi\s+(email|correo|nombre|cedula|cédula)\b',
+            r'\bequivocaste\s+mi\s+(email|correo|nombre)\b',
+            r'\b(ese|esa)\s+horario\s+no\s+me\s+viene\s+bien\b',
+            r'\bno\s+(es|esta|está)\s+mi\s+nombre\s+(correcto|bien)\b',
+            r'\bno\s+no\s*,?\s+mi\s+nombre\s+(esta|está)\s+mal\b',
+            r'\bmi\s+(nombre|email|cedula|cédula)\s+(esta|está)\s+mal\b',
+            r'\b(ese|esa)\s+(no\s+es|no\s+era)\s+mi\s+(nombre|email|cedula)\b',
+            r'\bme\s+equivoqu[eé]\b',
+        ],
+        
+        'cancelar': [
+            r'\bcancelar\b',
+            r'\bcancelo\b',
+            r'\bmejor\s+lo\s+cancel',
+            r'\bya\s+no\s+quiero\s+(el\s+)?turno\b',
+            r'\bno\s+quiero\s+el\s+turno\b',
+            r'\banular\b',
+            r'\bno\s+quiero\s+(m[aá]s|seguir)\b',
         ],
         
         'deny': [
-            r'\b(no|nop|nope|neg|cancelar)\b',
-            r'^no$',
+            r'^\s*no\s*$',  # Solo "no"
+            r'\b(nop|nope|neg)\b',
+        ],
+        
+        # Modo desarrollador (acceso al dashboard)
+        'modo_desarrollador': [
+            r'\bmodo\s+desarrollador\b',
+            r'\bdev\s+mode\b',
+            r'\bdashboard\b',
+            r'\bpanel\s+admin\b',
+            r'\badministrador\b',
         ],
         
         'agradecimiento': [
@@ -278,21 +483,246 @@ class ClasificadorIntentsMejorado:
         """
         mensaje_lower = mensaje.lower().strip()
         
-        # DETECCIÓN DE NEGACIONES (debe ir primero)
-        palabras_negacion = ['no tengo', 'no tiene', 'sin cedula', 'sin cédula', 'todavia no', 'todavía no', 
-                            'aun no', 'aún no', 'no cuento', 'no poseo', 'no dispongo',
-                            'primera vez', '1ra vez', '1era vez', 'es mi primera', 'primera tramite']
-        if any(neg in mensaje_lower for neg in palabras_negacion):
-            logger.info(f"🎯 Intent detectado: negacion_sin_cedula (0.98)")
-            return ("negacion_sin_cedula", 0.98)
+        # ========================================================
+        # DETECCIÓN PRIORITARIA: Comandos de administrador
+        # ========================================================
+        comandos_admin = [
+            'modo desarrollador', 'modo dev', 'dashboard', 
+            'panel admin', 'administrador', 'panel de control',
+            'admin panel', 'dev mode', 'admin'
+        ]
+        
+        if mensaje_lower in comandos_admin:
+            logger.info(f"🔧 Comando de administrador detectado: '{mensaje_lower}'")
+            return ("modo_desarrollador", 0.99)
+        
+        # DETECCIÓN ESPECIAL: Frases muy cortas ambiguas (1-3 palabras)
+        frases_cortas_ambiguas = {
+            'hoy': 'consultar_disponibilidad',
+            'que hay hoy': 'consultar_disponibilidad',
+            'que hay hoy?': 'consultar_disponibilidad',
+            'hay para hoy': 'consultar_disponibilidad',
+            'hay para hoy?': 'consultar_disponibilidad',
+            'hay horarios disponibles de tarde?': 'consultar_disponibilidad',
+            'de tarde hay?': 'consultar_disponibilidad',
+            'de tarde hay': 'consultar_disponibilidad',
+            'hay horarios disponibles de tarde': 'consultar_disponibilidad',
+            'que costo tiene?': 'consultar_costo',
+            'que costo tiene': 'consultar_costo',
+            'cuanto cuesta?': 'consultar_costo',
+            'cuanto cuesta': 'consultar_costo',
+            'mañana': 'informar_fecha',
+            'para hoy': 'consultar_disponibilidad',
+            'dame uno': 'agendar_turno',  # Usuario pidiendo turno (cualquiera)
+            'el mejor': 'frase_ambigua',
+            'el que sea': 'frase_ambigua',
+            'cual seria': 'frase_ambigua',
+            'cual seria?': 'frase_ambigua',
+            'ese mismo': 'frase_ambigua',
+            'lo que tengan': 'frase_ambigua',
+            'cualquiera me sirve': 'frase_ambigua',
+            'lo antes posible': 'frase_ambigua',
+            'temprano': 'frase_ambigua',
+            'que me recomiendas': 'frase_ambigua',
+            'que me recomiendas?': 'frase_ambigua',
+            'antes de las 10': 'frase_ambigua',
+            'mba epa, como hago': 'greet',
+            'mba epa, como hago?': 'greet',
+            'ola kmo estas': 'greet',
+            'para hoy no estan': 'consultar_disponibilidad',
+            'para hoy no están': 'consultar_disponibilidad',
+            'para hoy no estan?': 'consultar_disponibilidad',
+            'para hoy no están?': 'consultar_disponibilidad',
+            'que dia me recomendas': 'consultar_disponibilidad',
+            'que dia me recomendas?': 'consultar_disponibilidad',
+            'q onda, hay turnos?': 'consultar_disponibilidad',
+            'q onda hay turnos': 'consultar_disponibilidad',
+            'ncs turno xfa': 'agendar_turno',
+            'info x favor': 'consultar_requisitos',
+            'reservar una cita': 'agendar_turno',
+            'tlf de contacto?': 'consultar_ubicacion',
+            'tlf de contacto': 'consultar_ubicacion',
+            'a que numero puedo llamar?': 'consultar_ubicacion',
+            'a que numero puedo llamar': 'consultar_ubicacion',
+            'cual es numero de contacto?': 'consultar_ubicacion',
+            'cual es numero de contacto': 'consultar_ubicacion',
+            'tienen numero de contacto?': 'consultar_ubicacion',
+            'tienen numero de contacto': 'consultar_ubicacion',
+            'numero de contacto?': 'consultar_ubicacion',
+            'numero de contacto': 'consultar_ubicacion',
+            'numero de telefono?': 'consultar_ubicacion',
+            'numero de telefono': 'consultar_ubicacion',
+            'hay algun numero de contacto?': 'consultar_ubicacion',
+            'hay algun numero de contacto': 'consultar_ubicacion',
+            'tienen un numero de contacto?': 'consultar_ubicacion',
+            'tienen un numero de contacto': 'consultar_ubicacion',
+            'puedo llamar?': 'consultar_ubicacion',
+            'puedo llamar': 'consultar_ubicacion',
+            'tienen un numero que pueda llamar?': 'consultar_ubicacion',
+            'tienen un numero que pueda llamar': 'consultar_ubicacion',
+            'hay numero?': 'consultar_ubicacion',
+            'hay numero': 'consultar_ubicacion',
+            'tienen numero?': 'consultar_ubicacion',
+            'tienen numero': 'consultar_ubicacion',
+        }
+        
+        if mensaje_lower in frases_cortas_ambiguas:
+            intent_especial = frases_cortas_ambiguas[mensaje_lower]
+            logger.info(f"🎯 Frase corta ambigua detectada: {intent_especial} (0.93)")
+            return (intent_especial, 0.93)
+        
+        # =================================================================
+        # DETECCIONES CONTEXTUALES Y PATRONES IMPORTANTES
+        # =================================================================
+        
+        # Detectar correcciones de datos ("mi nombre esta mal, es...", "dije para las X")
+        if any(frase in mensaje_lower for frase in ['esta mal', 'está mal', 'es incorrecto', 'no es correcto']):
+            # Verificar si menciona nombre/email/cedula y luego da un valor
+            if ('mi nombre' in mensaje_lower or 'mi email' in mensaje_lower or 'mi cedula' in mensaje_lower or 'mi cédula' in mensaje_lower):
+                logger.info(f"🎯 [CONTEXTO] Usuario corrige datos → negacion")
+                return ("negacion", 0.96)
+        
+        # Detectar corrección explícita ("dije para...", "yo dije...")
+        if any(frase in mensaje_lower for frase in ['dije', 'yo dije', 'habia dicho', 'había dicho']):
+            # Verificar si da una hora o fecha nueva
+            import re
+            if re.search(r'\b\d{1,2}(:\d{2})?(\s+(y\s+media|y\s+cuarto))?\b', mensaje):
+                logger.info(f"🎯 [CONTEXTO] Usuario corrige hora → negacion")
+                return ("negacion", 0.96)
+        
+        # Detectar EMAIL cuando el sistema lo pidió
+        if contexto.fecha and contexto.hora and not contexto.email:
+            import re
+            if re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', mensaje):
+                logger.info(f"🎯 [CONTEXTO] Usuario proporciona email → informar_email")
+                return ("informar_email", 0.98)
+        
+        # Detectar ACEPTACIÓN de hora recomendada (ANTES de confirmación final)
+        if contexto.hora_recomendada and not contexto.hora:
+            # Frases de aceptación de recomendación
+            if any(frase in mensaje_lower for frase in [
+                'esta bien', 'está bien', 'ok', 'vale', 'acepto', 'perfecto',
+                'me parece bien', 'si esa', 'sí esa', 'esa hora',
+                'la hora que recomiendas', 'la que recomiendas'
+            ]):
+                logger.info(f"🎯 [CONTEXTO] Usuario acepta hora recomendada → elegir_horario")
+                return ("elegir_horario", 0.97)
+        
+        # Detectar "perfecto" cuando tiene hora_recomendada Y fecha
+        if contexto.hora_recomendada and contexto.fecha and not contexto.hora:
+            if mensaje_lower.strip() in ['perfecto', 'ok', 'vale', 'bien', 'si', 'sí', 'acepto']:
+                logger.info(f"🎯 [CONTEXTO] Usuario acepta recomendación simple → elegir_horario")
+                return ("elegir_horario", 0.97)
+            # Detectar "ya me recomendaste" como aceptación implícita
+            if any(frase in mensaje_lower for frase in ['ya me recomendaste', 'ya me dijiste', 'ya me diste', 'tu recomendacion', 'tu recomendación']):
+                logger.info(f"🎯 [CONTEXTO] Usuario acepta recomendación implícitamente → elegir_horario")
+                return ("elegir_horario", 0.96)
+        
+        # Detectar CAMBIO de hora cuando YA tiene hora asignada
+        if contexto.hora:
+            # Frases que indican cambiar/modificar hora
+            if any(frase in mensaje_lower for frase in [
+                'cambiar de horario', 'cambiar el horario', 'cambiar la hora',
+                'cambiar de hora', 'modificar', 'actualizar',
+                'quiero cambiar', 'puedo cambiar', 'mejor para las'
+            ]):
+                # Y tiene una hora en el mensaje
+                import re
+                if re.search(r'\b([0-9]{1,2}):?([0-9]{2})?\b', mensaje):
+                    logger.info(f"🎯 [CONTEXTO] Usuario cambia hora existente → elegir_horario")
+                    return ("elegir_horario", 0.96)
+        
+        # Detectar CAMBIO de fecha cuando YA tiene fecha asignada
+        if contexto.fecha:
+            # Frases que indican cambiar fecha
+            if any(frase in mensaje_lower for frase in [
+                'cambiar mi turno para', 'cambiar para',
+                'mejor para el', 'prefiero el',
+                'puedo cambiar para', 'mover para'
+            ]):
+                # Y tiene un día de la semana o fecha
+                if any(dia in mensaje_lower for dia in ['lunes', 'martes', 'miercoles', 'miércoles', 'jueves', 'viernes', 'sabado', 'sábado']):
+                    logger.info(f"🎯 [CONTEXTO] Usuario cambia fecha existente → consultar_disponibilidad")
+                    return ("consultar_disponibilidad", 0.96)
+        
+        # Detectar confirmación simple cuando tiene fecha+hora+email (datos completos)
+        if contexto.nombre and contexto.fecha and contexto.hora and contexto.email:
+            mensaje_limpio = mensaje_lower.strip()
+            if mensaje_limpio in ['esta bien', 'está bien', 'ok', 'vale', 'si', 'sí', 'perfecto', 'de acuerdo', 'confirmo', 'confirmado', 'confirm', 'acepto', 'acepto']:
+                logger.info(f"🎯 [CONTEXTO] Usuario confirma turno completo → confirmar (msg: '{mensaje_limpio}')")
+                return ("confirmar", 0.97)
+            # También detectar frases de confirmación
+            if any(frase in mensaje_lower for frase in ['si confirmo', 'sí confirmo', 'si acepto', 'sí acepto', 'todo bien', 'esta todo bien', 'está todo bien']):
+                logger.info(f"🎯 [CONTEXTO] Usuario confirma turno con frase → confirmar")
+                return ("confirmar", 0.97)
+        
+        # Detectar cambio de hora cuando ya tiene fecha PERO NO hora
+        if contexto.fecha and not contexto.hora:
+            # Frases que indican elegir/cambiar hora
+            if any(palabra in mensaje_lower for palabra in ['cambiar', 'mejor', 'prefiero', 'quiero']):
+                # Y tiene una hora en el mensaje
+                import re
+                if re.search(r'\b([0-9]{1,2}):?([0-9]{2})?\b', mensaje):
+                    logger.info(f"🎯 [CONTEXTO] Usuario elige/cambia hora → elegir_horario")
+                    return ("elegir_horario", 0.96)
+        
+        # Detectar hora aislada cuando esperamos hora
+        if contexto.fecha and not contexto.hora:
+            # Si el mensaje es solo una hora o "para/a las X"
+            import re
+            if re.match(r'^(para\s+)?(a\s+)?las?\s+[0-9]{1,2}(:[0-9]{2})?$', mensaje_lower) or \
+               re.match(r'^[0-9]{1,2}(:[0-9]{2})?$', mensaje_lower):
+                logger.info(f"🎯 [CONTEXTO] Usuario da hora directamente → elegir_horario")
+                return ("elegir_horario", 0.97)
+        
+        # Detectar tipo de trámite cuando pregunta por cédula
+        if contexto.nombre and not contexto.cedula:
+            # Primera vez / no tengo cédula
+            if any(frase in mensaje_lower for frase in ['primera vez', '1ra vez', 'primer tramite', 'no tengo cedula', 'no tengo cédula', 'todavia no tengo', 'todavía no tengo', 'aun no tengo', 'aún no tengo']):
+                logger.info(f"🎯 [CONTEXTO] Tipo de trámite detectado: primera_vez")
+                contexto.tipo_tramite = 'primera_vez'
+                return ("informar_tipo_tramite", 0.96)
+            
+            # Pérdida/Robo
+            if any(frase in mensaje_lower for frase in ['se me perdio', 'se me perdió', 'perdi', 'perdí', 'me la robaron', 'me robaron', 'se me extravió', 'se me extravi', 'extravio', 'extravío', 'robo']):
+                logger.info(f"🎯 [CONTEXTO] Tipo de trámite detectado: perdida")
+                contexto.tipo_tramite = 'perdida'
+                return ("informar_tipo_tramite", 0.96)
+            
+            # Extranjero
+            if any(frase in mensaje_lower for frase in ['soy extranjero', 'extranjera', 'no soy paraguayo', 'no soy paraguaya', 'extranjeria']):
+                logger.info(f"🎯 [CONTEXTO] Tipo de trámite detectado: extranjero")
+                contexto.tipo_tramite = 'extranjero'
+                return ("informar_tipo_tramite", 0.96)
+        
+        # Detectar negación sin cédula (sin importar contexto) - SOLO si no detectamos tipo arriba
+        palabras_negacion_sin_cedula = [
+            'se me perdio', 'se me perdió', 'perdi mi cedula', 'perdí mi cédula',
+            'no tengo cedula', 'no tengo cédula', 'sin cedula', 'sin cédula',
+            'no la tengo', 'me la robaron', 'se me extravió', 'se me extravi',
+            'todavia no tengo', 'todavía no tengo', 'aun no tengo', 'aún no tengo'
+        ]
+        
+        if any(neg in mensaje_lower for neg in palabras_negacion_sin_cedula):
+            logger.info(f"🎯 [PATRON] negacion_sin_cedula (0.95)")
+            return ("negacion_sin_cedula", 0.95)
+        
+        # SOLO detectar "no tengo" SI estamos esperando cédula
+        if contexto.nombre and not contexto.cedula:
+            if mensaje_lower in ['no tengo', 'no tengo nada', 'nada']:
+                logger.info(f"🎯 [CONTEXTO] negacion_sin_cedula (0.98)")
+                return ("negacion_sin_cedula", 0.98)
         
         # Palabras clave de intents de ACCIÓN (no son nombres)
         palabras_accion = ['agendar', 'turno', 'cita', 'horario', 'disponibilidad', 
                           'requisitos', 'ubicacion', 'ubicación', 'direccion', 'dirección',
                           'costo', 'precio', 'cuanto', 'cuánto', 'pagar',
                           'consultar', 'ver', 'necesito', 'información', 'informacion',
-                          'oficina', 'queda', 'esta', 'esta ubicada', 'como llego',
-                          'ayuda', 'ayudar', 'puedes', 'necesitas', 'hacer']
+                          'oficina', 'ofi', 'queda', 'keda', 'esta', 'esta ubicada', 'como llego',
+                          'ayuda', 'ayudar', 'puedes', 'necesitas', 'hacer',
+                          'tienen', 'hay', 'libre', 'disponible', 'gente', 'espacio',
+                          'recomendas', 'recomiendas', 'asi', 'así', 'llamo', 'poder', 'cuando',
+                          'adonde', 'donde', 'contactar', 'cancelar', 'cancelo']
         
         # Si el mensaje contiene palabras de acción, NO validar como nombre
         es_accion = any(palabra in mensaje_lower for palabra in palabras_accion)
@@ -313,27 +743,21 @@ class ClasificadorIntentsMejorado:
             'gaga', 'total', 'pepe', 'test', 'prueba', 'fake', 'falso'
         }
         
-        # CONTEXTO: Si NO tenemos nombre y el mensaje son 2-4 palabras sin números 
-        # (probablemente nombre), pero SOLO si NO es un mensaje de acción
-        if not contexto.nombre and not es_accion and 2 <= len(mensaje.split()) <= 4 and not re.search(r'\d', mensaje):
+        # DETECCIÓN DE NOMBRES CONTEXTUAL (SIMPLIFICADA)
+        # Si NO tenemos nombre y el mensaje es 1-4 palabras solo con letras, es probable que sea un nombre
+        if not contexto.nombre and not es_accion:
             palabras = mensaje.split()
-            palabras_lower = [p.lower() for p in palabras]
-            
-            # Verificar que NO contengan palabras prohibidas
-            if any(p in palabras_prohibidas for p in palabras_lower):
-                logger.info(f"⚠️ Mensaje contiene palabras prohibidas, no es un nombre: {mensaje}")
-                return ("desconocido", 0.0)
-            
-            # Verificar que sean palabras válidas (al menos 2 letras cada una, solo letras)
-            if all(len(p) >= 2 and p.isalpha() for p in palabras):
-                # Verificar que al menos una palabra empiece con mayúscula (característica de nombres propios)
-                if any(p[0].isupper() for p in palabras):
-                    logger.info(f"🎯 Intent detectado por contexto: informar_nombre (0.95)")
-                    return ("informar_nombre", 0.95)
-                else:
-                    logger.info(f"⚠️ Posible nombre pero sin mayúsculas: {mensaje}")
-            else:
-                logger.info(f"⚠️ Palabras no válidas como nombre: {mensaje}")
+            if 1 <= len(palabras) <= 4:
+                palabras_lower = [p.lower() for p in palabras]
+                
+                # Verificar que NO contengan palabras prohibidas
+                if any(p in palabras_prohibidas for p in palabras_lower):
+                    pass  # No es nombre, seguir con clasificación normal
+                # Verificar que sean palabras válidas (al menos 2 letras cada una, solo letras)
+                elif all(len(p) >= 2 and p.isalpha() for p in palabras):
+                    # Es un nombre válido
+                    logger.info(f"🎯 Intent detectado por contexto: informar_nombre (0.92)")
+                    return ("informar_nombre", 0.92)
         
         # CONTEXTO: Si ya tenemos nombre pero no cédula, y el mensaje son solo números
         if contexto.nombre and not contexto.cedula:
@@ -341,10 +765,13 @@ class ClasificadorIntentsMejorado:
                 logger.info(f"🎯 Intent detectado por contexto: informar_cedula (0.98)")
                 return ("informar_cedula", 0.98)
         
-        # CONTEXTO: Si ya tenemos fecha pero no hora, y el mensaje habla de hora
+        # CONTEXTO: Si ya tenemos fecha pero no hora, y el mensaje habla de hora ESPECÍFICA
         if contexto.fecha and not contexto.hora:
             # Detectar frases como "las 8", "para las 7", "a las 10", "8 está bien"
-            if re.search(r'\b(las|para\s+las|a\s+las)?\s*(\d{1,2})\s*(esta?\s+(bien|perfecto|ok))?', mensaje_lower):
+            # PERO NO frases sobre consulta de horarios ("que horarios", "cierran", "abren", "atienden", "hay")
+            if re.search(r'\b(las|para\s+las|a\s+las)\s*\d{1,2}\b', mensaje_lower) and \
+               not re.search(r'\b(que|qu[eé]|cuales|cu[aá]les|cual|cu[aá]l)\s+(horarios|horas|hora)\b', mensaje_lower) and \
+               not re.search(r'\b(cierran|abren|atienden|trabajan|est[aá]n|hay|tienen)\b', mensaje_lower):
                 logger.info(f"🎯 Intent detectado por contexto: elegir_horario (0.98)")
                 return ("elegir_horario", 0.98)
         
@@ -358,23 +785,49 @@ class ClasificadorIntentsMejorado:
                 logger.info(f"🎯 Intent corregido por contexto: informar_cedula (0.95)")
                 return ("informar_cedula", 0.95)
         
-        if confianza_patron > 0.8:
+        # Si patrón tiene MUY ALTA confianza (>0.90), usarlo directamente
+        if confianza_patron > 0.90:
             logger.info(f"🎯 Intent detectado por patrón: {intent_patron} ({confianza_patron:.2f})")
             return intent_patron, confianza_patron
         
         # 2. MÉTODO INTELIGENTE: Usar LLM si está disponible
-        if self.llm_url:
+        # El LLM se usa cuando el patrón NO tiene confianza >92%
+        if self.llm_url and confianza_patron < 0.92:
             try:
                 intent_llm, confianza_llm = self._clasificar_con_llm(mensaje, contexto)
-                if confianza_llm > 0.7:
+                
+                # NUEVA ESTRATEGIA: Confiar más en el LLM cuando tiene contexto claro
+                # Si LLM tiene alta confianza (>=0.80), usarlo (antes era >=0.85)
+                if confianza_llm >= 0.80:
                     logger.info(f"🤖 Intent detectado por LLM: {intent_llm} ({confianza_llm:.2f})")
                     return intent_llm, confianza_llm
+                
+                # Si patrón tiene buena confianza (>0.80), preferirlo (antes era >0.75)
+                if confianza_patron > 0.80:
+                    logger.info(f"🎯 Usando patrón (confianza alta): {intent_patron} ({confianza_patron:.2f})")
+                    return intent_patron, confianza_patron
+                
+                # Si LLM tiene mejor confianza (+10%), usarlo (antes era +15%)
+                if confianza_llm > confianza_patron + 0.10:
+                    logger.info(f"🤖 LLM tiene mejor confianza: {intent_llm} ({confianza_llm:.2f})")
+                    return intent_llm, confianza_llm
+                
+                # Si patrón tiene confianza razonable (>0.65), preferirlo (antes era >0.60)
+                if confianza_patron > 0.65:
+                    logger.info(f"🎯 Usando patrón sobre LLM: {intent_patron} ({confianza_patron:.2f})")
+                    return intent_patron, confianza_patron
+                
+                # Si LLM tiene mejor o igual confianza, usarlo
+                if confianza_llm >= confianza_patron:
+                    logger.info(f"🤖 LLM tiene mejor/igual confianza: {intent_llm} ({confianza_llm:.2f})")
+                    return intent_llm, confianza_llm
+                    
             except Exception as e:
                 logger.warning(f"⚠️ Error en LLM: {e}")
         
         # 3. FALLBACK: Usar el patrón si encontró algo
         if intent_patron and confianza_patron > 0.5:
-            logger.info(f"📋 Usando intent de patrón: {intent_patron}")
+            logger.info(f"📋 Usando intent de patrón: {intent_patron} ({confianza_patron:.2f})")
             return intent_patron, confianza_patron
         
         # 4. ÚLTIMO RECURSO: Intent genérico
@@ -383,10 +836,63 @@ class ClasificadorIntentsMejorado:
     
     def _clasificar_por_patrones(self, mensaje: str) -> Tuple[str, float]:
         """Clasifica usando patrones de regex"""
+        
+        # PALABRAS CLAVE ÚNICAS (match exacto, alta confianza)
+        palabras_exactas = {
+            'requisitos': 'consultar_requisitos',
+            'documentos': 'consultar_requisitos',
+            'ubicacion': 'consultar_ubicacion',
+            'ubicación': 'consultar_ubicacion',
+            'direccion': 'consultar_ubicacion',
+            'dirección': 'consultar_ubicacion',
+            'telefono': 'consultar_ubicacion',
+            'teléfono': 'consultar_ubicacion',
+            'contacto': 'consultar_ubicacion',
+            'whatsapp': 'consultar_ubicacion',
+            'numero': 'consultar_ubicacion',
+            'número': 'consultar_ubicacion',
+            'costo': 'consultar_costo',
+            'precio': 'consultar_costo',
+            'turno': 'agendar_turno',
+            'horarios': 'consultar_disponibilidad',
+            'disponibilidad': 'consultar_disponibilidad',
+        }
+        
+        # Si el mensaje es solo 1-2 palabras, verificar match exacto
+        palabras_mensaje = mensaje.strip().split()
+        if len(palabras_mensaje) <= 2:
+            for palabra in palabras_mensaje:
+                palabra_lower = palabra.lower().strip('¿?¡!.,')
+                if palabra_lower in palabras_exactas:
+                    return palabras_exactas[palabra_lower], 0.96
+        
+        # Si el mensaje es MUY corto (1 palabra) y contiene "hoy", priorizar disponibilidad
+        if len(palabras_mensaje) == 1 and palabras_mensaje[0].lower() == 'hoy':
+            return 'consultar_disponibilidad', 0.93
+        
+        # VERIFICACIÓN PRIORITARIA: modo_desarrollador debe verificarse PRIMERO
+        # para evitar que se confunda con nombre
+        intents_prioritarios = ['modo_desarrollador', 'informar_email', 'informar_cedula', 
+                               'elegir_horario', 'affirm', 'deny', 'negacion', 'cancelar']
+        
+        # Primero verificar intents prioritarios
+        for intent in intents_prioritarios:
+            if intent in self.PATRONES_INTENT:
+                for patron in self.PATRONES_INTENT[intent]:
+                    if re.search(patron, mensaje, re.IGNORECASE):
+                        match = re.search(patron, mensaje, re.IGNORECASE)
+                        score = len(match.group()) / len(mensaje)
+                        score = min(0.95, score + 0.5)  # Boost alto para prioritarios
+                        return intent, score
+        
+        # Luego verificar el resto
         mejor_intent = None
         mejor_score = 0.0
         
         for intent, patrones in self.PATRONES_INTENT.items():
+            if intent in intents_prioritarios:
+                continue  # Ya verificado
+                
             for patron in patrones:
                 if re.search(patron, mensaje, re.IGNORECASE):
                     # Calcular score basado en longitud del match
@@ -403,51 +909,102 @@ class ClasificadorIntentsMejorado:
     def _clasificar_con_llm(self, mensaje: str, contexto: SessionContext) -> Tuple[str, float]:
         """Clasifica usando LLM (si está disponible)"""
         if not self.llm_url:
+            logger.info("⚠️ LLM no disponible, saltando clasificación LLM")
             return 'nlu_fallback', 0.0
         
-        intents_str = '\n'.join([
-            'agendar_turno', 'consultar_disponibilidad', 'frase_ambigua',
-            'informar_nombre', 'informar_cedula', 'informar_fecha', 'elegir_horario',
-            'consultar_requisitos', 'consultar_ubicacion', 'consultar_costo',
-            'consulta_tiempo_espera', 'greet', 'goodbye', 'affirm', 'deny'
-        ])
+        logger.info(f"🤖 Consultando LLM para: '{mensaje[:50]}...'")
         
-        prompt = f"""Eres un clasificador de intents para un chatbot de turnos de cédulas.
+        # Construir contexto para el LLM
+        contexto_str = ""
+        if contexto.nombre and not contexto.cedula:
+            contexto_str = " [CONTEXTO: Ya tenemos nombre, ahora esperamos cédula]"
+        elif contexto.nombre and contexto.cedula and not contexto.fecha:
+            contexto_str = " [CONTEXTO: Ya tenemos nombre y cédula, ahora esperamos fecha]"
+        elif contexto.fecha and not contexto.hora:
+            contexto_str = " [CONTEXTO: Ya tenemos fecha, ahora esperamos hora]"
+        
+        prompt = f"""Clasifica esta frase en UNO de estos intents. Responde SOLO el nombre del intent, sin explicaciones.
 
-Mensaje del usuario: "{mensaje}"
+FRASE: "{mensaje}"{contexto_str}
 
-Contexto actual:
-- Nombre: {contexto.nombre or 'No proporcionado'}
-- Cédula: {contexto.cedula or 'No proporcionada'}
-- Fecha: {contexto.fecha or 'No seleccionada'}
-- Intent previo: {contexto.intent_actual or 'Ninguno'}
+INTENTS VÁLIDOS:
+- informar_nombre: Solo dice su nombre (1-4 palabras, como "Juan Pérez", "María", "Carlos González López")
+- informar_cedula: Solo dice números de cédula (5-8 dígitos)
+- informar_fecha: Solo dice una fecha (mañana, lunes, 15 de noviembre, etc)
+- informar_email: Solo dice un email
+- agendar_turno: Quiere agendar/sacar/reservar turno o cita
+- consultar_disponibilidad: Pregunta por horarios, disponibilidad, qué días hay, qué hay hoy
+- consultar_requisitos: Pregunta qué necesita, documentos, requisitos
+- consultar_ubicacion: Pregunta dónde queda, dirección, teléfono, contacto
+- consultar_costo: Pregunta cuánto cuesta, precio, si es gratis
+- negacion_sin_cedula: Dice que NO tiene cédula o se le perdió
+- negacion: Dice que NO le sirve un horario, quiere cambiar algo, o se queja ("ya te dije...")
+- cancelar: Quiere cancelar el turno
+- greet: Saluda (hola, buenas, etc)
+- goodbye: Se despide
+- affirm: Confirma algo (sí, ok, dale, ese día está bien, me sirve, ya te lo dije)
+- deny: Niega (no)
 
-Intents disponibles:
-{intents_str}
+IMPORTANTE: Responde SOLO una palabra (el nombre del intent), SIN puntos, SIN explicaciones, SIN mayúsculas innecesarias.
 
-Responde SOLO con el nombre del intent más apropiado. Sin explicaciones."""
+Ejemplos:
+- "Juan Pérez" [esperando nombre] → informar_nombre
+- "jhonatan" [esperando nombre] → informar_nombre
+- "1234567" [esperando cédula] → informar_cedula
+- "no tengo" [esperando cédula] → negacion_sin_cedula
+- "quiero sacar turno" → agendar_turno
+- "ese día está bien" → affirm
+- "ese horario me sirve" → affirm
+- "ya te dije mi cédula" → affirm
+- "ya lo puse" → affirm
+- "que hay hoy?" → consultar_disponibilidad
+- "hay horarios para mañana?" → consultar_disponibilidad
+- "que documentos necesito" → consultar_requisitos
+
+Tu respuesta (SOLO el intent):"""
 
         try:
             response = requests.post(
                 self.llm_url,
                 json={
                     "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.1,
-                    "max_tokens": 50
+                    "temperature": 0.1,  # Muy baja para respuestas directas sin explicaciones
+                    "max_tokens": 10  # Solo necesitamos el nombre del intent (1-2 tokens)
                 },
                 timeout=5
             )
             
             if response.status_code == 200:
                 content = response.json()['choices'][0]['message']['content'].strip()
-                intent = content.lower().replace('.', '').strip()
+                
+                # Limpiar respuesta: tomar solo la primera línea, quitar puntos, minúsculas
+                intent = content.split('\n')[0].lower()
+                intent = intent.replace('.', '').replace(',', '').replace(':', '').strip()
+                
+                # Extraer intent si está en formato "→ intent" o "- intent"
+                if '→' in intent:
+                    intent = intent.split('→')[-1].strip()
+                elif '-' in intent and not intent.startswith('-'):
+                    intent = intent.split('-')[0].strip()
+                
+                # Quitar palabras comunes al inicio
+                for prefix in ['respuesta', 'intent', 'el intent es', 'clasificación']:
+                    if intent.startswith(prefix):
+                        intent = intent[len(prefix):].strip()
+                
+                logger.info(f"✅ LLM respondió: '{intent}' (raw: '{content[:100]}...')")
                 
                 # Validar que el intent sea válido
                 if intent in self.PATRONES_INTENT:
+                    logger.info(f"🎯 LLM clasificó como: {intent} (confianza: 0.85)")
                     return intent, 0.85
+                else:
+                    logger.warning(f"⚠️ LLM devolvió intent inválido: '{intent}'")
         
         except Exception as e:
-            logger.warning(f"Error en LLM: {e}")
+            logger.error(f"❌ Error en LLM: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
         
         return 'nlu_fallback', 0.0
 
@@ -500,10 +1057,22 @@ def extraer_entidades(mensaje: str, intent: str) -> Dict:
                     entidades['nombre'] = nombre.title()
                 # Si solo tiene 1 palabra, NO la aceptamos (la validación en informar_nombre la rechazará)
     
-    # Extraer CÉDULA (5-8 dígitos para aceptar cédulas más cortas)
-    cedula_match = re.search(r'\b(\d{5,8})\b', mensaje)
+    # Extraer CÉDULA (con o sin puntos)
+    # 1. Primero buscar "mi cedula es NUMERO" o "cedula: NUMERO"
+    cedula_match = re.search(r'(?:mi\s+)?c[eé]dula\s+(?:es|:)?\s*(\d{3,8})', mensaje_lower)
     if cedula_match:
         entidades['cedula'] = cedula_match.group(1)
+    else:
+        # 2. Intentar con puntos: XX.XXX.XXX
+        cedula_match = re.search(r'\b(\d{1,2}\.\d{3}\.\d{3})\b', mensaje)
+        if cedula_match:
+            # Remover los puntos para almacenar solo números
+            entidades['cedula'] = cedula_match.group(1).replace('.', '')
+        else:
+            # 3. Si no tiene puntos, buscar 5-8 dígitos aislados
+            cedula_match = re.search(r'\b(\d{5,8})\b', mensaje)
+            if cedula_match:
+                entidades['cedula'] = cedula_match.group(1)
     
     # Extraer FECHA
     if 'mañana' in mensaje_lower or 'manana' in mensaje_lower:
@@ -572,23 +1141,41 @@ def extraer_entidades(mensaje: str, intent: str) -> Dict:
     if hora_match:
         entidades['hora'] = f"{int(hora_match.group(1)):02d}:{hora_match.group(2)}"
     else:
-        # Buscar formato "a las X", "las X", "para las X" o "X hs"
-        hora_match = re.search(r'(?:para\s+)?(?:a\s+)?las\s+(\d{1,2})', mensaje_lower)
+        # Buscar "X y media", "X y cuarto"
+        hora_match = re.search(r'(?:para\s+)?(?:a\s+)?las\s+(\d{1,2})\s+y\s+(media|cuarto)', mensaje_lower)
         if hora_match:
             hora = int(hora_match.group(1))
+            fraccion = hora_match.group(2)
             # Asumir AM/PM basado en el número
             if hora < 7:  # Si es menor a 7, probablemente sea PM (tarde)
                 hora += 12
-            entidades['hora'] = f"{hora:02d}:00"
+            # Agregar minutos
+            minutos = "30" if fraccion == "media" else "15"
+            entidades['hora'] = f"{hora:02d}:{minutos}"
         else:
-            # Buscar formato "X hs", "X am", "X pm"
-            hora_match = re.search(r'\b(\d{1,2})\s*(am|pm|hs|horas?)\b', mensaje_lower)
+            # Buscar formato "a las X", "las X", "para las X" o "X hs"
+            hora_match = re.search(r'(?:para\s+)?(?:a\s+)?las\s+(\d{1,2})', mensaje_lower)
             if hora_match:
                 hora = int(hora_match.group(1))
-                sufijo = hora_match.group(2)
-                if sufijo == 'pm' and hora < 12:
+                # Asumir AM/PM basado en el número
+                if hora < 7:  # Si es menor a 7, probablemente sea PM (tarde)
                     hora += 12
                 entidades['hora'] = f"{hora:02d}:00"
+            else:
+                # Buscar formato "X hs", "X am", "X pm"
+                hora_match = re.search(r'\b(\d{1,2})\s*(am|pm|hs|horas?)\b', mensaje_lower)
+                if hora_match:
+                    hora = int(hora_match.group(1))
+                    sufijo = hora_match.group(2)
+                    if sufijo == 'pm' and hora < 12:
+                        hora += 12
+                    entidades['hora'] = f"{hora:02d}:00"
+    
+    # Extraer FRANJA HORARIA (mañana/tarde)
+    if any(palabra in mensaje_lower for palabra in ['mañana', 'manana', 'temprano', 'por la mañana', 'de mañana', 'a la mañana']):
+        entidades['franja_horaria'] = 'manana'
+    elif any(palabra in mensaje_lower for palabra in ['tarde', 'por la tarde', 'de tarde', 'a la tarde', 'despues del mediodia', 'después del mediodía']):
+        entidades['franja_horaria'] = 'tarde'
     
     # Extraer EMAIL
     email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', mensaje)
@@ -724,13 +1311,30 @@ def procesar_mensaje_inteligente(user_message: str, session_id: str) -> Dict:
         # 4. Generar respuesta según intent
         respuesta = generar_respuesta_inteligente(intent, confidence, contexto, user_message)
         
-        return {
-            'text': respuesta,  # ← app.py espera 'text'
-            'intent': intent,
-            'confidence': confidence,
-            'entidades': entidades,
-            'contexto': contexto.to_dict()
-        }
+        # Si la respuesta es un diccionario (ej: modo_desarrollador con botón), 
+        # combinar con los datos base
+        if isinstance(respuesta, dict):
+            resultado = {
+                'text': respuesta.get('text', ''),
+                'intent': intent,
+                'confidence': confidence,
+                'entidades': entidades,
+                'contexto': contexto.to_dict()
+            }
+            # Agregar campos adicionales del diccionario (como show_dashboard_button)
+            for key, value in respuesta.items():
+                if key not in resultado:
+                    resultado[key] = value
+            return resultado
+        else:
+            # Respuesta simple (string)
+            return {
+                'text': respuesta,  # ← app.py espera 'text'
+                'intent': intent,
+                'confidence': confidence,
+                'entidades': entidades,
+                'contexto': contexto.to_dict()
+            }
         
     except Exception as e:
         logger.error(f"❌ Error en procesar_mensaje_inteligente: {e}")
@@ -776,6 +1380,52 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                 "- Consultar horarios\n"
                 "- Información sobre requisitos"
             )
+    
+    # Intent: INFORMAR TIPO DE TRÁMITE - Usuario indica tipo específico con requisitos
+    if intent == 'informar_tipo_tramite':
+        contexto.cedula = "SIN_CEDULA"  # No tiene cédula todavía
+        
+        if contexto.tipo_tramite == 'primera_vez':
+            return (
+                "📋 **Primera cédula - Requisitos:**\n\n"
+                "✅ **Documentos necesarios:**\n"
+                "• Acta de nacimiento original (emitida por Registro Civil)\n"
+                "• Si eres menor de edad: presencia de padre/madre o tutor\n"
+                "• Certificado de estudios (solo si eres estudiante)\n\n"
+                "💰 **Costo:** GRATUITO ✅\n\n"
+                "⏰ **Tiempo de espera:** 5-10 días hábiles\n\n"
+                "¿Para qué día necesitas el turno? Puedes decir 'mañana' o una fecha específica."
+            )
+        
+        elif contexto.tipo_tramite == 'perdida':
+            return (
+                "📋 **Pérdida/Robo de cédula - Requisitos:**\n\n"
+                "✅ **Documentos necesarios:**\n"
+                "• Denuncia policial (si fue robo/extravío)\n"
+                "• Acta de nacimiento original\n"
+                "• Certificado de denuncia del Registro Civil\n\n"
+                "💰 **Costo:** Gs. 50.000\n\n"
+                "⏰ **Tiempo de espera:** 10-15 días hábiles\n\n"
+                "¿Para qué día necesitas el turno? Puedes decir 'mañana' o una fecha específica."
+            )
+        
+        elif contexto.tipo_tramite == 'extranjero':
+            return (
+                "📋 **Cédula para extranjeros - Requisitos:**\n\n"
+                "✅ **Documentos necesarios:**\n"
+                "• Pasaporte vigente\n"
+                "• Certificado de residencia permanente o radicación\n"
+                "• Acta de nacimiento apostillada del país de origen\n"
+                "• Comprobante de domicilio en Paraguay\n\n"
+                "💰 **Costo:** Gs. 100.000\n\n"
+                "⏰ **Tiempo de espera:** 15-20 días hábiles\n\n"
+                "¿Para qué día necesitas el turno? Puedes decir 'mañana' o una fecha específica."
+            )
+        
+        else:
+            # Fallback si no detectamos el tipo
+            contexto.cedula = "SIN_CEDULA"
+            return "Entendido. ¿Para qué día necesitas el turno? Puedes decir 'mañana' o una fecha específica."
     
     # Intent: NEGACIÓN SIN CÉDULA
     if intent == 'negacion_sin_cedula':
@@ -836,14 +1486,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
         elif not contexto.fecha:
             return "¿Para qué día necesitas el turno? Puedes decir 'mañana' o una fecha específica."
         elif not contexto.hora:
-            # Mostrar horarios disponibles
-            disponibilidad = obtener_disponibilidad_real(contexto.fecha)
-            if MOTOR_DIFUSO_OK:
-                try:
-                    mejor_hora = obtener_mejor_recomendacion(disponibilidad)
-                    return f"Para el {contexto.fecha}, te recomiendo {mejor_hora}. ¿Te parece bien esta hora?"
-                except:
-                    pass
+            # Mostrar horarios disponibles sin motor difuso (simplificado)
             return "¿A qué hora prefieres? Por ejemplo: 09:00, 14:30, etc."
         elif not contexto.email:
             # Pedir email antes de confirmar
@@ -925,17 +1568,20 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
     elif intent == 'consultar_disponibilidad':
         mensaje_lower = mensaje.lower()
         
-        # IMPORTANTE: Verificar si estamos en medio de un formulario
-        # Si falta nombre, NO mostrar disponibilidad todavía
-        if not contexto.nombre:
+        # IMPORTANTE: Si el usuario tiene nombre y cédula, PERMITIR consultar disponibilidad
+        # (ya está en el flujo de agendamiento, solo falta fecha/hora)
+        # SOLO pedir datos si NO tiene NADA (consulta desde cero)
+        
+        # Si NO tiene nombre NI cédula, es una consulta desde cero
+        if not contexto.nombre and not contexto.cedula:
             return (
                 "Me encantaría mostrarte los horarios disponibles, pero primero necesito "
                 "algunos datos para agendar tu turno.\n\n"
                 "¿Cuál es tu nombre completo?"
             )
         
-        # Si falta cédula, pedir cédula primero
-        if not contexto.cedula:
+        # Si SOLO tiene nombre pero NO cédula, pedir cédula
+        elif contexto.nombre and not contexto.cedula:
             return (
                 f"Perfecto {contexto.nombre}, para mostrarte la disponibilidad necesito "
                 "completar tus datos.\n\n"
@@ -945,10 +1591,166 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
         # Ya tenemos nombre y cédula, podemos mostrar disponibilidad
         
         # ==========================================
+        # DETECTAR CONSULTAS ESPECIALES
+        # ==========================================
+        
+        # Detectar consulta por "hoy"
+        consulta_hoy = any(palabra in mensaje_lower for palabra in ['hoy', 'para hoy', 'de hoy'])
+        
+        # Detectar consulta por franja horaria (mañana/tarde)
+        consulta_manana = any(palabra in mensaje_lower for palabra in ['mañana', 'manana', 'temprano', 'por la mañana', 'por la manana'])
+        consulta_tarde = any(palabra in mensaje_lower for palabra in ['tarde', 'por la tarde', 'despues del mediodia', 'después del mediodía'])
+        
+        # Detectar "día más libre" o "día intermedio"
+        consulta_mejor_dia = any(frase in mensaje_lower for frase in [
+            'día libre', 'dia libre', 'día disponible', 'dia disponible',
+            'día intermedio', 'dia intermedio', 'mejor día', 'mejor dia',
+            'qué día', 'que dia', 'cual dia', 'cuál día'
+        ])
+        
+        # ==========================================
+        # MANEJAR CONSULTA DE "HOY"
+        # ==========================================
+        if consulta_hoy:
+            hoy = datetime.now().strftime('%Y-%m-%d')
+            hora_actual = datetime.now().hour
+            
+            # Verificar si ya cerró la oficina (después de las 15:00)
+            if hora_actual >= 15:
+                # Calcular próximo día hábil (mañana si no es viernes)
+                manana = datetime.now() + timedelta(days=1)
+                # Saltar fines de semana
+                while manana.weekday() >= 5:  # 5=sábado, 6=domingo
+                    manana += timedelta(days=1)
+                
+                manana_str = manana.strftime('%Y-%m-%d')
+                dia_nombre = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'][manana.weekday()]
+                
+                return (
+                    f"🕐 **Ya cerramos por hoy** (horario de atención: 07:00 - 15:00).\n\n"
+                    f"✅ Puedo ofrecerte turnos para **mañana {dia_nombre} {manana_str}**.\n\n"
+                    f"¿Te gustaría ver los horarios disponibles para mañana?"
+                )
+            
+            # Aún está abierto, mostrar disponibilidad
+            try:
+                disponibilidad = obtener_disponibilidad_real(hoy)
+                # Filtrar solo horarios futuros (después de la hora actual)
+                horarios_disponibles = {h: o for h, o in disponibilidad.items() 
+                                       if o < 2 and int(h.split(':')[0]) > hora_actual}
+                
+                # Filtrar por franja horaria si se especificó
+                if consulta_tarde:
+                    # Horarios de tarde: 12:00+
+                    horarios_disponibles = {h: o for h, o in horarios_disponibles.items() 
+                                          if int(h.split(':')[0]) >= 12}
+                elif consulta_manana:
+                    # Horarios de mañana: <12:00
+                    horarios_disponibles = {h: o for h, o in horarios_disponibles.items() 
+                                          if int(h.split(':')[0]) < 12}
+                
+                if horarios_disponibles:
+                    franja_str = ""
+                    if consulta_tarde:
+                        franja_str = " de tarde"
+                    elif consulta_manana:
+                        franja_str = " de mañana"
+                    
+                    lista_horarios = ', '.join(sorted(horarios_disponibles.keys()))
+                    return (
+                        f"✅ **Disponibilidad{franja_str} para HOY ({hoy}):**\n\n"
+                        f"Tenemos {len(horarios_disponibles)} horarios disponibles:\n"
+                        f"📋 {lista_horarios}\n\n"
+                        f"¿A qué hora prefieres tu turno?"
+                    )
+                elif consulta_tarde:
+                    # Consultó tarde pero no hay
+                    return (
+                        f"😔 Lo siento, para HOY ({hoy}) no hay horarios disponibles **de tarde** (después de las 12:00).\n\n"
+                        f"Nuestro horario de atención es de 07:00 a 15:00.\n\n"
+                        f"✅ ¿Te gustaría ver los horarios de mañana disponibles?"
+                    )
+                else:
+                    # No hay horarios disponibles para hoy
+                    manana = datetime.now() + timedelta(days=1)
+                    while manana.weekday() >= 5:
+                        manana += timedelta(days=1)
+                    manana_str = manana.strftime('%Y-%m-%d')
+                    dia_nombre = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'][manana.weekday()]
+                    
+                    return (
+                        f"😔 Lo siento, para HOY ({hoy}) ya no hay horarios disponibles.\n\n"
+                        f"✅ ¿Te gustaría ver la disponibilidad para mañana {dia_nombre} ({manana_str})?"
+                    )
+            except Exception as e:
+                logger.error(f"Error consultando disponibilidad de hoy: {e}")
+                return "Hubo un error al consultar la disponibilidad. ¿Podrías intentar de nuevo?"
+        
+        # ==========================================
+        # MANEJAR CONSULTA DE "MEJOR DÍA" / "DÍA MÁS LIBRE"
+        # ==========================================
+        if consulta_mejor_dia:
+            hoy = datetime.now()
+            mejor_dia = None
+            max_disponibilidad = 0
+            
+            # Revisar próximos 7 días
+            for i in range(7):
+                fecha_revisar = hoy + timedelta(days=i)
+                if fecha_revisar.weekday() < 5:  # Solo días laborables
+                    fecha_str = fecha_revisar.strftime('%Y-%m-%d')
+                    try:
+                        disponibilidad = obtener_disponibilidad_real(fecha_str)
+                        horarios_disponibles = len([h for h, o in disponibilidad.items() if o < 2])
+                        
+                        if horarios_disponibles > max_disponibilidad:
+                            max_disponibilidad = horarios_disponibles
+                            mejor_dia = fecha_revisar
+                    except:
+                        continue
+            
+            if mejor_dia:
+                dias_nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+                dia_nombre = dias_nombres[mejor_dia.weekday()]
+                fecha_str = mejor_dia.strftime('%Y-%m-%d')
+                
+                # Obtener disponibilidad completa
+                disponibilidad = obtener_disponibilidad_real(fecha_str)
+                horarios_disponibles = {h: o for h, o in disponibilidad.items() if o < 2}
+                lista_horarios = ', '.join(sorted(list(horarios_disponibles.keys())[:5]))  # Primeros 5
+                
+                # Sugerir horario con menos espera (ocupación más baja)
+                mejor_horario = min(horarios_disponibles.items(), key=lambda x: x[1])[0]
+                
+                # GUARDAR hora recomendada para usar después
+                contexto.hora_recomendada = mejor_horario
+                
+                return (
+                    f"✅ **Muy buena disponibilidad para el {fecha_str}** ({dia_nombre}).\n\n"
+                    f"🌟 Te recomiendo las **{mejor_horario}** (menor tiempo de espera).\n\n"
+                    f"Otros horarios disponibles: {lista_horarios}\n\n"
+                    f"¿A qué hora prefieres?"
+                )
+            else:
+                return (
+                    "😔 Lo siento, los próximos días tienen disponibilidad limitada.\n\n"
+                    "¿Prefieres que revise la disponibilidad de una semana específica?"
+                )
+        
+        # ==========================================
         # DETECTAR CONSULTA POR FRANJA HORARIA ESPECÍFICA
         # ==========================================
         consulta_manana = any(palabra in mensaje_lower for palabra in ['mañana', 'manana', 'temprano', 'madrugada', 'antes del mediodia', 'antes del mediodía'])
         consulta_tarde = any(palabra in mensaje_lower for palabra in ['tarde', 'después del mediodía', 'despues del mediodia', 'mediodia', 'mediodía'])
+        
+        # Usar franja del contexto si está guardada
+        if contexto.franja_horaria:
+            if contexto.franja_horaria == 'manana':
+                consulta_manana = True
+                consulta_tarde = False
+            elif contexto.franja_horaria == 'tarde':
+                consulta_tarde = True
+                consulta_manana = False
         
         # Detectar si tiene fecha específica en el contexto
         fecha_contexto = contexto.fecha
@@ -1322,6 +2124,20 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
     
     # Intent: AFIRMAR
     elif intent == 'affirm':
+        # Si el usuario está corrigiendo ("ya te dije..."), continuar con el flujo
+        # Verificar qué dato falta y continuar
+        if not contexto.nombre:
+            return "¿Cuál es tu nombre completo?"
+        elif not contexto.cedula:
+            return f"Perfecto {contexto.nombre}. ¿Cuál es tu número de cédula?"
+        elif not contexto.fecha:
+            return "¿Para qué día necesitas el turno?"
+        elif not contexto.hora:
+            return "¿A qué hora prefieres?"
+        elif not contexto.email:
+            return "Para enviarte la confirmación, ¿cuál es tu email?"
+        
+        # Si tiene todos los datos, confirmar
         if contexto.tiene_datos_completos():
             try:
                 # Generar link de Google Calendar
@@ -1392,11 +2208,14 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                     # ==========================================
                     try:
                         import sys
-                        import os
+                        # os ya está importado al inicio del archivo
                         sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'notificaciones'))
                         from qr_generator import QRConfirmationGenerator
                         
-                        qr_gen = QRConfirmationGenerator(base_url="http://localhost:5000")
+                        # Obtener URL base desde variable de entorno (para Cloudflare/ngrok/producción)
+                        base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+                        qr_gen = QRConfirmationGenerator(base_url=base_url)
+                        logger.info(f"📍 Usando BASE_URL para QR: {base_url}")
                         turno_data_qr = {
                             'nombre': contexto.nombre,
                             'cedula': contexto.cedula,
@@ -1479,6 +2298,15 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
     # Intent: AGRADECIMIENTO
     elif intent == 'agradecimiento':
         return "¡De nada! Estoy aquí para ayudarte. 😊"
+    
+    # Intent: MODO DESARROLLADOR (Dashboard)
+    elif intent == 'modo_desarrollador':
+        dashboard_url = os.getenv('DASHBOARD_URL', '/dashboard')
+        return {
+            'text': "🔧 **Modo Desarrollador Activado**\n\nAccede al panel de administración para ver estadísticas y gestionar turnos.",
+            'show_dashboard_button': True,
+            'dashboard_url': dashboard_url
+        }
     
     # Intent: CONSULTAR REQUISITOS
     elif intent == 'consultar_requisitos':
@@ -1574,11 +2402,36 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
     
     # Intent: CONSULTAR UBICACIÓN
     elif intent == 'consultar_ubicacion':
-        respuesta_base = (
-            "📍 **Ubicación:**\n"
-            "Av. San Blas, Ciudad del Este\n"
-            "Alto Paraná, Paraguay\n\n"
-            "🕒 **Horario de atención:**\n"
+        mensaje_lower = mensaje.lower()
+        
+        # Detectar si pregunta ESPECÍFICAMENTE por teléfono/contacto
+        pregunta_telefono = any(palabra in mensaje_lower for palabra in [
+            'telefono', 'teléfono', 'tlf', 'número', 'numero', 'contacto', 
+            'llamar', 'celular', 'whatsapp', 'hablar con alguien', 
+            'hablar con una persona', 'contacto humano', 'hablar con un operador'
+        ])
+        
+        # Si pregunta por teléfono, solo dar números
+        if pregunta_telefono:
+            respuesta_base = (
+                "📞 **Números de contacto para llamadas:**\n\n"
+                "• +595 976 200472\n"
+                "• +595 976 200641\n\n"
+                "🕒 **Horario de atención:**\n"
+                "Lunes a Viernes: 07:00 a 17:00\n\n"
+            )
+        else:
+            # Si pregunta por ubicación/dirección, dar info completa
+            respuesta_base = (
+                "📍 **Ubicación:**\n"
+                "Av. San Blas, Ciudad del Este\n"
+                "Alto Paraná, Paraguay\n\n"
+            "� **Contactos:**\n"
+            "+595 976 200472\n"
+            "+595 976 200641\n\n"
+            "🗺️ **Google Maps:**\n"
+            "https://maps.app.goo.gl/zvqVjGtTVtguQ9UR9\n\n"
+            "�🕒 **Horario de atención:**\n"
             "Lunes a Viernes: 07:00 a 17:00\n\n"
             "🚗 Estacionamiento disponible\n"
             "🚌 Líneas de bus: 12, 15, 30\n\n"

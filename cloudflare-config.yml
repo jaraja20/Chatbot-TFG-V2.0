@@ -1,8 +1,5 @@
-# Configuraci�n de Cloudflare Tunnel
-# Sistema de Turnos - Identificaciones CDE
-
-tunnel: 9b576fd9-6c04-46ad-8a72-55e97b825b51
-credentials-file: C:\Users\NEO\.cloudflared\9b576fd9-6c04-46ad-8a72-55e97b825b51.json
+tunnel: chatbot-cde
+credentials-file: C:\Users\jhoni\.cloudflared\cfa52155-f486-4406-8bf2-516a6e06c4d2.json
 
 ingress:
-  - service: http://localhost:8500
+  - service: http://localhost:5000
