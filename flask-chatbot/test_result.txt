@@ -1,0 +1,1828 @@
+﻿python : INFO:razonamiento_difuso:­ƒîƒ FuzzyIntentReasoner inicializado
+En línea: 1 Carácter: 86
++ ... v:PYTHONIOENCODING="utf-8"; python mega_test_completo.py 2>&1 | Out-F ...
++                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (INFO:razonamien...er inicializado:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+INFO:clasificador_hibrido:­ƒöÑ ClasificadorHibrido inicializado
+INFO:orquestador_inteligente:Ô£à Motor difuso importado
+INFO:orquestador_inteligente:Ô£à LLM encontrado en: http://localhost:1234/v1/chat/completions
+INFO:orquestador_inteligente:­ƒöº Clasificador inicializado (LLM: http://localhost:1234/v1/chat/completions)
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-001
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Hola, necesito un turno...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.67)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.67)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Mar├¡a Fernanda L├│pez'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Mar├¡a Fernanda L├│pez
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: informar_cedula (0.98)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'cedula': '4567890'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 4567890
+INFO:orquestador_inteligente:­ƒÄ» Frase corta ambigua detectada: informar_fecha (0.93)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_fecha | Confianza: 0.93
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-05', 'franja_horaria': 'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒôè 2025-11-05: 14/17 horarios disponibles
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Usuario da hora directamente ÔåÆ elegir_horario
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.97
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'hora': '10:00'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 10:00
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Usuario proporciona email ÔåÆ informar_email
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_email | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'email': 'maria.lopez@email.com'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: email = maria.lopez@email.com
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 's├¡, confirmo...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: affirm (score: 0.67)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: affirm (0.67)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    nlu_fallback (0.00)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    affirm (0.67)
+INFO:orquestador_inteligente:RESULTADO FINAL: affirm (0.67) [fuente: fuzzy_alta]
+INFO:orquestador_inteligente:­ƒÄ» Intent: affirm | Confianza: 0.67
+INFO:orquestador_inteligente:­ƒÄ½ C├│digo generado: 9M5Z5
+INFO:orquestador_inteligente:Ô£à Turno guardado en BD con ID: 3897, C├│digo: 9M5Z5
+INFO:orquestador_inteligente:ƒôì Usando BASE_URL para QR: 
+https://delight-limitation-ministry-powerpoint.trycloudflare.com
+INFO:orquestador_inteligente:Ô£à QR generado para turno 3897 con c├│digo 9M5Z5, token: xOqHY28ije...
+INFO:orquestador_inteligente:Ô£à Token de confirmaci├│n guardado en BD
+INFO:orquestador_inteligente:­ƒôº Intentando enviar email a maria.lopez@email.com...
+INFO:orquestador_inteligente:Ô£à EmailNotificationSender importado correctamente
+INFO:orquestador_inteligente:Ô£à EmailNotificationSender instanciado correctamente
+INFO:orquestador_inteligente:Ô£à Email enviado exitosamente a maria.lopez@email.com
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-002
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Quiero sacar turno...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_turno' (raw: 'consultar_turno....')
+WARNING:orquestador_inteligente:ÔÜá´©Å LLM devolvi├│ intent inv├ílido: 'consultar_turno'
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.75)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.75)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Pedro Ram├¡rez'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Pedro Ram├¡rez
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] Pregunta sobre requisitos ÔåÆ consultar_requisitos (0.93)
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_requisitos | Confianza: 0.93
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: informar_cedula (0.98)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'cedula': '3456789'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 3456789
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'para el viernes...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'informar_fecha' (raw: 'informar_fecha...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: informar_fecha (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.37)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.37)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_fecha (0.77)
+INFO:orquestador_inteligente:   LLM:      informar_fecha (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    agendar_turno (0.37)
+INFO:orquestador_inteligente:RESULTADO FINAL: informar_fecha (0.77) [fuente: regex_razonable]
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_fecha | Confianza: 0.77
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-07'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-07
+INFO:orquestador_inteligente:­ƒôè 2025-11-07: 16/17 horarios disponibles
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-003
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'necesito turno...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.67)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.67)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.96)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.96
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Ana Garc├¡a'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Ana Garc├¡a
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: informar_cedula (0.98)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'cedula': '1234567'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 1234567
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Cu├ínto cuesta el tr├ímite?...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: consultar_costo (score: 0.67)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: consultar_costo (0.67)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    consultar_costo (0.82)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    consultar_costo (0.67)
+INFO:orquestador_inteligente:RESULTADO FINAL: consultar_costo (0.82) [fuente: fuzzy+regex_consenso]
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_costo | Confianza: 0.82
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'D├│nde queda la oficina?...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: consultar_ubicacion (score: 0.57)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: consultar_ubicacion (0.57)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: consultar_ubicacion (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_ubicacion | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Ok, para ma├▒ana a las 9...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'informar_nombre' (raw: 'informar_nombre....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: informar_nombre (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: elegir_horario (score: 0.75)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: elegir_horario (0.75)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    elegir_horario (0.80)
+INFO:orquestador_inteligente:   LLM:      informar_nombre (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    elegir_horario (0.75)
+INFO:orquestador_inteligente:RESULTADO FINAL: elegir_horario (0.80) [fuente: fuzzy+regex_consenso]
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.80
+INFO:orquestador_inteligente:ƒôª Entidades extra├¡das: {'fecha': '2025-11-05', 'hora': '09:00', 'franja_horaria': 
+'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 09:00
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-004
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'hola quiero un turno...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.67)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.67)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Carlos Mendoza'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Carlos Mendoza
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: informar_cedula (0.98)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'cedula': '7890123'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 7890123
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'para ma├▒ana a las 8...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_fecha' (raw: 'consultar_fecha...')
+WARNING:orquestador_inteligente:ÔÜá´©Å LLM devolvi├│ intent inv├ílido: 'consultar_fecha'
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: elegir_horario (score: 0.75)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: elegir_horario (0.75)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    elegir_horario (0.87)
+INFO:orquestador_inteligente:   LLM:      nlu_fallback (0.00)
+INFO:orquestador_inteligente:   Fuzzy:    elegir_horario (0.75)
+INFO:orquestador_inteligente:RESULTADO FINAL: elegir_horario (0.87) [fuente: fuzzy+regex_consenso]
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.87
+INFO:orquestador_inteligente:ƒôª Entidades extra├¡das: {'fecha': '2025-11-05', 'hora': '08:00', 'franja_horaria': 
+'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 08:00
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Mejor cambio la hora, prefiero 14:00...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: elegir_horario (score: 0.70)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: elegir_horario (0.70)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    elegir_horario (0.64)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    elegir_horario (0.70)
+INFO:orquestador_inteligente:RESULTADO FINAL: elegir_horario (0.70) [fuente: fuzzy_alta]
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.70
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'hora': '14:00'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 14:00
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: '14:00...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: nlu_fallback (0.00)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: elegir_horario (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'hora': '14:00'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 14:00
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-005
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'turno por favor...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.50)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.50)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Laura Ben├¡tez'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Laura Ben├¡tez
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: informar_cedula (0.98)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'cedula': '5551234'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 5551234
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'para el martes...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'informar_fecha' (raw: 'informar_fecha...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: informar_fecha (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.37)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.37)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_fecha (0.73)
+INFO:orquestador_inteligente:   LLM:      informar_fecha (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    agendar_turno (0.37)
+INFO:orquestador_inteligente:RESULTADO FINAL: informar_fecha (0.73) [fuente: regex_razonable]
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_fecha | Confianza: 0.73
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-04'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-04
+INFO:orquestador_inteligente:­ƒôè 2025-11-04: 15/17 horarios disponibles
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'No espera, mejor cambio la fecha para el jueves...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_fecha' (raw: 'consultar_fecha...')
+WARNING:orquestador_inteligente:ÔÜá´©Å LLM devolvi├│ intent inv├ílido: 'consultar_fecha'
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: negacion (score: 0.69)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: negacion (0.69)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_fecha (0.43)
+INFO:orquestador_inteligente:   LLM:      nlu_fallback (0.00)
+INFO:orquestador_inteligente:   Fuzzy:    negacion (0.69)
+INFO:orquestador_inteligente:RESULTADO FINAL: negacion (0.69) [fuente: fuzzy_alta]
+INFO:orquestador_inteligente:­ƒÄ» Intent: negacion | Confianza: 0.69
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-06'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-06
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'jueves...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_fecha' (raw: 'consultar_fecha...')
+WARNING:orquestador_inteligente:ÔÜá´©Å LLM devolvi├│ intent inv├ílido: 'consultar_fecha'
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: nlu_fallback (0.00)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: informar_fecha (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_fecha | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-06'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-06
+INFO:orquestador_inteligente:­ƒôè 2025-11-06: 17/17 horarios disponibles
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-006
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'necesito turno...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.67)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.67)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.96)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.96
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Roberto Silva'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Roberto Silva
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: informar_cedula (0.98)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'cedula': '9998877'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 9998877
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'ma├▒ana 11:00...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'informar_fecha' (raw: 'informar_fecha...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: informar_fecha (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: consultar_disponibilidad (score: 0.37)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: consultar_disponibilidad (0.37)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    elegir_horario (0.92)
+INFO:orquestador_inteligente:   LLM:      informar_fecha (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    consultar_disponibilidad (0.37)
+INFO:orquestador_inteligente:RESULTADO FINAL: elegir_horario (0.92) [fuente: regex_alta]
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.92
+INFO:orquestador_inteligente:ƒôª Entidades extra├¡das: {'fecha': '2025-11-05', 'hora': '11:00', 'franja_horaria': 
+'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 11:00
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Usuario proporciona email ÔåÆ informar_email
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_email | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'email': 'roberto@mail.com'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: email = roberto@mail.com
+INFO:orquestador_inteligente:­ƒöä [CAMBIO] Usuario quiere cambiar email ÔåÆ resetear email
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_email | Confianza: 0.98
+INFO:orquestador_inteligente:ÔÅ¡´©Å Saltando extracci├│n de entidades (comando de cambio detectado)
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Usuario proporciona email ÔåÆ informar_email
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_email | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'email': 'roberto.silva@correo.com'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: email = roberto.silva@correo.com
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-007
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Hola, soy Patricia Rojas, CI 3334455, necesito tur...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: elegir_horario (score: 0.75)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: elegir_horario (0.75)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_cedula (0.59)
+INFO:orquestador_inteligente:   LLM:      consultar_disponibilidad (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    elegir_horario (0.75)
+INFO:orquestador_inteligente:RESULTADO FINAL: elegir_horario (0.75) [fuente: fuzzy_alta]
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.75
+INFO:orquestador_inteligente:­ƒÄ» [GLOBAL] Nombre detectado con 'soy/me llamo': Patricia Rojas
+INFO:orquestador_inteligente:ƒôª Entidades extra├¡das: {'nombre': 'Patricia Rojas', 'cedula': '3334455', 'fecha': 
+'2025-11-05', 'hora': '15:00', 'franja_horaria': 'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Patricia Rojas
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 3334455
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 15:00
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Usuario proporciona email ÔåÆ informar_email
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_email | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'email': 'patricia.rojas@gmail.com'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: email = patricia.rojas@gmail.com
+
+[95m[1m
+Ôòö==================================================================================================Ôòù
+Ôòæ                                   MEGA TEST COMPLETO                                             Ôòæ
+Ôòæ                         Sistema de Turnos - Conversaciones Realistas                             Ôòæ
+ÔòÜ==================================================================================================ÔòØ
+[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #1: Agendamiento simple y directo[0m
+====================================================================================================
+
+[94m[Paso 1/7] Inicio de conversaci├│n[0m
+­ƒæñ Usuario: Hola, necesito un turno
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.95)
+   [92mÔ£ô Intent correcto: agendar_turno[0m
+   [92mÔ£ô Respuesta contiene: 'nombre'[0m
+
+[94m[Paso 2/7] Proporciona nombre[0m
+­ƒæñ Usuario: Mar├¡a Fernanda L├│pez
+­ƒñû Bot: Perfecto, Mar├¡a Fernanda L├│pez. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô Intent correcto: informar_nombre[0m
+   [92mÔ£ô nombre = Mar├¡a Fernanda L├│pez[0m
+   [92mÔ£ô Respuesta contiene: 'c├®dula'[0m
+
+[94m[Paso 3/7] Proporciona c├®dula[0m
+­ƒæñ Usuario: 4567890
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.98)
+   [92mÔ£ô Intent correcto: informar_cedula[0m
+   [92mÔ£ô cedula = 4567890[0m
+   [92mÔ£ô Respuesta contiene: 'fecha'[0m
+   [92mÔ£ô Respuesta contiene: 'd├¡a'[0m
+
+[94m[Paso 4/7] Proporciona fecha[0m
+­ƒæñ Usuario: ma├▒ana
+­ƒñû Bot: Ô£à Para el 2025-11-05:
+
+­ƒîƒ Te recomiendo las 07:00 (menor tiempo de espera).
+
+Otros horarios: 07:00, 07:30, 08:30, 09:00, 10:30
+
+┬┐A qu├® hora prefieres?
+­ƒÄ» Intent: informar_fecha (confianza: 0.93)
+   [92mÔ£ô Intent correcto: informar_fecha[0m
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+   [92mÔ£ô Respuesta contiene: 'hora'[0m
+   [92mÔ£ô Respuesta contiene: 'horario'[0m
+
+[94m[Paso 5/7] Proporciona hora[0m
+­ƒæñ Usuario: 10:00
+­ƒñû Bot: Perfecto! Para enviarte la confirmaci├│n y el c├│digo QR, ┬┐cu├íl es tu email?
+­ƒÄ» Intent: elegir_horario (confianza: 0.97)
+   [92mÔ£ô Intent correcto: elegir_horario[0m
+   [92mÔ£ô hora = 10:00[0m
+
+[94m[Paso 6/7] Proporciona email[0m
+­ƒæñ Usuario: maria.lopez@email.com
+­ƒñû Bot: ­ƒôï Perfecto! Resumen de tu turno:
+Nombre: Mar├¡a Fernanda L├│pez
+C├®dula: 4567890
+Fecha: 2025-11-05
+Hora: 10:00
+Email: maria.lopez@email.com
+
+┬┐Confirmas e...
+­ƒÄ» Intent: informar_email (confianza: 0.98)
+   [92mÔ£ô Intent correcto: informar_email[0m
+   [92mÔ£ô email = maria.lopez@email.com[0m
+   [92mÔ£ô Respuesta contiene: 'Resumen'[0m
+   [92mÔ£ô Respuesta contiene: 'Confirmas'[0m
+
+[94m[Paso 7/7] Confirma turno[0m
+­ƒæñ Usuario: s├¡, confirmo
+­ƒôº Conectando a SMTP smtp.gmail.com:587...
+Ô£à Conexi├│n establecida
+­ƒöÆ Iniciando TLS...
+Ô£à TLS activado
+­ƒöæ Autenticando con jhonivillalba15@gmail.com...
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-008
+Ô£à Autenticaci├│n exitosa
+­ƒôñ Enviando email a maria.lopez@email.com...
+Ô£à Email enviado exitosamente
+Ô£à Conexi├│n cerrada
+­ƒñû Bot: Ô£à ┬íTurno confirmado exitosamente!
+
+­ƒÄ½ **C├ôDIGO DE TURNO: 9M5Z5**
+   ´┐¢ Presenta este c├│digo al llegar a la oficina
+
+´┐¢­ƒôï Resumen:
+ÔÇó Nombre: Mar├¡a Fernanda...
+­ƒÄ» Intent: affirm (confianza: 0.67)
+   [92mÔ£ô Intent correcto: affirm[0m
+   [92mÔ£ô Respuesta contiene: 'confirmado'[0m
+   [92mÔ£ô Respuesta contiene: 'turno'[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 7/7 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #2: Consulta de requisitos en medio del formulario[0m
+====================================================================================================
+
+[94m[Paso 1/5] Inicio[0m
+­ƒæñ Usuario: Quiero sacar turno
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.95)
+   [92mÔ£ô Intent correcto: agendar_turno[0m
+
+[94m[Paso 2/5] Da nombre[0m
+­ƒæñ Usuario: Pedro Ram├¡rez
+­ƒñû Bot: Perfecto, Pedro Ram├¡rez. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô nombre = Pedro Ram├¡rez[0m
+
+[94m[Paso 3/5] CONSULTA INTERCALADA - Requisitos[0m
+­ƒæñ Usuario: Espera, qu├® documentos necesito?
+­ƒñû Bot: ­ƒôï **Requisitos para C├ëDULA DE IDENTIDAD:**
+
+**Primera vez:**
+INFO:orquestador_inteligente:­ƒÄ¡ [MULTI-INTENT] Detectado: consultar_disponibilidad + agendar_turno
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_disponibilidad | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-05', 'franja_horaria': 'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒÄ¡ Generando respuesta compuesta: consultar_disponibilidad + agendar_turno
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Usuario elige/cambia hora ÔåÆ elegir_horario
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.96
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Diego Mart├¡nez', 'hora': '10:00'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Diego Mart├¡nez
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 10:00
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-009
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] Pregunta sobre requisitos ÔåÆ consultar_requisitos (0.93)
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_requisitos | Confianza: 0.93
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] Transici├│n + turno (despu├®s de consulta) ÔåÆ agendar_turno (0.92)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.92
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-06'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-06
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Soy Gabriela Fern├índez, mi CI es 7778899...'
+ÔÇó Partida de nacimiento original
+ÔÇó Presencia personal
+
+**Renovaci├│n:**
+ÔÇó C├®dula anterior
+...
+­ƒÄ» Intent: consultar_requisitos (confianza: 0.93)
+   [92mÔ£ô Intent correcto: consultar_requisitos[0m
+   [92mÔ£ô nombre = Pedro Ram├¡rez[0m
+   [92mÔ£ô Respuesta contiene: 'requisitos'[0m
+   [92mÔ£ô Respuesta contiene: 'documento'[0m
+
+[94m[Paso 4/5] Contin├║a con c├®dula despu├®s de consulta[0m
+­ƒæñ Usuario: 3456789
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.98)
+   [92mÔ£ô Intent correcto: informar_cedula[0m
+   [92mÔ£ô cedula = 3456789[0m
+
+[94m[Paso 5/5] Da fecha[0m
+­ƒæñ Usuario: para el viernes
+­ƒñû Bot: Ô£à Para el 2025-11-07:
+
+­ƒîƒ Te recomiendo las 07:00 (menor tiempo de espera).
+
+Otros horarios: 07:30, 08:00, 08:30, 09:00, 09:30
+
+┬┐A qu├® hora prefieres?
+­ƒÄ» Intent: informar_fecha (confianza: 0.77)
+   [92mÔ£ô Intent correcto: informar_fecha[0m
+   [92mÔ£ô fecha tiene valor: 2025-11-07[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 5/5 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #3: Consulta de costos y ubicaci├│n durante formulario[0m
+====================================================================================================
+
+[94m[Paso 1/6] Inicio[0m
+­ƒæñ Usuario: necesito turno
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.96)
+   [92mÔ£ô Intent correcto: agendar_turno[0m
+
+[94m[Paso 2/6] Da nombre[0m
+­ƒæñ Usuario: Ana Garc├¡a
+­ƒñû Bot: Perfecto, Ana Garc├¡a. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô nombre = Ana Garc├¡a[0m
+
+[94m[Paso 3/6] Da c├®dula[0m
+­ƒæñ Usuario: 1234567
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.98)
+   [92mÔ£ô cedula = 1234567[0m
+
+[94m[Paso 4/6] CONSULTA - Costo en medio[0m
+­ƒæñ Usuario: Cu├ínto cuesta el tr├ímite?
+­ƒñû Bot: ­ƒÆ░ **Costos del tr├ímite:**
+
+ÔÇó Primera c├®dula: **GRATUITO** Ô£à
+ÔÇó Renovaci├│n: Gs. 25.000
+ÔÇó P├®rdida/Robo: Gs. 50.000
+ÔÇó Extranjeros: Gs. 100.000
+ÔÇó Menores (...
+­ƒÄ» Intent: consultar_costo (confianza: 0.82)
+   [92mÔ£ô Intent correcto: consultar_costo[0m
+   [92mÔ£ô cedula = 1234567[0m
+   [92mÔ£ô Respuesta contiene: 'costo'[0m
+   [92mÔ£ô Respuesta contiene: 'gratuito'[0m
+
+[94m[Paso 5/6] CONSULTA - Ubicaci├│n[0m
+­ƒæñ Usuario: D├│nde queda la oficina?
+­ƒñû Bot: ­ƒôì **Ubicaci├│n:**
+Av. San Blas, Ciudad del Este
+Alto Paran├í, Paraguay
+
+´┐¢ **Contactos:**
++595 976 200472
++595 976 200641
+
+­ƒù║´©Å **Google Maps:**
+https://ma...
+­ƒÄ» Intent: consultar_ubicacion (confianza: 0.95)
+   [92mÔ£ô Intent correcto: consultar_ubicacion[0m
+   [92mÔ£ô Respuesta contiene: 'San Blas'[0m
+   [92mÔ£ô Respuesta contiene: 'Ciudad del Este'[0m
+
+[94m[Paso 6/6] ORACI├ôN COMPUESTA - Fecha y hora juntas[0m
+­ƒæñ Usuario: Ok, para ma├▒ana a las 9
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'informar_nombre' (raw: 'informar_nombre...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: informar_nombre (confianza: 0.85)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: nlu_fallback (0.00)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_cedula (0.68)
+INFO:orquestador_inteligente:   LLM:      informar_nombre (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    nlu_fallback (0.00)
+INFO:orquestador_inteligente:RESULTADO FINAL: informar_nombre (0.85) [fuente: mejor_llm]
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.85
+INFO:orquestador_inteligente:­ƒÄ» [GLOBAL] Nombre detectado en oraci├│n compuesta (con coma): Soy Gabriela Fern├índez
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Gabriela Fern├índez', 'cedula': '7778899'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Gabriela Fern├índez
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 7778899
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-010
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'quiero turno...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_turno' (raw: 'consultar_turno...')
+WARNING:orquestador_inteligente:ÔÜá´©Å LLM devolvi├│ intent inv├ílido: 'consultar_turno'
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.67)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.67)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.96)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.96
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Mart├¡n Gonz├ílez'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Mart├¡n Gonz├ílez
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: informar_cedula (0.98)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'cedula': '1112233'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 1112233
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Cancelar todo...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'informar_cedula' (raw: 'informar_cedula...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: informar_cedula (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: cancelar (score: 0.50)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: cancelar (0.50)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: cancelar (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: cancelar | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒùæ´©Å Turno cancelado - Contexto reseteado completamente
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Ahora s├¡, quiero turno de nuevo...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.72)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.72)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    agendar_turno (0.69)
+INFO:orquestador_inteligente:   LLM:      consultar_disponibilidad (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    agendar_turno (0.72)
+INFO:orquestador_inteligente:RESULTADO FINAL: agendar_turno (0.72) [fuente: fuzzy_alta]
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.72
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Mart├¡n Gonz├ílez'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Mart├¡n Gonz├ílez
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-011
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Qu├® d├¡a tiene m├ís disponibilidad esta semana?...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: nlu_fallback (0.23)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    nlu_fallback (0.00)
+INFO:orquestador_inteligente:   LLM:      consultar_disponibilidad (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    nlu_fallback (0.23)
+INFO:orquestador_inteligente:RESULTADO FINAL: consultar_disponibilidad (0.85) [fuente: mejor_llm]
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_disponibilidad | Confianza: 0.85
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Perfecto, quiero para ese d├¡a a las 9, soy Luc├¡a B...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: elegir_horario (score: 0.77)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: elegir_horario (0.77)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    elegir_horario (0.62)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    elegir_horario (0.77)
+INFO:orquestador_inteligente:RESULTADO FINAL: elegir_horario (0.77) [fuente: fuzzy_alta]
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.77
+INFO:orquestador_inteligente:­ƒÄ» [GLOBAL] Nombre detectado con 'soy/me llamo': Luc├¡a Ben├¡tez
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Luc├¡a Ben├¡tez', 'hora': '09:00'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Luc├¡a Ben├¡tez
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 09:00
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-012
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Hasta qu├® hora atienden?...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: elegir_horario (score: 0.50)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: elegir_horario (0.50)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: consultar_disponibilidad (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_disponibilidad | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] Transici├│n + turno (despu├®s de consulta) ÔåÆ agendar_turno (0.92)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.92
+INFO:orquestador_inteligente:­ƒòÉ Hora detectada (mediod├¡a): 12:00
+INFO:orquestador_inteligente:ƒôª Entidades extra├¡das: {'fecha': '2025-11-05', 'hora': '12:00', 'franja_horaria': 
+'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 12:00
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-013
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Cu├íl es el n├║mero de tel├®fono?...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: consultar_ubicacion (score: 0.67)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: consultar_ubicacion (0.67)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    consultar_ubicacion (0.90)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    consultar_ubicacion (0.67)
+INFO:orquestador_inteligente:RESULTADO FINAL: consultar_ubicacion (0.90) [fuente: fuzzy+regex_consenso]
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_ubicacion | Confianza: 0.90
+­ƒñû Bot: Perfecto! Para enviarte la confirmaci├│n y el c├│digo QR, ┬┐cu├íl es tu email?
+­ƒÄ» Intent: elegir_horario (confianza: 0.80)
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+   [92mÔ£ô hora = 09:00[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 6/6 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #4: Cambio de horario en medio del proceso[0m
+====================================================================================================
+
+[94m[Paso 1/6] Inicio[0m
+­ƒæñ Usuario: hola quiero un turno
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.95)
+   [92mÔ£ô Intent correcto: agendar_turno[0m
+
+[94m[Paso 2/6] Da nombre[0m
+­ƒæñ Usuario: Carlos Mendoza
+­ƒñû Bot: Perfecto, Carlos Mendoza. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô nombre = Carlos Mendoza[0m
+
+[94m[Paso 3/6] Da c├®dula[0m
+­ƒæñ Usuario: 7890123
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.98)
+   [92mÔ£ô cedula = 7890123[0m
+
+[94m[Paso 4/6] Da fecha y hora[0m
+­ƒæñ Usuario: para ma├▒ana a las 8
+­ƒñû Bot: Perfecto! Para enviarte la confirmaci├│n y el c├│digo QR, ┬┐cu├íl es tu email?
+­ƒÄ» Intent: elegir_horario (confianza: 0.87)
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+   [92mÔ£ô hora = 08:00[0m
+
+[94m[Paso 5/6] CAMBIO - Quiere modificar hora[0m
+­ƒæñ Usuario: Mejor cambio la hora, prefiero 14:00
+­ƒñû Bot: Perfecto! Para enviarte la confirmaci├│n y el c├│digo QR, ┬┐cu├íl es tu email?
+­ƒÄ» Intent: elegir_horario (confianza: 0.70)
+   [91mÔ£ù hora deber├¡a ser None, pero es '14:00'[0m
+   [91mÔ£ù Respuesta NO contiene: 'hora'[0m
+   [91mÔ£ù Respuesta NO contiene: 'horario'[0m
+
+[94m[Paso 6/6] Nueva hora[0m
+­ƒæñ Usuario: 14:00
+­ƒñû Bot: Perfecto! Para enviarte la confirmaci├│n y el c├│digo QR, ┬┐cu├íl es tu email?
+­ƒÄ» Intent: elegir_horario (confianza: 0.95)
+   [92mÔ£ô Intent correcto: elegir_horario[0m
+   [92mÔ£ô hora = 14:00[0m
+
+----------------------------------------------------------------------------------------------------
+[93m[1mÔÜá´©Å  CONVERSACI├ôN PARCIAL: 5/6 pasos correctos (83%)[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #5: Cambio de fecha completo[0m
+====================================================================================================
+
+[94m[Paso 1/6] Inicio[0m
+­ƒæñ Usuario: turno por favor
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.95)
+   [92mÔ£ô Intent correcto: agendar_turno[0m
+
+[94m[Paso 2/6] Nombre[0m
+­ƒæñ Usuario: Laura Ben├¡tez
+­ƒñû Bot: Perfecto, Laura Ben├¡tez. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô nombre = Laura Ben├¡tez[0m
+
+[94m[Paso 3/6] C├®dula[0m
+­ƒæñ Usuario: 5551234
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.98)
+   [92mÔ£ô cedula = 5551234[0m
+
+[94m[Paso 4/6] Fecha inicial[0m
+­ƒæñ Usuario: para el martes
+­ƒñû Bot: Ô£à Para el 2025-11-04:
+
+­ƒîƒ Te recomiendo las 07:00 (menor tiempo de espera).
+
+Otros horarios: 07:30, 08:00, 08:30, 09:00, 09:30
+
+┬┐A qu├® hora prefieres?
+­ƒÄ» Intent: informar_fecha (confianza: 0.73)
+   [92mÔ£ô fecha tiene valor: 2025-11-04[0m
+
+[94m[Paso 5/6] CAMBIO - Nueva fecha en oraci├│n compuesta[0m
+­ƒæñ Usuario: No espera, mejor cambio la fecha para el jueves
+­ƒñû Bot: No estoy seguro de entender. ┬┐Podr├¡as reformular? Puedo ayudarte con:
+- Agendar turnos
+- Consultar horarios
+- Informaci├│n sobre requisitos
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] Transici├│n + turno (despu├®s de consulta) ÔåÆ agendar_turno (0.92)
+­ƒÄ» Intent: negacion (confianza: 0.69)
+   [91mÔ£ù fecha deber├¡a ser None, pero es '2025-11-06'[0m
+   [92mÔ£ô hora es None (correcto)[0m
+
+[94m[Paso 6/6] Confirma nueva fecha[0m
+­ƒæñ Usuario: jueves
+­ƒñû Bot: Ô£à Para el 2025-11-06:
+
+­ƒîƒ Te recomiendo las 07:00 (menor tiempo de espera).
+
+Otros horarios: 07:00, 07:30, 08:00, 08:30, 09:00
+
+┬┐A qu├® hora prefieres?
+­ƒÄ» Intent: informar_fecha (confianza: 0.95)
+   [92mÔ£ô Intent correcto: informar_fecha[0m
+   [92mÔ£ô fecha tiene valor: 2025-11-06[0m
+
+----------------------------------------------------------------------------------------------------
+[93m[1mÔÜá´©Å  CONVERSACI├ôN PARCIAL: 5/6 pasos correctos (83%)[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #6: Correcci├│n en el resumen final[0m
+====================================================================================================
+
+[94m[Paso 1/7] Inicio[0m
+­ƒæñ Usuario: necesito turno
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.96)
+
+[94m[Paso 2/7] Nombre[0m
+­ƒæñ Usuario: Roberto Silva
+­ƒñû Bot: Perfecto, Roberto Silva. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô nombre = Roberto Silva[0m
+
+[94m[Paso 3/7] C├®dula[0m
+­ƒæñ Usuario: 9998877
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.98)
+   [92mÔ£ô cedula = 9998877[0m
+
+[94m[Paso 4/7] Fecha y hora[0m
+­ƒæñ Usuario: ma├▒ana 11:00
+­ƒñû Bot: Perfecto! Para enviarte la confirmaci├│n y el c├│digo QR, ┬┐cu├íl es tu email?
+­ƒÄ» Intent: elegir_horario (confianza: 0.92)
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+   [92mÔ£ô hora = 11:00[0m
+
+[94m[Paso 5/7] Email[0m
+­ƒæñ Usuario: roberto@mail.com
+­ƒñû Bot: ­ƒôï Perfecto! Resumen de tu turno:
+Nombre: Roberto Silva
+C├®dula: 9998877
+Fecha: 2025-11-05
+Hora: 11:00
+Email: roberto@mail.com
+
+┬┐Confirmas estos datos? ...
+­ƒÄ» Intent: informar_email (confianza: 0.98)
+   [92mÔ£ô email = roberto@mail.com[0m
+
+[94m[Paso 6/7] CORRECCI├ôN en resumen - Email[0m
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.92
+­ƒæñ Usuario: Cambiar email
+­ƒñû Bot: Perfecto! Para enviarte la confirmaci├│n y el c├│digo QR, ┬┐cu├íl es tu email?
+­ƒÄ» Intent: informar_email (confianza: 0.98)
+   [92mÔ£ô Intent correcto: informar_email[0m
+   [92mÔ£ô email es None (correcto)[0m
+
+[94m[Paso 7/7] Nuevo email correcto[0m
+­ƒæñ Usuario: roberto.silva@correo.com
+­ƒñû Bot: ­ƒôï Perfecto! Resumen de tu turno:
+Nombre: Roberto Silva
+C├®dula: 9998877
+Fecha: 2025-11-05
+Hora: 11:00
+Email: roberto.silva@correo.com
+
+┬┐Confirmas estos...
+­ƒÄ» Intent: informar_email (confianza: 0.98)
+   [92mÔ£ô email = roberto.silva@correo.com[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 7/7 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #7: Todo en una sola oraci├│n[0m
+====================================================================================================
+
+[94m[Paso 1/2] ORACI├ôN MEGA COMPUESTA - Nombre, c├®dula, fecha, hora[0m
+­ƒæñ Usuario: Hola, soy Patricia Rojas, CI 3334455, necesito turno para ma├▒ana a las 15:00
+­ƒñû Bot: Perfecto! Para enviarte la confirmaci├│n y el c├│digo QR, ┬┐cu├íl es tu email?
+­ƒÄ» Intent: elegir_horario (confianza: 0.75)
+   [92mÔ£ô nombre = Patricia Rojas[0m
+   [92mÔ£ô cedula = 3334455[0m
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+   [92mÔ£ô hora = 15:00[0m
+
+[94m[Paso 2/2] Email[0m
+­ƒæñ Usuario: Mi email es patricia.rojas@gmail.com
+­ƒñû Bot: ­ƒôï Perfecto! Resumen de tu turno:
+Nombre: Patricia Rojas
+C├®dula: 3334455
+Fecha: 2025-11-05
+Hora: 15:00
+Email: patricia.rojas@gmail.com
+
+┬┐Confirmas esto...
+­ƒÄ» Intent: informar_email (confianza: 0.98)
+INFO:orquestador_inteligente:­ƒÄ» [GLOBAL] Nombre detectado con 'soy/me llamo': Fernando Castro
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Fernando Castro'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Fernando Castro
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-014
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'turno...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.50)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.50)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.96)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.96
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Sof├¡a Medina con c├®dula 4445566 para ma├▒ana 13:00...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: consultar_disponibilidad (score: 0.55)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: consultar_disponibilidad (0.55)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_cedula (0.64)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    consultar_disponibilidad (0.55)
+INFO:orquestador_inteligente:RESULTADO FINAL: consultar_costo (0.85) [fuente: mejor_llm]
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_costo | Confianza: 0.85
+INFO:orquestador_inteligente:ƒôª Entidades extra├¡das: {'cedula': '4445566', 'fecha': '2025-11-05', 'hora': '13:00', 
+'franja_horaria': 'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 4445566
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 13:00
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Usuario proporciona email ÔåÆ informar_email
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_email | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'email': 'sofia.m@mail.com'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: email = sofia.m@mail.com
+INFO:orquestador_inteligente:­ƒöä [CAMBIO] Usuario quiere cambiar c├®dula ÔåÆ resetear c├®dula
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.98
+INFO:orquestador_inteligente:ÔÅ¡´©Å Saltando extracci├│n de entidades (comando de cambio detectado)
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: '4445567...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: nlu_fallback (0.00)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: informar_cedula (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'cedula': '4445567'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 4445567
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-015
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] negacion_sin_cedula + turno ÔåÆ agendar_turno (0.90)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.90
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: informar_nombre (0.92)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.92
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Camila Torres'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Camila Torres
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] negacion_sin_cedula (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: negacion_sin_cedula | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'para el lunes 10...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'informar_fecha' (raw: 'informar_fecha...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: informar_fecha (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.37)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.37)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_fecha (0.61)
+INFO:orquestador_inteligente:   LLM:      informar_fecha (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    agendar_turno (0.37)
+INFO:orquestador_inteligente:RESULTADO FINAL: informar_fecha (0.85) [fuente: mejor_llm]
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_fecha | Confianza: 0.85
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-10'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-10
+INFO:orquestador_inteligente:­ƒôè 2025-11-10: 17/17 horarios disponibles
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-016
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Hola, buen d├¡a...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: nlu_fallback (0.00)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    greet (0.59)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    nlu_fallback (0.00)
+INFO:orquestador_inteligente:RESULTADO FINAL: consultar_costo (0.85) [fuente: mejor_llm]
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_costo | Confianza: 0.85
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] Pregunta sobre requisitos ÔåÆ consultar_requisitos (0.93)
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_requisitos | Confianza: 0.93
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Ah perfecto, y cu├ínto cuesta?...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: consultar_costo (score: 0.67)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: consultar_costo (0.67)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    consultar_costo (0.75)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    consultar_costo (0.67)
+INFO:orquestador_inteligente:RESULTADO FINAL: consultar_costo (0.75) [fuente: fuzzy+regex_consenso]
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_costo | Confianza: 0.75
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] Transici├│n + turno (despu├®s de consulta) ÔåÆ agendar_turno (0.92)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.92
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-05', 'franja_horaria': 'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Ricardo Flores, CI 8889990...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: nlu_fallback (0.00)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_cedula (0.77)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    nlu_fallback (0.00)
+INFO:orquestador_inteligente:RESULTADO FINAL: informar_cedula (0.77) [fuente: regex_razonable]
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.77
+INFO:orquestador_inteligente:­ƒÄ» [GLOBAL] Nombre detectado en oraci├│n compuesta (con coma): Ricardo Flores
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Ricardo Flores', 'cedula': '8889990'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Ricardo Flores
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 8889990
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-017
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'turno por favor...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.50)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.50)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Valentina Acosta'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Valentina Acosta
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: informar_cedula (0.98)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'cedula': '1237894'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 1237894
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'para ma├▒ana...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'informar_fecha' (raw: 'informar_fecha...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: informar_fecha (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: consultar_disponibilidad (score: 0.55)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: consultar_disponibilidad (0.55)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_fecha (0.85)
+INFO:orquestador_inteligente:   LLM:      informar_fecha (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    consultar_disponibilidad (0.55)
+INFO:orquestador_inteligente:RESULTADO FINAL: informar_fecha (0.85) [fuente: regex_razonable]
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_fecha | Confianza: 0.85
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-05', 'franja_horaria': 'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒôè 2025-11-05: 14/17 horarios disponibles
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Usuario cambia fecha existente ÔåÆ consultar_disponibilidad
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_disponibilidad | Confianza: 0.96
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-05'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôè 2025-11-05: 14/17 horarios disponibles
+   [92mÔ£ô email = patricia.rojas@gmail.com[0m
+   [92mÔ£ô Respuesta contiene: 'Resumen'[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 2/2 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #8: Consulta y agendamiento juntos[0m
+====================================================================================================
+
+[94m[Paso 1/2] COMPUESTA - Consulta + Agendamiento[0m
+­ƒæñ Usuario: Hola, qu├® horarios tienen para ma├▒ana? Necesito sacar turno
+­ƒñû Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+
+┬┐Quieres a...
+­ƒÄ» Intent: consultar_disponibilidad (confianza: 0.94)
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+   [92mÔ£ô Respuesta contiene: 'horario'[0m
+   [92mÔ£ô Respuesta contiene: 'disponib'[0m
+
+[94m[Paso 2/2] COMPUESTA - Hora + Nombre[0m
+­ƒæñ Usuario: Perfecto, quiero para las 10, mi nombre es Diego Mart├¡nez
+­ƒñû Bot: Gracias Diego Mart├¡nez. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: elegir_horario (confianza: 0.96)
+   [92mÔ£ô hora = 10:00[0m
+   [92mÔ£ô nombre = Diego Mart├¡nez[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 2/2 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #9: Pregunta sobre requisitos y luego agenda[0m
+====================================================================================================
+
+[94m[Paso 1/3] COMPUESTA - Requisitos + Demora[0m
+­ƒæñ Usuario: Qu├® documentos necesito para renovar mi c├®dula? Y cu├ínto demora?
+­ƒñû Bot: ­ƒôï **Requisitos para RENOVACI├ôN:**
+
+1. C├®dula anterior (original)
+2. Partida de nacimiento actualizada (si cambi├│ estado civil)
+3. Presencia personal o...
+­ƒÄ» Intent: consultar_requisitos (confianza: 0.93)
+   [92mÔ£ô Respuesta contiene: 'requisitos'[0m
+   [92mÔ£ô Respuesta contiene: 'renovaci├│n'[0m
+
+[94m[Paso 2/3] Agendamiento despu├®s de consulta[0m
+­ƒæñ Usuario: Ok perfecto, entonces quiero turno para el jueves
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.92)
+   [91mÔ£ù Intent incorrecto: esperado 'informar_fecha', obtenido 'agendar_turno'[0m
+   [92mÔ£ô fecha tiene valor: 2025-11-06[0m
+
+[94m[Paso 3/3] COMPUESTA - Nombre + C├®dula[0m
+­ƒæñ Usuario: Soy Gabriela Fern├índez, mi CI es 7778899
+­ƒñû Bot: Perfecto, Gabriela Fern├índez. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.85)
+   [92mÔ£ô nombre = Gabriela Fern├índez[0m
+   [92mÔ£ô cedula = 7778899[0m
+
+----------------------------------------------------------------------------------------------------
+[93m[1mÔÜá´©Å  CONVERSACI├ôN PARCIAL: 2/3 pasos correctos (66%)[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #10: Cancelar y volver a empezar[0m
+====================================================================================================
+
+[94m[Paso 1/6] Inicio[0m
+­ƒæñ Usuario: quiero turno
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.96)
+
+[94m[Paso 2/6] Nombre[0m
+­ƒæñ Usuario: Mart├¡n Gonz├ílez
+­ƒñû Bot: Perfecto, Mart├¡n Gonz├ílez. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô nombre = Mart├¡n Gonz├ílez[0m
+
+[94m[Paso 3/6] C├®dula[0m
+­ƒæñ Usuario: 1112233
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.98)
+   [92mÔ£ô cedula = 1112233[0m
+
+[94m[Paso 4/6] CANCELACI├ôN[0m
+­ƒæñ Usuario: Cancelar todo
+­ƒñû Bot: Ô£à Turno cancelado correctamente. Todos los datos han sido eliminados.
+
+Si deseas agendar un nuevo turno, puedes decir:
+ÔÇó 'Quiero sacar un turno'
+ÔÇó '┬┐Q...
+­ƒÄ» Intent: cancelar (confianza: 0.95)
+   [92mÔ£ô Intent correcto: cancelar[0m
+   [92mÔ£ô nombre es None (correcto)[0m
+   [92mÔ£ô cedula es None (correcto)[0m
+   [92mÔ£ô Respuesta contiene: 'cancelado'[0m
+
+[94m[Paso 5/6] Reinicio despu├®s de cancelar[0m
+­ƒæñ Usuario: Ahora s├¡, quiero turno de nuevo
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.72)
+   [92mÔ£ô Intent correcto: agendar_turno[0m
+   [92mÔ£ô Respuesta contiene: 'nombre'[0m
+
+[94m[Paso 6/6] Nombre de nuevo[0m
+­ƒæñ Usuario: Mart├¡n Gonz├ílez
+­ƒñû Bot: Perfecto, Mart├¡n Gonz├ílez. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô nombre = Mart├¡n Gonz├ílez[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 6/6 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #11: Pregunta por mejor d├¡a disponible[0m
+====================================================================================================
+
+[94m[Paso 1/2] Consulta d├¡a con mejor disponibilidad[0m
+­ƒæñ Usuario: Qu├® d├¡a tiene m├ís disponibilidad esta semana?
+­ƒñû Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: consultar_disponibilidad (confianza: 0.85)
+   [92mÔ£ô Intent correcto: consultar_disponibilidad[0m
+   [91mÔ£ù Respuesta NO contiene: 'disponibilidad'[0m
+
+[94m[Paso 2/2] COMPUESTA - Hora + Nombre[0m
+­ƒæñ Usuario: Perfecto, quiero para ese d├¡a a las 9, soy Luc├¡a Ben├¡tez
+­ƒñû Bot: Gracias Luc├¡a Ben├¡tez. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: elegir_horario (confianza: 0.77)
+   [92mÔ£ô hora = 09:00[0m
+   [92mÔ£ô nombre = Luc├¡a Ben├¡tez[0m
+
+----------------------------------------------------------------------------------------------------
+[93m[1mÔÜá´©Å  CONVERSACI├ôN PARCIAL: 1/2 pasos correctos (50%)[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #12: Consulta horarios de atenci├│n[0m
+====================================================================================================
+
+[94m[Paso 1/2] Consulta horario de oficina[0m
+­ƒæñ Usuario: Hasta qu├® hora atienden?
+­ƒñû Bot: Me encantar├¡a mostrarte los horarios disponibles, pero primero necesito algunos datos para agendar tu turno.
+
+┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: consultar_disponibilidad (confianza: 0.95)
+   [91mÔ£ù Respuesta NO contiene: '17:00'[0m
+   [91mÔ£ù Respuesta NO contiene: '07:00'[0m
+   [91mÔ£ù Respuesta NO contiene: 'lunes'[0m
+   [91mÔ£ù Respuesta NO contiene: 'viernes'[0m
+
+[94m[Paso 2/2] Agendamiento con "mediod├¡a"[0m
+­ƒæñ Usuario: Ok, quiero turno para ma├▒ana al mediod├¡a
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.92)
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+   [92mÔ£ô hora tiene valor: 12:00[0m
+
+----------------------------------------------------------------------------------------------------
+[93m[1mÔÜá´©Å  CONVERSACI├ôN PARCIAL: 1/2 pasos correctos (50%)[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #13: N├║mero de tel├®fono para contacto[0m
+====================================================================================================
+
+[94m[Paso 1/2] Consulta contacto[0m
+­ƒæñ Usuario: Cu├íl es el n├║mero de tel├®fono?
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'mi├®rcoles...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: nlu_fallback (0.00)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: informar_fecha (0.95)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_fecha | Confianza: 0.95
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-05'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôè 2025-11-05: 14/17 horarios disponibles
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: elegir_horario (0.98)
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.98
+INFO:orquestador_inteligente:ƒôª Entidades extra├¡das: {'fecha': '2025-11-05', 'hora': '08:00', 'franja_horaria': 
+'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 08:00
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'No espera, mejor a la tarde, 15:00...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: negacion (score: 0.69)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: negacion (0.69)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    elegir_horario (0.65)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    negacion (0.69)
+INFO:orquestador_inteligente:RESULTADO FINAL: negacion (0.69) [fuente: fuzzy_alta]
+INFO:orquestador_inteligente:­ƒÄ» Intent: negacion | Confianza: 0.69
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'hora': '15:00', 'franja_horaria': 'tarde'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 15:00
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = tarde
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: '15...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: nlu_fallback (0.00)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    nlu_fallback (0.00)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    nlu_fallback (0.00)
+INFO:orquestador_inteligente:RESULTADO FINAL: consultar_costo (0.85) [fuente: mejor_llm]
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_costo | Confianza: 0.85
+INFO:orquestador_inteligente:­ƒòÉ Hora detectada (n├║mero simple): 15:00 del mensaje: '15'
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'hora': '15:00'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 15:00
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-018
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Hola, tengo dudas...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: nlu_fallback (0.00)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    greet (0.54)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    nlu_fallback (0.00)
+INFO:orquestador_inteligente:RESULTADO FINAL: consultar_costo (0.85) [fuente: mejor_llm]
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_costo | Confianza: 0.85
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] Pregunta sobre requisitos ÔåÆ consultar_requisitos (0.93)
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_requisitos | Confianza: 0.93
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Es gratis?...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: consultar_costo (score: 0.37)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: consultar_costo (0.37)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    nlu_fallback (0.00)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    consultar_costo (0.37)
+INFO:orquestador_inteligente:RESULTADO FINAL: consultar_costo (0.85) [fuente: mejor_llm]
+INFO:orquestador_inteligente:­ƒÄ» Intent: consultar_costo | Confianza: 0.85
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Cu├ínto tarda el tr├ímite?...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: consultar_costo (score: 0.50)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: consultar_costo (0.50)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    consulta_tiempo_espera (0.80)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    consultar_costo (0.50)
+INFO:orquestador_inteligente:RESULTADO FINAL: consulta_tiempo_espera (0.80) [fuente: regex_razonable]
+INFO:orquestador_inteligente:­ƒÄ» Intent: consulta_tiempo_espera | Confianza: 0.80
+INFO:orquestador_inteligente:­ƒôè 2025-11-04: 15/17 horarios disponibles
+INFO:orquestador_inteligente:­ƒÄ» [PATRON] Transici├│n + turno (despu├®s de consulta) ÔåÆ agendar_turno (0.92)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.92
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Andr├®s B├íez'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Andr├®s B├íez
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-019
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'turno...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_turno' (raw: 'consultar_turno....')
+WARNING:orquestador_inteligente:ÔÜá´©Å LLM devolvi├│ intent inv├ílido: 'consultar_turno'
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.50)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.50)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.96)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.96
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) ÔåÆ informar_nombre
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.94
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'nombre': 'Daniela Vera'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Daniela Vera
+INFO:orquestador_inteligente:­ƒÄ» Intent detectado por contexto: informar_cedula (0.98)
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.98
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'cedula': '5554443'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 5554443
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'para el s├íbado...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'informar_nombre' (raw: 'informar_nombre....')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: informar_nombre (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.37)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.37)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    nlu_fallback (0.00)
+INFO:orquestador_inteligente:   LLM:      informar_nombre (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    agendar_turno (0.37)
+INFO:orquestador_inteligente:RESULTADO FINAL: informar_nombre (0.85) [fuente: mejor_llm]
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_nombre | Confianza: 0.85
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-08'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-08
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'ok entonces lunes...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'informar_fecha' (raw: 'informar_fecha...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: informar_fecha (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: affirm (score: 0.50)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: affirm (0.50)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_fecha (0.59)
+INFO:orquestador_inteligente:   LLM:      informar_fecha (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    affirm (0.50)
+INFO:orquestador_inteligente:RESULTADO FINAL: informar_fecha (0.85) [fuente: mejor_llm]
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_fecha | Confianza: 0.85
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'fecha': '2025-11-10'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-10
+INFO:orquestador_inteligente:­ƒôè 2025-11-10: 17/17 horarios disponibles
+ERROR:motor_difuso:Error en evaluaci├│n difusa de recomendaci├│n: 'recomendacion'
+INFO:orquestador_inteligente:­ƒåò Nuevo contexto creado para: test-020
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'turno...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_disponibilidad' (raw: 'consultar_disponibilidad...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_disponibilidad (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: agendar_turno (score: 0.50)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: agendar_turno (0.50)
+INFO:orquestador_inteligente:´┐¢ Detecci├│n contextual prioritaria: agendar_turno (0.96)
+INFO:orquestador_inteligente:­ƒÄ» Intent: agendar_turno | Confianza: 0.96
+INFO:orquestador_inteligente:­ƒñû Consultando LLM para: 'Miguel Ortiz, 7776665, ma├▒ana...'
+INFO:orquestador_inteligente:Ô£à LLM respondi├│: 'consultar_costo' (raw: 'consultar_costo...')
+INFO:orquestador_inteligente:­ƒÄ» LLM clasific├│ como: consultar_costo (confianza: 0.85)
+INFO:razonamiento_difuso:­ƒîƒ Fuzzy clasific├│: consultar_disponibilidad (score: 0.37)
+INFO:orquestador_inteligente:­ƒîƒ [FUZZY] Clasificaci├│n difusa: consultar_disponibilidad (0.37)
+INFO:orquestador_inteligente:
+DECISION CON PRIORIZACION FUZZY:
+INFO:orquestador_inteligente:   Contexto: N/A (0.00)
+INFO:orquestador_inteligente:   Regex:    informar_cedula (0.74)
+INFO:orquestador_inteligente:   LLM:      consultar_costo (0.85)
+INFO:orquestador_inteligente:   Fuzzy:    consultar_disponibilidad (0.37)
+INFO:orquestador_inteligente:RESULTADO FINAL: informar_cedula (0.74) [fuente: regex_razonable]
+INFO:orquestador_inteligente:­ƒÄ» Intent: informar_cedula | Confianza: 0.74
+INFO:orquestador_inteligente:­ƒÄ» [GLOBAL] Nombre detectado en oraci├│n compuesta (con coma): Miguel Ortiz
+INFO:orquestador_inteligente:ƒôª Entidades extra├¡das: {'nombre': 'Miguel Ortiz', 'cedula': '7776665', 'fecha': 
+'2025-11-05', 'franja_horaria': 'manana'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: nombre = Miguel Ortiz
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: cedula = 7776665
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: fecha = 2025-11-05
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: franja_horaria = manana
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Usuario da hora directamente ÔåÆ elegir_horario
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.97
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'hora': '18:00'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 18:00
+INFO:orquestador_inteligente:­ƒÄ» [CONTEXTO] Usuario da hora directamente ÔåÆ elegir_horario
+INFO:orquestador_inteligente:­ƒÄ» Intent: elegir_horario | Confianza: 0.97
+INFO:orquestador_inteligente:­ƒòÉ Hora detectada (n├║mero simple): 14:00 del mensaje: '14'
+INFO:orquestador_inteligente:­ƒôª Entidades extra├¡das: {'hora': '14:00'}
+INFO:orquestador_inteligente:­ƒôØ Contexto actualizado: hora = 14:00
+­ƒñû Bot: ­ƒô× **N├║meros de contacto para llamadas:**
+
+ÔÇó +595 976 200472
+ÔÇó +595 976 200641
+
+­ƒòÆ **Horario de atenci├│n:**
+Lunes a Viernes: 07:00 a 17:00
+
+Ahora, ┬┐cu├íl...
+­ƒÄ» Intent: consultar_ubicacion (confianza: 0.90)
+   [92mÔ£ô Intent correcto: consultar_ubicacion[0m
+   [92mÔ£ô Respuesta contiene: '976 200'[0m
+
+[94m[Paso 2/2] Agendamiento despu├®s de consulta[0m
+­ƒæñ Usuario: Perfecto, ahora quiero agendar, soy Fernando Castro
+­ƒñû Bot: Gracias Fernando Castro. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: agendar_turno (confianza: 0.92)
+   [92mÔ£ô nombre = Fernando Castro[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 2/2 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #14: Cambio de c├®dula en resumen[0m
+====================================================================================================
+
+[94m[Paso 1/5] Inicio[0m
+­ƒæñ Usuario: turno
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.96)
+
+[94m[Paso 2/5] COMPUESTA - Todo junto[0m
+­ƒæñ Usuario: Sof├¡a Medina con c├®dula 4445566 para ma├▒ana 13:00
+­ƒñû Bot: ­ƒÆ░ **Costos del tr├ímite:**
+
+ÔÇó Primera c├®dula: **GRATUITO** Ô£à
+ÔÇó Renovaci├│n: Gs. 25.000
+ÔÇó P├®rdida/Robo: Gs. 50.000
+ÔÇó Extranjeros: Gs. 100.000
+ÔÇó Menores (...
+­ƒÄ» Intent: consultar_costo (confianza: 0.85)
+   [91mÔ£ù nombre: esperado 'Sof├¡a Medina', obtenido 'None'[0m
+   [92mÔ£ô cedula = 4445566[0m
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+   [92mÔ£ô hora = 13:00[0m
+
+[94m[Paso 3/5] Email[0m
+­ƒæñ Usuario: sofia.m@mail.com
+­ƒñû Bot: ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: informar_email (confianza: 0.98)
+   [92mÔ£ô email = sofia.m@mail.com[0m
+
+[94m[Paso 4/5] Correcci├│n de c├®dula[0m
+­ƒæñ Usuario: Cambiar c├®dula
+­ƒñû Bot: ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_cedula (confianza: 0.98)
+   [92mÔ£ô Intent correcto: informar_cedula[0m
+   [92mÔ£ô cedula es None (correcto)[0m
+
+[94m[Paso 5/5] Nueva c├®dula[0m
+­ƒæñ Usuario: 4445567
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.95)
+   [92mÔ£ô cedula = 4445567[0m
+
+----------------------------------------------------------------------------------------------------
+[93m[1mÔÜá´©Å  CONVERSACI├ôN PARCIAL: 4/5 pasos correctos (80%)[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #15: Sin c├®dula (tr├ímite nuevo)[0m
+====================================================================================================
+
+[94m[Paso 1/4] Agendamiento sin c├®dula[0m
+­ƒæñ Usuario: Hola necesito turno pero a├║n no tengo c├®dula
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.90)
+   [92mÔ£ô Intent correcto: agendar_turno[0m
+
+[94m[Paso 2/4] Nombre[0m
+­ƒæñ Usuario: Camila Torres
+­ƒñû Bot: Perfecto, Camila Torres. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.92)
+   [92mÔ£ô nombre = Camila Torres[0m
+
+[94m[Paso 3/4] Confirma que no tiene c├®dula[0m
+­ƒæñ Usuario: No tengo c├®dula todav├¡a
+­ƒñû Bot: Entendido, sin problema. Continuamos con el agendamiento. ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: negacion_sin_cedula (confianza: 0.95)
+   [92mÔ£ô cedula = SIN_CEDULA[0m
+
+[94m[Paso 4/4] Fecha y hora[0m
+­ƒæñ Usuario: para el lunes 10
+­ƒñû Bot: Ô£à Para el 2025-11-10:
+
+­ƒîƒ Te recomiendo las 07:00 (menor tiempo de espera).
+
+Otros horarios: 07:00, 07:30, 08:00, 08:30, 09:00
+
+┬┐A qu├® hora prefieres?
+­ƒÄ» Intent: informar_fecha (confianza: 0.85)
+   [92mÔ£ô fecha tiene valor: 2025-11-10[0m
+   [91mÔ£ù hora: esperado '10:00', obtenido 'None'[0m
+
+----------------------------------------------------------------------------------------------------
+[93m[1mÔÜá´©Å  CONVERSACI├ôN PARCIAL: 3/4 pasos correctos (75%)[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #16: Conversaci├│n muy natural con dudas[0m
+====================================================================================================
+
+[94m[Paso 1/5] Saludo natural[0m
+­ƒæñ Usuario: Hola, buen d├¡a
+­ƒñû Bot: ­ƒÆ░ **Costos del tr├ímite:**
+
+ÔÇó Primera c├®dula: **GRATUITO** Ô£à
+ÔÇó Renovaci├│n: Gs. 25.000
+ÔÇó P├®rdida/Robo: Gs. 50.000
+ÔÇó Extranjeros: Gs. 100.000
+ÔÇó Menores (...
+­ƒÄ» Intent: consultar_costo (confianza: 0.85)
+   [91mÔ£ù Intent incorrecto: esperado 'greet', obtenido 'consultar_costo'[0m
+
+[94m[Paso 2/5] Consulta requisitos renovaci├│n[0m
+­ƒæñ Usuario: Mira, necesito renovar mi c├®dula, qu├® necesito?
+­ƒñû Bot: ­ƒôï **Requisitos para RENOVACI├ôN:**
+
+1. C├®dula anterior (original)
+2. Partida de nacimiento actualizada (si cambi├│ estado civil)
+3. Presencia personal o...
+­ƒÄ» Intent: consultar_requisitos (confianza: 0.93)
+   [92mÔ£ô Intent correcto: consultar_requisitos[0m
+   [92mÔ£ô Respuesta contiene: 'renovaci├│n'[0m
+   [92mÔ£ô Respuesta contiene: 'c├®dula anterior'[0m
+
+[94m[Paso 3/5] Consulta costo[0m
+­ƒæñ Usuario: Ah perfecto, y cu├ínto cuesta?
+­ƒñû Bot: ­ƒÆ░ **Costos del tr├ímite:**
+
+ÔÇó Primera c├®dula: **GRATUITO** Ô£à
+ÔÇó Renovaci├│n: Gs. 25.000
+ÔÇó P├®rdida/Robo: Gs. 50.000
+ÔÇó Extranjeros: Gs. 100.000
+ÔÇó Menores (...
+­ƒÄ» Intent: consultar_costo (confianza: 0.75)
+   [92mÔ£ô Intent correcto: consultar_costo[0m
+   [92mÔ£ô Respuesta contiene: '25.000'[0m
+
+[94m[Paso 4/5] Decide agendar[0m
+­ƒæñ Usuario: Ok dale, entonces quiero turno para pasado ma├▒ana
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.92)
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+
+[94m[Paso 5/5] Da datos juntos[0m
+­ƒæñ Usuario: Ricardo Flores, CI 8889990
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.77)
+   [92mÔ£ô nombre = Ricardo Flores[0m
+   [92mÔ£ô cedula = 8889990[0m
+
+----------------------------------------------------------------------------------------------------
+[93m[1mÔÜá´©Å  CONVERSACI├ôN PARCIAL: 4/5 pasos correctos (80%)[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #17: Cambios m├║ltiples de opini├│n[0m
+====================================================================================================
+
+[94m[Paso 1/9] Inicio[0m
+­ƒæñ Usuario: turno por favor
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.95)
+
+[94m[Paso 2/9] Nombre[0m
+­ƒæñ Usuario: Valentina Acosta
+­ƒñû Bot: Perfecto, Valentina Acosta. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô nombre = Valentina Acosta[0m
+
+[94m[Paso 3/9] C├®dula[0m
+­ƒæñ Usuario: 1237894
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.98)
+   [92mÔ£ô cedula = 1237894[0m
+
+[94m[Paso 4/9] Fecha[0m
+­ƒæñ Usuario: para ma├▒ana
+­ƒñû Bot: Ô£à Para el 2025-11-05:
+
+­ƒîƒ Te recomiendo las 07:00 (menor tiempo de espera).
+
+Otros horarios: 07:00, 07:30, 08:30, 09:00, 10:30
+
+┬┐A qu├® hora prefieres?
+­ƒÄ» Intent: informar_fecha (confianza: 0.85)
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+
+[94m[Paso 5/9] Cambia de opini├│n - Fecha[0m
+­ƒæñ Usuario: mejor no, mejor para el mi├®rcoles
+­ƒñû Bot: ­ƒîà **Disponibilidad en la ma├▒ana del 2025-11-05:**
+
+Tenemos 7 horarios disponibles de 7:00 AM a 11:30 AM:
+­ƒôï 07:00, 07:30, 08:30, 09:00, 10:30, 11:00, 1...
+­ƒÄ» Intent: consultar_disponibilidad (confianza: 0.96)
+   [91mÔ£ù fecha deber├¡a ser None, pero es '2025-11-05'[0m
+
+[94m[Paso 6/9] Confirma mi├®rcoles[0m
+­ƒæñ Usuario: mi├®rcoles
+­ƒñû Bot: Ô£à Para el 2025-11-05:
+
+­ƒîƒ Te recomiendo las 07:00 (menor tiempo de espera).
+
+Otros horarios: 07:00, 07:30, 08:30, 09:00, 10:30
+
+┬┐A qu├® hora prefieres?
+­ƒÄ» Intent: informar_fecha (confianza: 0.95)
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+
+[94m[Paso 7/9] Hora[0m
+­ƒæñ Usuario: las 8 de la ma├▒ana
+­ƒñû Bot: Perfecto! Para enviarte la confirmaci├│n y el c├│digo QR, ┬┐cu├íl es tu email?
+­ƒÄ» Intent: elegir_horario (confianza: 0.98)
+   [92mÔ£ô hora = 08:00[0m
+
+[94m[Paso 8/9] Cambia de opini├│n - Hora[0m
+­ƒæñ Usuario: No espera, mejor a la tarde, 15:00
+­ƒñû Bot: No estoy seguro de entender. ┬┐Podr├¡as reformular? Puedo ayudarte con:
+- Agendar turnos
+- Consultar horarios
+- Informaci├│n sobre requisitos
+­ƒÄ» Intent: negacion (confianza: 0.69)
+   [91mÔ£ù hora deber├¡a ser None, pero es '15:00'[0m
+
+[94m[Paso 9/9] Confirma hora (n├║mero simple)[0m
+­ƒæñ Usuario: 15
+­ƒñû Bot: ­ƒÆ░ **Costos del tr├ímite:**
+
+ÔÇó Primera c├®dula: **GRATUITO** Ô£à
+ÔÇó Renovaci├│n: Gs. 25.000
+ÔÇó P├®rdida/Robo: Gs. 50.000
+ÔÇó Extranjeros: Gs. 100.000
+ÔÇó Menores (...
+­ƒÄ» Intent: consultar_costo (confianza: 0.85)
+   [92mÔ£ô hora = 15:00[0m
+
+----------------------------------------------------------------------------------------------------
+[93m[1mÔÜá´©Å  CONVERSACI├ôN PARCIAL: 7/9 pasos correctos (77%)[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #18: Consultas m├║ltiples antes de decidir[0m
+====================================================================================================
+
+[94m[Paso 1/6] Inicio dubitativo[0m
+­ƒæñ Usuario: Hola, tengo dudas
+­ƒñû Bot: ­ƒÆ░ **Costos del tr├ímite:**
+
+ÔÇó Primera c├®dula: **GRATUITO** Ô£à
+ÔÇó Renovaci├│n: Gs. 25.000
+ÔÇó P├®rdida/Robo: Gs. 50.000
+ÔÇó Extranjeros: Gs. 100.000
+ÔÇó Menores (...
+­ƒÄ» Intent: consultar_costo (confianza: 0.85)
+
+[94m[Paso 2/6] Consulta requisitos[0m
+­ƒæñ Usuario: Qu├® documentos necesito para primera c├®dula?
+­ƒñû Bot: ­ƒôï **Requisitos para PRIMERA C├ëDULA:**
+
+1. Partida de nacimiento original
+2. Certificado de estudios (si es mayor de 18 a├▒os)
+3. Presencia personal obl...
+­ƒÄ» Intent: consultar_requisitos (confianza: 0.93)
+   [92mÔ£ô Respuesta contiene: 'partida de nacimiento'[0m
+   [92mÔ£ô Respuesta contiene: 'primera'[0m
+
+[94m[Paso 3/6] Consulta costo[0m
+­ƒæñ Usuario: Es gratis?
+­ƒñû Bot: ­ƒÆ░ **Costos del tr├ímite:**
+
+ÔÇó Primera c├®dula: **GRATUITO** Ô£à
+ÔÇó Renovaci├│n: Gs. 25.000
+ÔÇó P├®rdida/Robo: Gs. 50.000
+ÔÇó Extranjeros: Gs. 100.000
+ÔÇó Menores (...
+­ƒÄ» Intent: consultar_costo (confianza: 0.85)
+   [92mÔ£ô Respuesta contiene: 'gratuito'[0m
+
+[94m[Paso 4/6] Consulta duraci├│n[0m
+­ƒæñ Usuario: Cu├ínto tarda el tr├ímite?
+­ƒñû Bot: ÔÅ▒´©Å El tiempo de espera promedio es de 15-30 minutos, dependiendo de la hora.
+
+Ahora, ┬┐cu├íl es tu nombre completo para continuar con tu turno?
+­ƒÄ» Intent: consulta_tiempo_espera (confianza: 0.80)
+   [92mÔ£ô Respuesta contiene: 'minutos'[0m
+   [92mÔ£ô Respuesta contiene: 'tiempo'[0m
+
+[94m[Paso 5/6] Decide agendar[0m
+­ƒæñ Usuario: Perfecto, entonces quiero sacar turno
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.92)
+   [92mÔ£ô Intent correcto: agendar_turno[0m
+
+[94m[Paso 6/6] Nombre[0m
+­ƒæñ Usuario: Andr├®s B├íez
+­ƒñû Bot: Perfecto, Andr├®s B├íez. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô nombre = Andr├®s B├íez[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 6/6 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #19: Intenta agendar fin de semana[0m
+====================================================================================================
+
+[94m[Paso 1/5] Inicio[0m
+­ƒæñ Usuario: turno
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.96)
+
+[94m[Paso 2/5] Nombre[0m
+­ƒæñ Usuario: Daniela Vera
+­ƒñû Bot: Perfecto, Daniela Vera. ┬┐Cu├íl es tu n├║mero de c├®dula?
+­ƒÄ» Intent: informar_nombre (confianza: 0.94)
+   [92mÔ£ô nombre = Daniela Vera[0m
+
+[94m[Paso 3/5] C├®dula[0m
+­ƒæñ Usuario: 5554443
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.98)
+   [92mÔ£ô cedula = 5554443[0m
+
+[94m[Paso 4/5] Intenta s├íbado (debe rechazar)[0m
+­ƒæñ Usuario: para el s├íbado
+­ƒñû Bot: ­ƒÿö Lo siento, no atendemos los s├íbados. Nuestro horario es de lunes a viernes, 07:00 a 17:00. ┬┐Prefieres agendar para el lunes 10/11?
+­ƒÄ» Intent: informar_nombre (confianza: 0.85)
+   [92mÔ£ô fecha es None (correcto)[0m
+   [92mÔ£ô Respuesta contiene: 's├íbado'[0m
+   [92mÔ£ô Respuesta contiene: 'lunes'[0m
+   [92mÔ£ô Respuesta contiene: 'viernes'[0m
+
+[94m[Paso 5/5] Acepta lunes[0m
+­ƒæñ Usuario: ok entonces lunes
+­ƒñû Bot: Ô£à Para el 2025-11-10:
+
+­ƒîƒ Te recomiendo las 07:00 (menor tiempo de espera).
+
+Otros horarios: 07:00, 07:30, 08:00, 08:30, 09:00
+
+┬┐A qu├® hora prefieres?
+­ƒÄ» Intent: informar_fecha (confianza: 0.85)
+   [92mÔ£ô fecha tiene valor: 2025-11-10[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 5/5 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒº¬ CONV #20: Hora fuera de rango[0m
+====================================================================================================
+
+[94m[Paso 1/4] Inicio[0m
+­ƒæñ Usuario: turno
+­ƒñû Bot: ┬íPerfecto! Para agendar tu turno, necesito algunos datos. ┬┐Cu├íl es tu nombre completo?
+­ƒÄ» Intent: agendar_turno (confianza: 0.96)
+
+[94m[Paso 2/4] COMPUESTA - Datos completos[0m
+­ƒæñ Usuario: Miguel Ortiz, 7776665, ma├▒ana
+­ƒñû Bot: ┬┐Para qu├® d├¡a necesitas el turno? Puedes decir 'ma├▒ana' o una fecha espec├¡fica.
+­ƒÄ» Intent: informar_cedula (confianza: 0.74)
+   [92mÔ£ô nombre = Miguel Ortiz[0m
+   [92mÔ£ô cedula = 7776665[0m
+   [92mÔ£ô fecha tiene valor: 2025-11-05[0m
+
+[94m[Paso 3/4] Hora fuera de rango (deber├¡a sugerir 07:00-15:00)[0m
+­ƒæñ Usuario: a las 18:00
+­ƒñû Bot: ÔÜá´©Å Lo siento, solo atendemos de 07:00 a 15:00.
+
+Por favor, elige un horario dentro de ese rango. Por ejemplo:
+ÔÇó 09:00
+ÔÇó 11:30
+ÔÇó 14:00
+­ƒÄ» Intent: elegir_horario (confianza: 0.97)
+   [92mÔ£ô Respuesta contiene: '07:00'[0m
+   [92mÔ£ô Respuesta contiene: '15:00'[0m
+
+[94m[Paso 4/4] Hora v├ílida[0m
+­ƒæñ Usuario: 14
+­ƒñû Bot: Perfecto! Para enviarte la confirmaci├│n y el c├│digo QR, ┬┐cu├íl es tu email?
+­ƒÄ» Intent: elegir_horario (confianza: 0.97)
+   [92mÔ£ô hora = 14:00[0m
+
+----------------------------------------------------------------------------------------------------
+[92m[1mÔ£à CONVERSACI├ôN EXITOSA: 4/4 pasos correctos[0m
+
+====================================================================================================
+[95m[1m­ƒôè RESUMEN FINAL DEL MEGA TEST[0m
+====================================================================================================
+
+[92mÔ£à CONV #1: Agendamiento simple y directo[0m
+[92mÔ£à CONV #2: Consulta de requisitos en medio del formulario[0m
+[92mÔ£à CONV #3: Consulta de costos y ubicaci├│n durante formulario[0m
+[92mÔ£à CONV #4: Cambio de horario en medio del proceso[0m
+[92mÔ£à CONV #5: Cambio de fecha completo[0m
+[92mÔ£à CONV #6: Correcci├│n en el resumen final[0m
+[92mÔ£à CONV #7: Todo en una sola oraci├│n[0m
+[92mÔ£à CONV #8: Consulta y agendamiento juntos[0m
+[91mÔØî CONV #9: Pregunta sobre requisitos y luego agenda[0m
+[92mÔ£à CONV #10: Cancelar y volver a empezar[0m
+[91mÔØî CONV #11: Pregunta por mejor d├¡a disponible[0m
+[91mÔØî CONV #12: Consulta horarios de atenci├│n[0m
+[92mÔ£à CONV #13: N├║mero de tel├®fono para contacto[0m
+[92mÔ£à CONV #14: Cambio de c├®dula en resumen[0m
+[92mÔ£à CONV #15: Sin c├®dula (tr├ímite nuevo)[0m
+[92mÔ£à CONV #16: Conversaci├│n muy natural con dudas[0m
+[92mÔ£à CONV #17: Cambios m├║ltiples de opini├│n[0m
+[92mÔ£à CONV #18: Consultas m├║ltiples antes de decidir[0m
+[92mÔ£à CONV #19: Intenta agendar fin de semana[0m
+[92mÔ£à CONV #20: Hora fuera de rango[0m
+
+====================================================================================================
+[1mRESULTADO: 17/20 conversaciones exitosas (85%)[0m
+[93m[1mÔÜá´©Å  BUENO - Algunos ajustes necesarios[0m
+====================================================================================================
+

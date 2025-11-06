@@ -2,18 +2,19 @@
 TEST 2 DEFINITIVO: CONVERSACIONES COMPLETAS
 ==========================================
 
-✅ RUTAS EXACTAS CONFIRMADAS DE TU PROYECTO:
+[OK] RUTAS EXACTAS CONFIRMADAS DE TU PROYECTO:
 - Chatbot-TFG-V2.0/domain.yml, config.yml, credentials.yml
 - Chatbot-TFG-V2.0/data/nlu.yml, stories.yml, rules.yml
 - Chatbot-TFG-V2.0/actions/actions.py
 - Chatbot-TFG-V2.0/flask-chatbot/motor_difuso.py, app.py
 
-✅ EJECUCIÓN AUTOMÁTICA - SIN INTERRUPCIONES
-✅ CONECTA CON SERVIDOR RASA REAL O USA SIMULACIÓN
+[OK] EJECUCIÓN AUTOMÁTICA - SIN INTERRUPCIONES
+[OK] CONECTA CON SERVIDOR RASA REAL O USA SIMULACIÓN
 
 Guardar como: test_2_conversaciones_DEFINITIVO.py
 Ejecutar: python test_2_conversaciones_DEFINITIVO.py
 """
+# -*- coding: utf-8 -*-
 
 import sys
 import requests
@@ -35,7 +36,7 @@ PROJECT_ROOT = Path(__file__).parent.parent  # tests/ -> Chatbot-TFG-V2.0/
 OUTPUT_DIR = PROJECT_ROOT / "tests" / "resultados_testing"
 OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
 
-# ✅ RUTAS EXACTAS DE TU ESTRUCTURA CONFIRMADA
+# [OK] RUTAS EXACTAS DE TU ESTRUCTURA CONFIRMADA
 ARCHIVOS_PROYECTO = {
     'domain.yml': PROJECT_ROOT / 'domain.yml',
     'config.yml': PROJECT_ROOT / 'config.yml',
@@ -49,7 +50,7 @@ ARCHIVOS_PROYECTO = {
     'app.py': PROJECT_ROOT / 'flask-chatbot' / 'app.py'
 }
 
-# ✅ ESCENARIOS ESPECÍFICOS CÉDULAS CIUDAD DEL ESTE
+# [OK] ESCENARIOS ESPECÍFICOS CÉDULAS CIUDAD DEL ESTE
 ESCENARIOS_CONVERSACION = [
     {
         "nombre": "Solicitud Turno Básica",
@@ -173,18 +174,18 @@ ESCENARIOS_CONVERSACION = [
 
 def verificar_estructura_proyecto():
     """Verifica estructura con rutas exactas"""
-    print("📁 Verificando estructura del proyecto...")
+    print("[*] Verificando estructura del proyecto...")
     
     encontrados = []
     for nombre, ruta in ARCHIVOS_PROYECTO.items():
         if ruta.exists():
             tamaño = ruta.stat().st_size
-            print(f"  ✅ {nombre:<15} | {tamaño:>8,} bytes")
+            print(f"  [OK] {nombre:<15} | {tamaño:>8,} bytes")
             encontrados.append(nombre)
         else:
-            print(f"  ❌ {nombre:<15} | NO ENCONTRADO")
+            print(f"  [FAIL] {nombre:<15} | NO ENCONTRADO")
     
-    print(f"📊 Archivos encontrados: {len(encontrados)}/{len(ARCHIVOS_PROYECTO)}")
+    print(f"[STATS] Archivos encontrados: {len(encontrados)}/{len(ARCHIVOS_PROYECTO)}")
     return len(encontrados) >= 6
 
 def test_servidor_rasa():
@@ -192,14 +193,14 @@ def test_servidor_rasa():
     try:
         response = requests.get(f"{RASA_URL}/status", timeout=5)
         if response.status_code == 200:
-            print("✅ Servidor Rasa activo y operativo")
+            print("[OK] Servidor Rasa activo y operativo")
             return True
         else:
-            print(f"⚠️  Servidor Rasa responde código {response.status_code}")
+            print(f"[WARN]  Servidor Rasa responde código {response.status_code}")
             return False
     except Exception:
-        print("❌ Servidor Rasa no disponible")
-        print("💡 Continuando con simulación realista...")
+        print("[FAIL] Servidor Rasa no disponible")
+        print("[IDEA] Continuando con simulación realista...")
         return False
 
 def simular_respuesta_chatbot(mensaje, contexto_conversacion):
@@ -347,7 +348,7 @@ def procesar_respuesta_bot(respuesta):
 
 def simular_conversacion(escenario, servidor_activo):
     """Simula conversación completa"""
-    print(f"  🗣️  Simulando: {escenario['nombre']}")
+    print(f"  [TALK]  Simulando: {escenario['nombre']}")
     
     conversacion = {
         'escenario': escenario['nombre'],
@@ -363,8 +364,8 @@ def simular_conversacion(escenario, servidor_activo):
     sender_id = f"test_user_{int(time.time())}_{random.randint(1000,9999)}"
     tiempo_inicio = time.time()
     
-    print(f"    👤 Usuario: {sender_id}")
-    print(f"    🤖 Modo: {'Servidor Rasa' if servidor_activo else 'Simulación'}")
+    print(f"    [USER] Usuario: {sender_id}")
+    print(f"    [BOT] Modo: {'Servidor Rasa' if servidor_activo else 'Simulación'}")
     
     for i, mensaje_usuario in enumerate(escenario['pasos']):
         print(f"    {i+1}. Usuario: {mensaje_usuario[:50]}...")
@@ -385,9 +386,9 @@ def simular_conversacion(escenario, servidor_activo):
             }
             conversacion['intercambios'].append(intercambio)
             
-            print(f"       🤖 Bot: {respuesta_procesada['texto'][:60]}... ({intercambio['tiempo_ms']:.0f}ms)")
+            print(f"       [BOT] Bot: {respuesta_procesada['texto'][:60]}... ({intercambio['tiempo_ms']:.0f}ms)")
         else:
-            print(f"       ❌ Sin respuesta del bot")
+            print(f"       [FAIL] Sin respuesta del bot")
             conversacion['errores'].append(f"Paso {i+1}: Sin respuesta")
         
         time.sleep(random.uniform(1.0, 2.5))
@@ -396,7 +397,7 @@ def simular_conversacion(escenario, servidor_activo):
     conversacion['resultado'] = evaluar_resultado_conversacion(conversacion, escenario)
     conversacion['satisfaccion'] = simular_satisfaccion_usuario(conversacion, escenario)
     
-    print(f"    📊 Resultado: {conversacion['resultado']} | Satisfacción: {conversacion['satisfaccion']:.1f}/5.0")
+    print(f"    [STATS] Resultado: {conversacion['resultado']} | Satisfacción: {conversacion['satisfaccion']:.1f}/5.0")
     
     return conversacion
 
@@ -505,27 +506,27 @@ def simular_satisfaccion_usuario(conversacion, escenario):
 
 def ejecutar_bateria_completa():
     """Ejecuta todos los escenarios"""
-    print("\n🔄 EJECUTANDO BATERÍA COMPLETA DE CONVERSACIONES...")
+    print("\n[LOOP] EJECUTANDO BATERÍA COMPLETA DE CONVERSACIONES...")
     
     estructura_ok = verificar_estructura_proyecto()
     servidor_activo = test_servidor_rasa()
     
-    print(f"\n📋 Configuración:")
-    print(f"   🎯 Escenarios: {len(ESCENARIOS_CONVERSACION)}")
-    print(f"   🔄 Ejecuciones por escenario: 2")
-    print(f"   📊 Total conversaciones: {len(ESCENARIOS_CONVERSACION) * 2}")
-    print(f"   🤖 Modo: {'Servidor Rasa' if servidor_activo else 'Simulación'}")
+    print(f"\n[*] Configuración:")
+    print(f"   [TARGET] Escenarios: {len(ESCENARIOS_CONVERSACION)}")
+    print(f"   [LOOP] Ejecuciones por escenario: 2")
+    print(f"   [STATS] Total conversaciones: {len(ESCENARIOS_CONVERSACION) * 2}")
+    print(f"   [BOT] Modo: {'Servidor Rasa' if servidor_activo else 'Simulación'}")
     
-    print(f"\n🚀 INICIANDO EVALUACIÓN...")
+    print(f"\n[START] INICIANDO EVALUACIÓN...")
     
     resultados = []
     
     for i, escenario in enumerate(ESCENARIOS_CONVERSACION):
-        print(f"\n  📋 Escenario {i+1}/{len(ESCENARIOS_CONVERSACION)}: {escenario['nombre']}")
+        print(f"\n  [*] Escenario {i+1}/{len(ESCENARIOS_CONVERSACION)}: {escenario['nombre']}")
         print(f"      Complejidad: {escenario.get('complejidad', 'media').upper()}")
         
         for ejecucion in range(2):
-            print(f"      🔄 Ejecución {ejecucion + 1}/2")
+            print(f"      [LOOP] Ejecución {ejecucion + 1}/2")
             
             conversacion = simular_conversacion(escenario, servidor_activo)
             conversacion['ejecucion'] = ejecucion + 1
@@ -541,7 +542,7 @@ def ejecutar_bateria_completa():
 
 def analizar_resultados(resultados, servidor_activo):
     """Analiza resultados de conversaciones"""
-    print(f"\n📊 ANALIZANDO RESULTADOS...")
+    print(f"\n[STATS] ANALIZANDO RESULTADOS...")
     
     df_resultados = []
     
@@ -572,13 +573,13 @@ def analizar_resultados(resultados, servidor_activo):
         'intercambios_promedio': df['num_intercambios'].mean()
     }
     
-    print(f"  ✅ Análisis completado: {len(df)} conversaciones")
+    print(f"  [OK] Análisis completado: {len(df)} conversaciones")
     
     return df, resumen
 
 def generar_graficos(resultados, resumen):
     """Genera gráficos de análisis"""
-    print(f"\n📊 GENERANDO GRÁFICOS...")
+    print(f"\n[STATS] GENERANDO GRÁFICOS...")
     
     df = pd.DataFrame([{
         'escenario': conv['escenario'],
@@ -676,33 +677,33 @@ def generar_graficos(resultados, resumen):
     
     plt.tight_layout()
     plt.savefig(OUTPUT_DIR / "graficos_conversaciones_definitivo.png", dpi=300, bbox_inches='tight')
-    print(f"✅ Gráficos guardados: graficos_conversaciones_definitivo.png")
+    print(f"[OK] Gráficos guardados: graficos_conversaciones_definitivo.png")
 
 def generar_reporte(df, resumen):
     """Genera reporte detallado"""
-    print(f"\n📝 GENERANDO REPORTE...")
+    print(f"\n[NOTE] GENERANDO REPORTE...")
     
     tipo_datos = "Datos Reales del Servidor Rasa" if resumen['servidor_real'] else "Simulación Realista Validada"
     
     reporte = f"""# REPORTE CONVERSACIONES COMPLETAS - CHATBOT CÉDULAS CIUDAD DEL ESTE
 
-## 📊 RESUMEN EJECUTIVO
+## [STATS] RESUMEN EJECUTIVO
 
 - **Tipo de Evaluación**: {tipo_datos}
 - **Total de Conversaciones**: {resumen['total_conversaciones']}
 - **Escenarios Únicos**: {len(df['escenario'].unique())}
 
-### 🎯 Métricas Principales
+### [TARGET] Métricas Principales
 - **Tasa de Éxito**: {resumen['tasa_exito']:.1%}
 - **Tasa Parcial**: {resumen['tasa_parcial']:.1%}
 - **Tasa de Fallo**: {resumen['tasa_fallo']:.1%}
 - **Satisfacción Promedio**: {resumen['satisfaccion_promedio']:.1f}/5.0
 
-### ⏱️ Métricas de Tiempo
+### [TIME] Métricas de Tiempo
 - **Tiempo Promedio**: {resumen['tiempo_promedio_total']/1000:.1f} segundos
 - **Intercambios Promedio**: {resumen['intercambios_promedio']:.1f}
 
-## 📈 ANÁLISIS POR ESCENARIO
+## [GRAPH] ANÁLISIS POR ESCENARIO
 
 | Escenario | Complejidad | Éxito | Satisfacción | Tiempo (s) |
 |-----------|-------------|-------|-------------|------------|
@@ -720,7 +721,7 @@ def generar_reporte(df, resumen):
 
     reporte += f"""
 
-## 🎯 INTERPRETACIÓN TÉCNICA
+## [TARGET] INTERPRETACIÓN TÉCNICA
 
 ### Estado del Sistema:
 {"El sistema está funcionando correctamente con el servidor Rasa activo." if resumen['servidor_real'] else "El framework de evaluación está implementado y validado."}
@@ -729,20 +730,20 @@ def generar_reporte(df, resumen):
 - **Tasa de Éxito {resumen['tasa_exito']:.1%}**: {"Excelente" if resumen['tasa_exito'] > 0.8 else "Buena" if resumen['tasa_exito'] > 0.6 else "Aceptable"}
 - **Satisfacción {resumen['satisfaccion_promedio']:.1f}/5.0**: {"Excelente" if resumen['satisfaccion_promedio'] > 4.0 else "Buena" if resumen['satisfaccion_promedio'] > 3.5 else "Aceptable"}
 
-## 📋 PARA TU TFG
+## [*] PARA TU TFG
 
 ### Datos Obtenidos:
-- ✅ **Tasa de Éxito**: {resumen['tasa_exito']:.1%}
-- ✅ **Satisfacción**: {resumen['satisfaccion_promedio']:.1f}/5.0
-- ✅ **Casos Evaluados**: {resumen['total_conversaciones']} conversaciones
-- ✅ **Metodología Reproducible**: Framework validado
+- [OK] **Tasa de Éxito**: {resumen['tasa_exito']:.1%}
+- [OK] **Satisfacción**: {resumen['satisfaccion_promedio']:.1f}/5.0
+- [OK] **Casos Evaluados**: {resumen['total_conversaciones']} conversaciones
+- [OK] **Metodología Reproducible**: Framework validado
 
 ### Validación:
-{"✅ Sistema operativo para producción" if resumen['servidor_real'] else "✅ Metodología de evaluación validada"}
-✅ Escenarios específicos del dominio de cédulas
-✅ Métricas de satisfacción cuantificadas
+{"[OK] Sistema operativo para producción" if resumen['servidor_real'] else "[OK] Metodología de evaluación validada"}
+[OK] Escenarios específicos del dominio de cédulas
+[OK] Métricas de satisfacción cuantificadas
 
-## 📊 CONCLUSIÓN
+## [STATS] CONCLUSIÓN
 
 {"El sistema de conversaciones está funcionando correctamente" if resumen['servidor_real'] else "La metodología de evaluación está validada"} para gestión de turnos de cédulas en Ciudad del Este.
 
@@ -755,20 +756,20 @@ def generar_reporte(df, resumen):
     with open(OUTPUT_DIR / "reporte_conversaciones_definitivo.md", 'w', encoding='utf-8') as f:
         f.write(reporte)
     
-    print(f"✅ Reporte guardado: reporte_conversaciones_definitivo.md")
+    print(f"[OK] Reporte guardado: reporte_conversaciones_definitivo.md")
 
 def main():
     """Función principal"""
     print("=" * 70)
-    print("  🗣️  TEST CONVERSACIONES COMPLETAS (DEFINITIVO)")
-    print("  📍 Proyecto: Chatbot-TFG-V2.0 - Ciudad del Este")
+    print("  [TALK]  TEST CONVERSACIONES COMPLETAS (DEFINITIVO)")
+    print("  [*] Proyecto: Chatbot-TFG-V2.0 - Ciudad del Este")
     print("=" * 70)
     
     # Ejecutar evaluación
     resultados, servidor_activo = ejecutar_bateria_completa()
     
     if not resultados:
-        print("❌ No se pudieron generar resultados")
+        print("[FAIL] No se pudieron generar resultados")
         return
     
     # Analizar resultados
@@ -776,15 +777,15 @@ def main():
     
     # Mostrar resultados
     print("\n" + "="*70)
-    print("  📊 RESULTADOS OBTENIDOS")
+    print("  [STATS] RESULTADOS OBTENIDOS")
     print("="*70)
     
-    print(f"🎯 Tipo: {'Datos Reales' if servidor_activo else 'Simulación Validada'}")
-    print(f"✅ Tasa de Éxito: {resumen['tasa_exito']:.1%}")
-    print(f"😊 Satisfacción: {resumen['satisfaccion_promedio']:.1f}/5.0")
-    print(f"⏱️ Tiempo: {resumen['tiempo_promedio_total']/1000:.1f}s")
-    print(f"💬 Conversaciones: {resumen['total_conversaciones']}")
-    print(f"📋 Escenarios: {len(df['escenario'].unique())}")
+    print(f"[TARGET] Tipo: {'Datos Reales' if servidor_activo else 'Simulación Validada'}")
+    print(f"[OK] Tasa de Éxito: {resumen['tasa_exito']:.1%}")
+    print(f"[*] Satisfacción: {resumen['satisfaccion_promedio']:.1f}/5.0")
+    print(f"[TIME] Tiempo: {resumen['tiempo_promedio_total']/1000:.1f}s")
+    print(f"[CHAT] Conversaciones: {resumen['total_conversaciones']}")
+    print(f"[*] Escenarios: {len(df['escenario'].unique())}")
     
     # Generar archivos
     df.to_csv(OUTPUT_DIR / "resultados_conversaciones_definitivo.csv", index=False)
@@ -792,17 +793,23 @@ def main():
     generar_reporte(df, resumen)
     
     print("\n" + "="*70)
-    print("  ✅ TEST 2 COMPLETADO EXITOSAMENTE")
+    print("  [OK] TEST 2 COMPLETADO EXITOSAMENTE")
     print("="*70)
-    print("📁 Archivos generados:")
-    print(f"   📄 resultados_conversaciones_definitivo.csv")
-    print(f"   📝 reporte_conversaciones_definitivo.md")
-    print(f"   📊 graficos_conversaciones_definitivo.png")
+    print("[*] Archivos generados:")
+    print(f"   [*] resultados_conversaciones_definitivo.csv")
+    print(f"   [NOTE] reporte_conversaciones_definitivo.md")
+    print(f"   [STATS] graficos_conversaciones_definitivo.png")
     print()
-    print("🎓 Para tu TFG:")
-    print(f"   📊 Tasa de éxito: {resumen['tasa_exito']:.1%}")
-    print(f"   😊 Satisfacción: {resumen['satisfaccion_promedio']:.1f}/5.0")
-    print(f"   🔬 Método: {'Experimental real' if servidor_activo else 'Simulación validada'}")
+    print("[EDU] Para tu TFG:")
+    print(f"   [STATS] Tasa de éxito: {resumen['tasa_exito']:.1%}")
+    print(f"   [*] Satisfacción: {resumen['satisfaccion_promedio']:.1f}/5.0")
+    print(f"   [*] Método: {'Experimental real' if servidor_activo else 'Simulación validada'}")
 
 if __name__ == "__main__":
+    try:
     main()
+    except Exception as e:
+        print(f"[ERROR] {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        exit(1)

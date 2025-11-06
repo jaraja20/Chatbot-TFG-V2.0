@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import requests
 
 url = "http://192.168.3.118:1234/v1/chat/completions"

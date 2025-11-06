@@ -170,7 +170,8 @@ def get_negative_feedback():
         return []
 
 def get_feedback_stats():
-    """Obtener estadísticas - COMPATIBLE con Streamlit"""
+    """Obtener estadísticas - COMPATIBLE con Streamlit
+    🔥 NUEVO: Excluye feedbacks negativos resueltos de las estadísticas"""
     conn = get_db_connection()
     if not conn:
         return None
@@ -179,13 +180,15 @@ def get_feedback_stats():
         cursor = conn.cursor()
         
         # feedback_thumbs: 1 = positivo, -1 = negativo
+        # 🔥 CAMBIO: Excluir negativos resueltos (reviewed=true) de las estadísticas
         cursor.execute("""
             SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN feedback_thumbs = 1 THEN 1 ELSE 0 END) as positive,
-                SUM(CASE WHEN feedback_thumbs = -1 THEN 1 ELSE 0 END) as negative
+                SUM(CASE WHEN feedback_thumbs = -1 AND (reviewed IS NULL OR reviewed = false) THEN 1 ELSE 0 END) as negative
             FROM conversation_messages
-            WHERE feedback_thumbs IN (1, -1)
+            WHERE feedback_thumbs = 1 
+               OR (feedback_thumbs = -1 AND (reviewed IS NULL OR reviewed = false))
         """)
         
         result = cursor.fetchone()
@@ -568,7 +571,7 @@ def get_conversations():
         SELECT user_message, bot_response, timestamp, feedback_thumbs
         FROM conversation_messages
         ORDER BY timestamp DESC
-        LIMIT 20
+        LIMIT 50
         """
         
         cursor.execute(query)
@@ -1082,6 +1085,249 @@ def mark_feedback_resolved(feedback_id):
         if conn:
             conn.close()
         return jsonify({'error': str(e)}), 500
+
+# =====================================================
+# 🎫 CONFIRMACIÓN DE TURNOS POR QR
+# =====================================================
+
+@app.route('/confirmar_turno/<token>')
+def confirmar_turno(token):
+    """
+    Ruta para confirmar o cancelar turnos mediante QR/Email
+    """
+    from flask import render_template_string
+    
+    action = request.args.get('action', 'confirm')
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Primero intentar buscar por token_confirmacion
+        cur.execute("""
+            SELECT id, nombre, cedula, fecha_hora, codigo, estado, email
+            FROM turnos WHERE token_confirmacion = %s
+        """, (token,))
+        
+        turno = cur.fetchone()
+        
+        # Si no se encuentra por token, intentar buscar por código (para compatibilidad)
+        if not turno:
+            logger.info(f"⚠️ No se encontró turno con token, intentando buscar por código: {token[:10]}...")
+            # El token podría ser un código de turno directamente
+            cur.execute("""
+                SELECT id, nombre, cedula, fecha_hora, codigo, estado, email
+                FROM turnos WHERE codigo = %s
+            """, (token,))
+            turno = cur.fetchone()
+        
+        if not turno:
+            cur.close()
+            conn.close()
+            return render_template_string(ERROR_TEMPLATE, 
+                                        message="❌ Token inválido o turno no encontrado")
+        
+        turno_id, nombre, cedula, fecha_hora, codigo, estado, email = turno
+        
+        # Extraer fecha y hora del timestamp
+        from datetime import datetime
+        fecha_hora_dt = datetime.strptime(str(fecha_hora), "%Y-%m-%d %H:%M:%S") if isinstance(fecha_hora, str) else fecha_hora
+        fecha = fecha_hora_dt.strftime("%Y-%m-%d")
+        hora = fecha_hora_dt.strftime("%H:%M")
+        
+        if action == 'cancel':
+            # Cancelar turno
+            cur.execute("""
+                UPDATE turnos SET estado = 'cancelado'
+                WHERE id = %s
+            """, (turno_id,))
+            conn.commit()
+            
+            message = "❌ Turno cancelado exitosamente"
+            color = "#e74c3c"
+            icon = "❌"
+        else:
+            # Confirmar turno
+            cur.execute("""
+                UPDATE turnos SET estado = 'confirmado'
+                WHERE id = %s
+            """, (turno_id,))
+            conn.commit()
+            
+            message = "✅ Turno confirmado exitosamente"
+            color = "#27ae60"
+            icon = "✅"
+        
+        cur.close()
+        conn.close()
+        
+        return render_template_string(CONFIRMATION_TEMPLATE, 
+                                    message=message,
+                                    icon=icon,
+                                    color=color,
+                                    nombre=nombre,
+                                    cedula=cedula if cedula else "Sin cédula",
+                                    fecha=fecha,
+                                    hora=hora,
+                                    numero_turno=codigo,
+                                    email=email)
+        
+    except Exception as e:
+        logger.error(f"❌ Error en confirmación de turno: {e}")
+        if conn:
+            conn.close()
+        return render_template_string(ERROR_TEMPLATE, 
+                                    message=f"❌ Error al procesar la solicitud: {str(e)}")
+
+# Templates HTML inline
+CONFIRMATION_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmación de Turno</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: {{ color }};
+            margin-bottom: 10px;
+        }
+        .details {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .detail-value {
+            color: #333;
+        }
+        .footer {
+            margin-top: 20px;
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">{{ icon }}</div>
+        <h1>{{ message }}</h1>
+        
+        <div class="details">
+            <div class="detail-row">
+                <span class="detail-label">Nombre:</span>
+                <span class="detail-value">{{ nombre }}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Cédula:</span>
+                <span class="detail-value">{{ cedula }}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Fecha:</span>
+                <span class="detail-value">{{ fecha }}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Hora:</span>
+                <span class="detail-value">{{ hora }}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Número de Turno:</span>
+                <span class="detail-value">{{ numero_turno }}</span>
+            </div>
+        </div>
+        
+        <p class="footer">
+            Recibirás un recordatorio por email a: {{ email }}
+        </p>
+    </div>
+</body>
+</html>
+"""
+
+ERROR_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #e74c3c;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">⚠️</div>
+        <h1>{{ message }}</h1>
+        <p>Si crees que esto es un error, por favor contacta con soporte.</p>
+    </div>
+</body>
+</html>
+"""
 
 # =====================================================
 # EJECUTAR APP

@@ -2,18 +2,19 @@
 TEST 3 CORREGIDO: MOTOR DIFUSO Y POSTGRESQL
 ==========================================
 
-✅ CONFIGURADO CON TUS CREDENCIALES EXACTAS:
+[OK] CONFIGURADO CON TUS CREDENCIALES EXACTAS:
 - Host: localhost
 - Database: chatbotdb  
 - User: postgres
 - Port: 5432
 
-✅ CONECTA CON TU POSTGRESQL REAL
-✅ IMPORTA TU MOTOR DIFUSO REAL
+[OK] CONECTA CON TU POSTGRESQL REAL
+[OK] IMPORTA TU MOTOR DIFUSO REAL
 
 Guardar como: test_3_motor_CORREGIDO.py
 Ejecutar: python test_3_motor_CORREGIDO.py
 """
+# -*- coding: utf-8 -*-
 
 import sys
 import os
@@ -36,7 +37,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 OUTPUT_DIR = PROJECT_ROOT / "tests" / "resultados_testing"
 OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
 
-# ✅ TUS CREDENCIALES POSTGRESQL EXACTAS
+# [OK] TUS CREDENCIALES POSTGRESQL EXACTAS
 POSTGRESQL_CONFIG = {
     "host": "localhost",
     "database": "chatbotdb",
@@ -45,7 +46,7 @@ POSTGRESQL_CONFIG = {
     "port": 5432
 }
 
-# ✅ ARCHIVOS DE TU PROYECTO
+# [OK] ARCHIVOS DE TU PROYECTO
 ARCHIVOS_PROYECTO = {
     'domain.yml': PROJECT_ROOT / 'domain.yml',
     'config.yml': PROJECT_ROOT / 'config.yml',
@@ -57,7 +58,7 @@ ARCHIVOS_PROYECTO = {
     'app.py': PROJECT_ROOT / 'flask-chatbot' / 'app.py'
 }
 
-# ✅ CASOS MOTOR DIFUSO ESPECÍFICOS
+# [OK] CASOS MOTOR DIFUSO ESPECÍFICOS
 CASOS_MOTOR_DIFUSO = [
     {
         "descripcion": "Alta urgencia explícita",
@@ -123,18 +124,18 @@ CASOS_MOTOR_DIFUSO = [
 
 def verificar_estructura_proyecto():
     """Verifica estructura del proyecto"""
-    print("📁 Verificando estructura del proyecto...")
+    print("[*] Verificando estructura del proyecto...")
     
     encontrados = []
     for nombre, ruta in ARCHIVOS_PROYECTO.items():
         if ruta.exists():
             tamaño = ruta.stat().st_size
-            print(f"  ✅ {nombre:<15} | {tamaño:>8,} bytes")
+            print(f"  [OK] {nombre:<15} | {tamaño:>8,} bytes")
             encontrados.append(nombre)
         else:
-            print(f"  ❌ {nombre:<15} | NO ENCONTRADO")
+            print(f"  [FAIL] {nombre:<15} | NO ENCONTRADO")
     
-    print(f"📊 Archivos encontrados: {len(encontrados)}/{len(ARCHIVOS_PROYECTO)}")
+    print(f"[STATS] Archivos encontrados: {len(encontrados)}/{len(ARCHIVOS_PROYECTO)}")
     
     motor_path = ARCHIVOS_PROYECTO['motor_difuso.py']
     return motor_path.exists(), len(encontrados)
@@ -144,20 +145,20 @@ def test_servidor_rasa():
     try:
         response = requests.get(f"{RASA_URL}/status", timeout=5)
         if response.status_code == 200:
-            print("✅ Servidor Rasa activo")
+            print("[OK] Servidor Rasa activo")
             return True
         else:
-            print(f"⚠️  Servidor Rasa código {response.status_code}")
+            print(f"[WARN]  Servidor Rasa código {response.status_code}")
             return False
     except Exception:
-        print("❌ Servidor Rasa no disponible")
+        print("[FAIL] Servidor Rasa no disponible")
         return False
 
 def test_postgresql_conexion():
     """Verifica conexión PostgreSQL con TUS credenciales exactas"""
     try:
         import psycopg2
-        print(f"📊 Intentando conectar a PostgreSQL...")
+        print(f"[STATS] Intentando conectar a PostgreSQL...")
         print(f"   Host: {POSTGRESQL_CONFIG['host']}")
         print(f"   Database: {POSTGRESQL_CONFIG['database']}")
         print(f"   User: {POSTGRESQL_CONFIG['user']}")
@@ -169,7 +170,7 @@ def test_postgresql_conexion():
         # Probar consulta básica
         cursor.execute("SELECT version();")
         version = cursor.fetchone()[0]
-        print(f"✅ PostgreSQL conectado exitosamente")
+        print(f"[OK] PostgreSQL conectado exitosamente")
         print(f"   Versión: {version[:50]}...")
         
         # Verificar tablas existentes
@@ -186,11 +187,11 @@ def test_postgresql_conexion():
         return True, POSTGRESQL_CONFIG
         
     except ImportError:
-        print("❌ psycopg2 no instalado")
+        print("[FAIL] psycopg2 no instalado")
         return False, None
     except Exception as e:
-        print(f"❌ Error conectando PostgreSQL: {e}")
-        print("💡 Verifica tu password en POSTGRESQL_CONFIG")
+        print(f"[FAIL] Error conectando PostgreSQL: {e}")
+        print("[IDEA] Verifica tu password en POSTGRESQL_CONFIG")
         return False, None
 
 def importar_motor_difuso():
@@ -202,7 +203,7 @@ def importar_motor_difuso():
             sys.path.insert(0, str(flask_path))
         
         import motor_difuso
-        print("✅ Motor difuso importado correctamente")
+        print("[OK] Motor difuso importado correctamente")
         
         # Verificar funciones disponibles
         funciones = [attr for attr in dir(motor_difuso) if not attr.startswith('_')]
@@ -211,7 +212,7 @@ def importar_motor_difuso():
         return motor_difuso, True
         
     except ImportError as e:
-        print(f"⚠️  Error importando motor_difuso: {e}")
+        print(f"[WARN]  Error importando motor_difuso: {e}")
         
         # Verificar dependencias específicas
         dependencias_faltantes = []
@@ -226,8 +227,8 @@ def importar_motor_difuso():
             dependencias_faltantes.append('numpy')
             
         if dependencias_faltantes:
-            print(f"❌ Dependencias faltantes: {', '.join(dependencias_faltantes)}")
-            print(f"💡 Ejecuta: pip install {' '.join(dependencias_faltantes)}")
+            print(f"[FAIL] Dependencias faltantes: {', '.join(dependencias_faltantes)}")
+            print(f"[IDEA] Ejecuta: pip install {' '.join(dependencias_faltantes)}")
         
         return None, False
 
@@ -250,14 +251,14 @@ def usar_motor_difuso_real(motor_module, entrada):
                 resultado = func(entrada)
                 tiempo_ms = (time.time() - inicio) * 1000
                 
-                print(f"    ✅ Función usada: {func_name}")
+                print(f"    [OK] Función usada: {func_name}")
                 return resultado, tiempo_ms, True
         
-        print(f"    ⚠️  No se encontró función de evaluación estándar")
+        print(f"    [WARN]  No se encontró función de evaluación estándar")
         return None, 0, False
         
     except Exception as e:
-        print(f"    ❌ Error ejecutando motor difuso: {e}")
+        print(f"    [FAIL] Error ejecutando motor difuso: {e}")
         return None, 0, False
 
 def simular_motor_difuso_realista(entrada):
@@ -304,7 +305,7 @@ def simular_motor_difuso_realista(entrada):
 
 def evaluar_motor_difuso():
     """Evaluación completa del motor difuso"""
-    print("\n🧠 EVALUANDO MOTOR DIFUSO...")
+    print("\n[BRAIN] EVALUANDO MOTOR DIFUSO...")
     
     motor_disponible, encontrados = verificar_estructura_proyecto()
     motor_module, motor_importado = importar_motor_difuso()
@@ -312,7 +313,7 @@ def evaluar_motor_difuso():
     resultados = []
     
     for i, caso in enumerate(CASOS_MOTOR_DIFUSO, 1):
-        print(f"  📝 Caso {i}: {caso['descripcion'][:30]}...", end="")
+        print(f"  [NOTE] Caso {i}: {caso['descripcion'][:30]}...", end="")
         
         if motor_importado and motor_module:
             resultado_motor, tiempo_ms, exito = usar_motor_difuso_real(motor_module, caso['entrada'])
@@ -365,7 +366,7 @@ def evaluar_motor_difuso():
 
 def medir_tiempos_bd(bd_conectada, config_bd):
     """Mide tiempos reales de base de datos"""
-    print("\n⏱️  MIDIENDO TIEMPOS DE BASE DE DATOS...")
+    print("\n[TIME]  MIDIENDO TIEMPOS DE BASE DE DATOS...")
     
     tiempos_bd = []
     
@@ -395,23 +396,23 @@ def medir_tiempos_bd(bd_conectada, config_bd):
                     conn.close()
                     
                 except Exception as e:
-                    print(f"    ⚠️  Error en consulta: {e}")
+                    print(f"    [WARN]  Error en consulta: {e}")
                     tiempos_bd.append(random.uniform(200, 500))
             
-            print(f"  ✅ {len(tiempos_bd)} consultas BD ejecutadas")
+            print(f"  [OK] {len(tiempos_bd)} consultas BD ejecutadas")
             
         except Exception as e:
-            print(f"  ❌ Error general BD: {e}")
+            print(f"  [FAIL] Error general BD: {e}")
             tiempos_bd = [random.uniform(200, 500) for _ in range(5)]
     else:
-        print("  📊 Usando tiempos simulados de BD")
+        print("  [STATS] Usando tiempos simulados de BD")
         tiempos_bd = [random.uniform(200, 500) for _ in range(5)]
     
     return tiempos_bd
 
 def medir_tiempos_sistema(servidor_rasa, bd_conectada, config_bd):
     """Mide tiempos de todo el sistema"""
-    print("\n⏱️  MIDIENDO TIEMPOS DEL SISTEMA...")
+    print("\n[TIME]  MIDIENDO TIEMPOS DEL SISTEMA...")
     
     tiempos = {
         'rasa_nlu': [],
@@ -421,7 +422,7 @@ def medir_tiempos_sistema(servidor_rasa, bd_conectada, config_bd):
     
     # 1. Tiempos Rasa NLU
     if servidor_rasa:
-        print("  🔍 Midiendo tiempos Rasa NLU reales...")
+        print("  [SEARCH] Midiendo tiempos Rasa NLU reales...")
         mensajes = ["Hola", "Quiero turno", "¿Cuánto cuesta?", "Gracias", "Adiós"]
         
         for mensaje in mensajes:
@@ -439,7 +440,7 @@ def medir_tiempos_sistema(servidor_rasa, bd_conectada, config_bd):
         tiempos['rasa_nlu'] = [random.uniform(2000, 3000) for _ in range(5)]
     
     # 2. Tiempos conversación completa
-    print("  💬 Simulando conversaciones completas...")
+    print("  [CHAT] Simulando conversaciones completas...")
     tiempos['conversacion_completa'] = [random.uniform(30000, 60000) for _ in range(3)]
     
     # 3. Tiempos BD
@@ -449,7 +450,7 @@ def medir_tiempos_sistema(servidor_rasa, bd_conectada, config_bd):
 
 def generar_graficos_corregidos(resultados_motor, tiempos_sistema):
     """Genera gráficos con datos reales"""
-    print(f"\n📊 GENERANDO GRÁFICOS...")
+    print(f"\n[STATS] GENERANDO GRÁFICOS...")
     
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     df_motor = pd.DataFrame(resultados_motor)
@@ -532,11 +533,11 @@ def generar_graficos_corregidos(resultados_motor, tiempos_sistema):
     
     plt.tight_layout()
     plt.savefig(OUTPUT_DIR / "graficos_motor_CORREGIDO.png", dpi=300, bbox_inches='tight')
-    print(f"✅ Gráficos guardados: graficos_motor_CORREGIDO.png")
+    print(f"[OK] Gráficos guardados: graficos_motor_CORREGIDO.png")
 
 def generar_reporte_corregido(resultados_motor, tiempos_sistema, servidor_rasa, bd_conectada, motor_real):
     """Genera reporte final"""
-    print(f"\n📝 GENERANDO REPORTE...")
+    print(f"\n[NOTE] GENERANDO REPORTE...")
     
     df_motor = pd.DataFrame(resultados_motor)
     precision_promedio = df_motor['precision'].mean()
@@ -555,27 +556,27 @@ def generar_reporte_corregido(resultados_motor, tiempos_sistema, servidor_rasa, 
     
     reporte = f"""# REPORTE MOTOR DIFUSO Y POSTGRESQL - CHATBOT CÉDULAS CIUDAD DEL ESTE
 
-## 📊 RESUMEN EJECUTIVO
+## [STATS] RESUMEN EJECUTIVO
 
-### 🧠 Evaluación del Motor Difuso
-- **Estado**: {"✅ Motor Real Operativo" if motor_real else "📊 Simulación Realista"}
+### [BRAIN] Evaluación del Motor Difuso
+- **Estado**: {"[OK] Motor Real Operativo" if motor_real else "[STATS] Simulación Realista"}
 - **Casos Evaluados**: {len(resultados_motor)}
 - **Precisión Promedio**: {precision_promedio:.1f}%
 - **Casos Exitosos**: {casos_exitosos}/{len(resultados_motor)}
 - **Tasa de Éxito**: {casos_exitosos/len(resultados_motor)*100:.1f}%
 
-### 🗄️ Base de Datos PostgreSQL
-- **Estado**: {"✅ Conectada a chatbotdb" if bd_conectada else "❌ No disponible"}
+### [*] Base de Datos PostgreSQL
+- **Estado**: {"[OK] Conectada a chatbotdb" if bd_conectada else "[FAIL] No disponible"}
 - **Database**: chatbotdb
 - **User**: postgres
 - **Host**: localhost:5432
 
-### ⏱️ Rendimiento del Sistema
+### [TIME] Rendimiento del Sistema
 - **Rasa NLU**: {stats_tiempos.get('rasa_nlu', {}).get('promedio', 0):.1f} ms
 - **Conversación Completa**: {stats_tiempos.get('conversacion_completa', {}).get('promedio', 0)/1000:.1f} s
 - **Consulta BD**: {stats_tiempos.get('bd_consulta', {}).get('promedio', 0):.1f} ms
 
-## 📈 ANÁLISIS DETALLADO DEL MOTOR DIFUSO
+## [GRAPH] ANÁLISIS DETALLADO DEL MOTOR DIFUSO
 
 | # | Descripción | Urgencia Esp. | Urgencia Motor | Certeza Esp. | Certeza Motor | Precisión |
 |---|-------------|---------------|----------------|--------------|---------------|-----------|
@@ -587,19 +588,19 @@ def generar_reporte_corregido(resultados_motor, tiempos_sistema, servidor_rasa, 
 
     reporte += f"""
 
-## 🎯 INTERPRETACIÓN TÉCNICA
+## [TARGET] INTERPRETACIÓN TÉCNICA
 
-### ✅ Validación del Sistema
-- **Motor Difuso**: {"✅ Importado y ejecutado" if motor_real else "📊 Simulado realísticamente"}
-- **PostgreSQL**: {"✅ Conectado a chatbotdb real" if bd_conectada else "❌ Requiere configuración"}
-- **Rasa**: {"✅ Servidor activo" if servidor_rasa else "❌ No disponible"}
+### [OK] Validación del Sistema
+- **Motor Difuso**: {"[OK] Importado y ejecutado" if motor_real else "[STATS] Simulado realísticamente"}
+- **PostgreSQL**: {"[OK] Conectado a chatbotdb real" if bd_conectada else "[FAIL] Requiere configuración"}
+- **Rasa**: {"[OK] Servidor activo" if servidor_rasa else "[FAIL] No disponible"}
 
-### 📊 Métricas para TFG
+### [STATS] Métricas para TFG
 - **Precisión Motor**: {precision_promedio:.1f}% ({"Excelente" if precision_promedio > 85 else "Buena"})
 - **Tiempo Motor**: {df_motor['tiempo_ms'].mean():.1f} ms promedio
 - **Eficiencia BD**: {stats_tiempos.get('bd_consulta', {}).get('promedio', 0):.0f} ms por consulta
 
-## 📋 CONFIGURACIÓN TÉCNICA
+## [*] CONFIGURACIÓN TÉCNICA
 
 ### Base de Datos:
 ```
@@ -607,26 +608,26 @@ Host: localhost
 Database: chatbotdb
 User: postgres  
 Port: 5432
-Estado: {"✅ Operativa" if bd_conectada else "❌ Verificar password"}
+Estado: {"[OK] Operativa" if bd_conectada else "[FAIL] Verificar password"}
 ```
 
 ### Motor Difuso:
 ```
 Archivo: flask-chatbot/motor_difuso.py
-Estado: {"✅ Importable" if motor_real else "⚠️ Dependencias faltantes"}
+Estado: {"[OK] Importable" if motor_real else "[WARN] Dependencias faltantes"}
 Precisión: {precision_promedio:.1f}%
 ```
 
-## 📊 CONCLUSIONES PARA TFG
+## [STATS] CONCLUSIONES PARA TFG
 
 ### Resultados Obtenidos:
-- ✅ **{len(resultados_motor)} casos evaluados** del motor difuso
-- ✅ **Precisión cuantificable**: {precision_promedio:.1f}%
-- ✅ **Metodología reproducible**: Framework validado
-- ✅ **Integración verificada**: Rasa + Motor + BD
+- [OK] **{len(resultados_motor)} casos evaluados** del motor difuso
+- [OK] **Precisión cuantificable**: {precision_promedio:.1f}%
+- [OK] **Metodología reproducible**: Framework validado
+- [OK] **Integración verificada**: Rasa + Motor + BD
 
 ### Estado Final:
-{"✅ Sistema completo operativo para producción" if bd_conectada and motor_real and servidor_rasa else "🔧 Sistema funcional con componentes validados"}
+{"[OK] Sistema completo operativo para producción" if bd_conectada and motor_real and servidor_rasa else "[FIX] Sistema funcional con componentes validados"}
 
 ---
 *Generado el {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
@@ -637,13 +638,13 @@ Precisión: {precision_promedio:.1f}%
     with open(OUTPUT_DIR / "reporte_motor_CORREGIDO.md", 'w', encoding='utf-8') as f:
         f.write(reporte)
     
-    print(f"✅ Reporte guardado: reporte_motor_CORREGIDO.md")
+    print(f"[OK] Reporte guardado: reporte_motor_CORREGIDO.md")
 
 def main():
     """Función principal corregida"""
     print("=" * 70)
-    print("  🧠⏱️🗄️  TEST MOTOR DIFUSO + POSTGRESQL (CORREGIDO)")
-    print("  📍 Proyecto: Chatbot-TFG-V2.0 - Ciudad del Este")
+    print("  [BRAIN][TIME][*]  TEST MOTOR DIFUSO + POSTGRESQL (CORREGIDO)")
+    print("  [*] Proyecto: Chatbot-TFG-V2.0 - Ciudad del Este")
     print("=" * 70)
     
     # Verificar servicios con TUS configuraciones
@@ -651,10 +652,10 @@ def main():
     servidor_rasa = test_servidor_rasa()
     bd_conectada, config_bd = test_postgresql_conexion()
     
-    print(f"\n📋 Estado de Servicios:")
-    print(f"   🤖 Rasa: {'✅ Activo' if servidor_rasa else '❌ No disponible'}")
-    print(f"   🗄️ PostgreSQL: {'✅ Conectado a chatbotdb' if bd_conectada else '❌ Verificar password'}")
-    print(f"   🧠 Motor Difuso: {'✅ Detectado' if motor_disponible else '📊 Simulado'}")
+    print(f"\n[*] Estado de Servicios:")
+    print(f"   [BOT] Rasa: {'[OK] Activo' if servidor_rasa else '[FAIL] No disponible'}")
+    print(f"   [*] PostgreSQL: {'[OK] Conectado a chatbotdb' if bd_conectada else '[FAIL] Verificar password'}")
+    print(f"   [BRAIN] Motor Difuso: {'[OK] Detectado' if motor_disponible else '[STATS] Simulado'}")
     
     # Evaluar motor difuso
     resultados_motor = evaluar_motor_difuso()
@@ -667,16 +668,16 @@ def main():
     
     # Mostrar resultados
     print("\n" + "="*70)
-    print("  📊 RESULTADOS FINALES")
+    print("  [STATS] RESULTADOS FINALES")
     print("="*70)
     
     df_motor = pd.DataFrame(resultados_motor)
     precision_promedio = df_motor['precision'].mean()
     
-    print(f"🧠 Motor Difuso: {precision_promedio:.1f}% precisión")
-    print(f"🗄️ PostgreSQL: {'✅ chatbotdb conectada' if bd_conectada else '❌ Verificar password'}")
-    print(f"🤖 Rasa: {'✅ Operativo' if servidor_rasa else '❌ No disponible'}")
-    print(f"📊 Casos evaluados: {len(resultados_motor)}")
+    print(f"[BRAIN] Motor Difuso: {precision_promedio:.1f}% precisión")
+    print(f"[*] PostgreSQL: {'[OK] chatbotdb conectada' if bd_conectada else '[FAIL] Verificar password'}")
+    print(f"[BOT] Rasa: {'[OK] Operativo' if servidor_rasa else '[FAIL] No disponible'}")
+    print(f"[STATS] Casos evaluados: {len(resultados_motor)}")
     
     # Generar archivos
     df_motor.to_csv(OUTPUT_DIR / "resultados_motor_CORREGIDO.csv", index=False)
@@ -693,20 +694,26 @@ def main():
     generar_reporte_corregido(resultados_motor, tiempos_sistema, servidor_rasa, bd_conectada, motor_real)
     
     print("\n" + "="*70)
-    print("  ✅ TEST 3 CORREGIDO COMPLETADO")
+    print("  [OK] TEST 3 CORREGIDO COMPLETADO")
     print("="*70)
-    print("📁 Archivos generados:")
-    print(f"   📄 resultados_motor_CORREGIDO.csv")
-    print(f"   📄 tiempos_sistema_CORREGIDO.csv")
-    print(f"   📝 reporte_motor_CORREGIDO.md")
-    print(f"   📊 graficos_motor_CORREGIDO.png")
+    print("[*] Archivos generados:")
+    print(f"   [*] resultados_motor_CORREGIDO.csv")
+    print(f"   [*] tiempos_sistema_CORREGIDO.csv")
+    print(f"   [NOTE] reporte_motor_CORREGIDO.md")
+    print(f"   [STATS] graficos_motor_CORREGIDO.png")
     
     if bd_conectada and motor_real:
-        print("\n🎉 ¡ÉXITO TOTAL! Sistema 100% operativo")
+        print("\n[*] ¡ÉXITO TOTAL! Sistema 100% operativo")
     elif bd_conectada or motor_real:
-        print("\n✅ Sistema parcialmente operativo - Datos reales obtenidos")
+        print("\n[OK] Sistema parcialmente operativo - Datos reales obtenidos")
     else:
-        print("\n📊 Simulación validada - Metodología confirmada")
+        print("\n[STATS] Simulación validada - Metodología confirmada")
 
 if __name__ == "__main__":
+    try:
     main()
+    except Exception as e:
+        print(f"[ERROR] {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        exit(1)

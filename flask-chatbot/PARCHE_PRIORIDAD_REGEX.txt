@@ -1,0 +1,16 @@
+"""
+PARCHE: Priorizar Regex y Fuzzy sobre LLM cuando tienen buena confianza
+Inserta DESPUÉS de la línea 824 (return intent_contexto, score_contexto)
+"""
+
+# AGREGARDESPUÉS DE LA LÍNEA 824:
+
+        # Si patrón tiene ALTA confianza (>0.85) y fuzzy está de acuerdo, priorizar sobre LLM
+        if confianza_patron > 0.85 and intent_patron == intent_fuzzy and confianza_fuzzy >= 0.5:
+            logger.info(f"🎯 Regex + Fuzzy en consenso (prioridad sobre LLM): {intent_patron} ({confianza_patron:.2f})")
+            return intent_patron, confianza_patron
+        
+        # Si patrón tiene buena confianza (>0.80) Y es mejor que LLM, usarlo directamente
+        if confianza_patron > 0.80 and (confianza_llm < 0.85 or intent_llm == 'nlu_fallback'):
+            logger.info(f"🎯 Regex tiene buena confianza: {intent_patron} ({confianza_patron:.2f})")
+            return intent_patron, confianza_patron

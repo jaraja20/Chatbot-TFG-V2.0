@@ -84,16 +84,12 @@ class SessionContext:
         self.franja_horaria = None  # 'manana', 'tarde'
         self.hora = None
         self.hora_recomendada = None  # Guardar última hora recomendada
-        self.fecha_recomendada = None  # 🔥 NUEVO: Guardar última fecha recomendada
-        self.proxima_semana = False  # 🔥 NUEVO: Flag para "próxima semana"
         self.email = None
         self.intent_actual = None
-        self.ultimo_intent = None  # 🔥 NUEVO: Guardar intent anterior para contexto
         self.ultimo_mensaje = None
         self.conversacion_historial = []
         self.datos_difusos = {}
         self.ultimo_intent_confianza = 0.0
-        self.campo_en_cambio = None  # Rastrear qué campo se está cambiando
         
     def actualizar(self, **kwargs):
         """Actualiza el contexto con nuevos datos"""
@@ -114,10 +110,7 @@ class SessionContext:
             'fecha': self.fecha,
             'hora': self.hora,
             'email': self.email,
-            'intent_actual': self.intent_actual,
-            'franja_horaria': self.franja_horaria,
-            'proxima_semana': self.proxima_semana,  # 🔥 NUEVO
-            'fecha_recomendada': self.fecha_recomendada  # 🔥 NUEVO
+            'intent_actual': self.intent_actual
         }
 
 def get_or_create_context(session_id: str) -> SessionContext:
@@ -182,14 +175,6 @@ class ClasificadorIntentsMejorado:
             r'\b(che|vieja|amigo|bo)\s*,?\s+(tienen|hay)\s+(lugar|turno|espacio)\b(?!.*\bhoy\b)',  # No si pregunta por HOY
             r'\bnecesito\s+agendar\s+un\s+turno\s+pero\b',
             r'\bdame\s+uno\b',
-            # 🔥 NUEVO: Referencias temporales aisladas (para contexto de agendamiento)
-            r'^\s*para\s+(el\s+)?(pr[oó]ximo|proxima|pr[oó]xima)\s+(lunes|martes|miercoles|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*$',
-            r'^\s*para\s+(el\s+)?(lunes|martes|miercoles|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*$',
-            r'^\s*(el\s+)?(pr[oó]ximo|proxima|pr[oó]xima)\s+(lunes|martes|miercoles|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s*$',
-            r'^\s*(el\s+)?(lunes|martes|miercoles|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+pr[oó]xim[oa]\s*$',
-            r'^\s*para\s+(ma[ñn]ana|hoy|pasado\s+ma[ñn]ana)\s*$',
-            r'^\s*para\s+(el\s+dia|la\s+fecha)\s+\d{1,2}\s*$',
-            r'^\s*(ma[ñn]ana|hoy|pasado)\s*$',
         ],
         
         # Consultas de horarios
@@ -282,12 +267,6 @@ class ClasificadorIntentsMejorado:
             r'\bes\s+mejor.*\bo\s+',  # Comparaciones: "es mejor X o Y"
             r'\b(cual|cu[aá]l)\s+es\s+mas\s+(rapido|r[aá]pido|conveniente)\b',
             r'\bme\s+conviene\s+(sacar|ir|hacer)\b',
-            # 🔥 NUEVO: Detectar frases urgentes (fecha más cercana, con urgencia, lo más rápido)
-            r'\bfecha\s+(m[aá]s|mas)\s+(cerca|cercana|pr[oó]xima)\b',
-            r'\b(necesito|quiero|kiero)\s+(turno\s+)?(con\s+)?urgencia\b',
-            r'\b(lo\s+)?(m[aá]s|mas)\s+(r[aá]pido|rapido|pronto)\s+(posible|que\s+pueda)\b',
-            r'\burgente\s+(para\s+)?hoy\b',
-            r'\b(cuanto|cu[aá]nto)\s+(antes|m[aá]s\s+r[aá]pido)\b',
         ],
         
         # Datos personales
@@ -503,12 +482,12 @@ class ClasificadorIntentsMejorado:
         logger.warning("⚠️ No se encontró LLM Studio disponible")
         return None
     
-    def clasificar(self, mensaje: str, contexto: SessionContext):
+    def clasificar(self, mensaje: str, contexto: SessionContext) -> Tuple[str, float]:
         """
         Clasifica el intent del mensaje usando múltiples métodos
         
         Returns:
-            (intent, confidence) o (intent, confidence, metadata) si hay multi-intent
+            (intent, confidence)
         """
         mensaje_lower = mensaje.lower().strip()
         
@@ -541,10 +520,6 @@ class ClasificadorIntentsMejorado:
             'cuanto cuesta?': 'consultar_costo',
             'cuanto cuesta': 'consultar_costo',
             'mañana': 'informar_fecha',
-            'dia siguiente': 'informar_fecha',
-            'día siguiente': 'informar_fecha',
-            'al dia siguiente': 'informar_fecha',
-            'el dia siguiente': 'informar_fecha',
             'para hoy': 'consultar_disponibilidad',
             'dame uno': 'agendar_turno',  # Usuario pidiendo turno (cualquiera)
             'el mejor': 'frase_ambigua',
@@ -604,44 +579,6 @@ class ClasificadorIntentsMejorado:
             logger.info(f"🎯 Frase corta ambigua detectada: {intent_especial} (0.93)")
             return (intent_especial, 0.93)
         
-        # 🔥 NUEVO: Si usuario acaba de recibir "aclaracion_cambio" y responde con un campo, interpretar como cambio
-        if hasattr(contexto, 'ultimo_intent') and contexto.ultimo_intent == 'aclaracion_cambio':
-            # Usuario respondió con un solo campo
-            campos_validos = {
-                'nombre': 'informar_nombre',
-                'cedula': 'informar_cedula',
-                'cédula': 'informar_cedula',
-                'fecha': 'consultar_disponibilidad',
-                'dia': 'consultar_disponibilidad',
-                'día': 'consultar_disponibilidad',
-                'hora': 'consultar_disponibilidad',
-                'horario': 'consultar_disponibilidad',
-                'email': 'informar_email',
-                'correo': 'informar_email',
-                'mail': 'informar_email'
-            }
-            
-            # Si el mensaje es solo un campo (1-2 palabras)
-            palabras = mensaje_lower.strip().split()
-            if len(palabras) <= 2:
-                for campo, intent_cambio in campos_validos.items():
-                    if campo in mensaje_lower:
-                        logger.info(f"🔄 [CONTEXTO] Usuario respondió '{campo}' después de aclaracion_cambio → {intent_cambio}")
-                        # Resetear el campo correspondiente
-                        if 'nombre' in campo:
-                            contexto.nombre = None
-                        elif 'cedula' in campo or 'cédula' in campo:
-                            contexto.cedula = None
-                        elif 'fecha' in campo or 'dia' in campo or 'día' in campo:
-                            contexto.fecha = None
-                            contexto.hora = None
-                        elif 'hora' in campo or 'horario' in campo:
-                            contexto.hora = None
-                        elif 'email' in campo or 'correo' in campo or 'mail' in campo:
-                            contexto.email = None
-                        
-                        return (intent_cambio, 0.98)
-        
         # =================================================================
         # DETECCIONES CONTEXTUALES Y PATRONES IMPORTANTES
         # =================================================================
@@ -656,45 +593,17 @@ class ClasificadorIntentsMejorado:
         # Detectar corrección explícita ("dije para...", "yo dije...")
         if any(frase in mensaje_lower for frase in ['dije', 'yo dije', 'habia dicho', 'había dicho']):
             # Verificar si da una hora o fecha nueva
+            import re
             if re.search(r'\b\d{1,2}(:\d{2})?(\s+(y\s+media|y\s+cuarto))?\b', mensaje):
                 logger.info(f"🎯 [CONTEXTO] Usuario corrige hora → negacion")
                 return ("negacion", 0.96)
         
-        # Detectar EMAIL cuando el sistema lo pidió (completo o incompleto)
+        # Detectar EMAIL cuando el sistema lo pidió
         if contexto.fecha and contexto.hora and not contexto.email:
-            # Email completo válido
+            import re
             if re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', mensaje):
-                logger.info(f"🎯 [CONTEXTO] Usuario proporciona email válido → informar_email")
+                logger.info(f"🎯 [CONTEXTO] Usuario proporciona email → informar_email")
                 return ("informar_email", 0.98)
-            # 🔥 FIX: Email incompleto (tiene @ pero no dominio completo)
-            elif '@' in mensaje and not mensaje.strip().endswith('.com') and not mensaje.strip().endswith('.es'):
-                logger.info(f"🎯 [CONTEXTO] Usuario intenta escribir email (incompleto) → informar_email")
-                return ("informar_email", 0.95)
-        
-        # 🔥 PRIORIDAD MÁXIMA: Si tiene nombre+cédula+fecha pero NO hora, y el mensaje parece hora
-        # Detectar ANTES de que el LLM se confunda
-        if contexto.nombre and contexto.cedula and contexto.fecha and not contexto.hora:
-            # Patrones de hora: "1 y media", "09:00", "nueve", "9", etc.
-            patrones_hora = [
-                r'\b\d{1,2}:\d{2}\b',  # 09:00, 14:30
-                r'\b\d{1,2}\s+(y\s+media|y\s+cuarto|menos\s+cuarto)\b',  # 1 y media
-                r'\b(una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+(y\s+media|y\s+cuarto|menos\s+cuarto)\b',  # una y media
-                r'\b(las\s+)?\d{1,2}(:\d{2})?\s*(am|pm|hs)?\b',  # las 9, 9 am, 9 hs
-                r'\bmediod[ií]a\b',  # mediodía
-                r'\btemprano\b'  # temprano
-            ]
-            
-            if any(re.search(patron, mensaje_lower) for patron in patrones_hora):
-                logger.info(f"🎯 [CONTEXTO PRIORITARIO] Mensaje parece hora cuando espera hora → elegir_horario (0.98)")
-                return ("elegir_horario", 0.98)
-            
-            # También detectar números sueltos que podrían ser hora (1-15)
-            palabras = mensaje_lower.strip().split()
-            if len(palabras) <= 3:  # Mensaje corto
-                for palabra in palabras:
-                    if palabra.isdigit() and 1 <= int(palabra) <= 15:
-                        logger.info(f"🎯 [CONTEXTO PRIORITARIO] Número {palabra} detectado como posible hora → elegir_horario (0.96)")
-                        return ("elegir_horario", 0.96)
         
         # Detectar ACEPTACIÓN de hora recomendada (ANTES de confirmación final)
         if contexto.hora_recomendada and not contexto.hora:
@@ -702,61 +611,20 @@ class ClasificadorIntentsMejorado:
             if any(frase in mensaje_lower for frase in [
                 'esta bien', 'está bien', 'ok', 'vale', 'acepto', 'perfecto',
                 'me parece bien', 'si esa', 'sí esa', 'esa hora',
-                'la hora que recomiendas', 'la que recomiendas',
-                'ese horario', 'ese', 'esa', 'si', 'sí',
-                'dale', 'bueno', 'bien', 'genial', 'excelente',
-                'me sirve', 'me viene bien', 'prefiero ese'
+                'la hora que recomiendas', 'la que recomiendas'
             ]):
-                logger.info(f"🎯 [CONTEXTO] Usuario acepta hora recomendada '{contexto.hora_recomendada}' → elegir_horario")
+                logger.info(f"🎯 [CONTEXTO] Usuario acepta hora recomendada → elegir_horario")
                 return ("elegir_horario", 0.97)
         
         # Detectar "perfecto" cuando tiene hora_recomendada Y fecha
         if contexto.hora_recomendada and contexto.fecha and not contexto.hora:
-            if mensaje_lower.strip() in ['perfecto', 'ok', 'vale', 'bien', 'si', 'sí', 'acepto', 'dale', 'bueno', 'genial']:
-                logger.info(f"🎯 [CONTEXTO] Usuario acepta recomendación simple '{contexto.hora_recomendada}' → elegir_horario")
+            if mensaje_lower.strip() in ['perfecto', 'ok', 'vale', 'bien', 'si', 'sí', 'acepto']:
+                logger.info(f"🎯 [CONTEXTO] Usuario acepta recomendación simple → elegir_horario")
                 return ("elegir_horario", 0.97)
             # Detectar "ya me recomendaste" como aceptación implícita
             if any(frase in mensaje_lower for frase in ['ya me recomendaste', 'ya me dijiste', 'ya me diste', 'tu recomendacion', 'tu recomendación']):
-                logger.info(f"🎯 [CONTEXTO] Usuario acepta recomendación implícitamente '{contexto.hora_recomendada}' → elegir_horario")
+                logger.info(f"🎯 [CONTEXTO] Usuario acepta recomendación implícitamente → elegir_horario")
                 return ("elegir_horario", 0.96)
-        
-        # 🔥 NUEVO: Detectar "recomiéndame un horario" cuando ya mostró disponibilidad
-        if contexto.fecha and not contexto.hora:
-            if any(frase in mensaje_lower for frase in [
-                'recomiendame un horario', 'recomiéndame un horario',
-                'recomiendame uno', 'recomiéndame uno',
-                'que horario me recomiendas', 'qué horario me recomiendas',
-                'cual me recomiendas', 'cuál me recomiendas',
-                'sugerime uno', 'sugiéreme uno',
-                'dame uno', 'elegí uno', 'elegi uno'
-            ]):
-                logger.info(f"🎯 [CONTEXTO] Usuario pide recomendación de horario → frase_ambigua")
-                return ("frase_ambigua", 0.97)  # Usaremos frase_ambigua para asignar automáticamente
-        
-        # 🔥 NUEVO: Detectar referencias temporales aisladas cuando está en flujo de agendamiento
-        # Si el usuario ya inició el flujo (tiene último_intent relacionado) y dice solo una fecha
-        if (hasattr(contexto, 'ultimo_intent') and 
-            contexto.ultimo_intent in ['agendar_turno', 'consultar_disponibilidad', 'elegir_horario'] and
-            not contexto.fecha):  # Aún no tiene fecha asignada
-            
-            # Detectar días de la semana aislados
-            dias_semana = ['lunes', 'martes', 'miercoles', 'miércoles', 'jueves', 'viernes', 'sabado', 'sábado', 'domingo']
-            palabras = mensaje_lower.strip().split()
-            
-            # Si el mensaje es corto (1-4 palabras) y contiene referencia temporal
-            if len(palabras) <= 4:
-                # "para el jueves", "el próximo jueves", "jueves", etc.
-                if any(dia in mensaje_lower for dia in dias_semana):
-                    logger.info(f"🎯 [CONTEXTO] Referencia temporal aislada en flujo de agendamiento → agendar_turno")
-                    return ("agendar_turno", 0.96)
-                # "mañana", "pasado mañana", "hoy"
-                if any(palabra in mensaje_lower for palabra in ['mañana', 'manana', 'hoy', 'pasado']):
-                    logger.info(f"🎯 [CONTEXTO] Referencia temporal relativa en flujo → agendar_turno")
-                    return ("agendar_turno", 0.96)
-                # "próxima semana", "esta semana"
-                if any(frase in mensaje_lower for frase in ['proxima semana', 'próxima semana', 'esta semana', 'semana que viene']):
-                    logger.info(f"🎯 [CONTEXTO] Referencia a semana en flujo → agendar_turno")
-                    return ("agendar_turno", 0.96)
         
         # Detectar CAMBIO de hora cuando YA tiene hora asignada
         if contexto.hora:
@@ -767,158 +635,10 @@ class ClasificadorIntentsMejorado:
                 'quiero cambiar', 'puedo cambiar', 'mejor para las'
             ]):
                 # Y tiene una hora en el mensaje
+                import re
                 if re.search(r'\b([0-9]{1,2}):?([0-9]{2})?\b', mensaje):
                     logger.info(f"🎯 [CONTEXTO] Usuario cambia hora existente → elegir_horario")
                     return ("elegir_horario", 0.96)
-        
-        # 🔥🔥🔥 DETECTOR DE MÚLTIPLES INTENTS (CONV #8, #9)
-        # ====================================================================================
-        # Detectar si hay CONSULTA + ACCIÓN en la misma oración
-        # Ejemplo: "qué horarios tienen mañana? Necesito sacar turno"
-        # ====================================================================================
-        tiene_pregunta = '?' in mensaje
-        tiene_turno = any(palabra in mensaje_lower for palabra in 
-                         ['necesito turno', 'quiero turno', 'sacar turno', 'agendar turno', 'necesito sacar'])
-        
-        if tiene_pregunta and tiene_turno:
-            # Detectar tipo de consulta en la pregunta
-            consulta_intent = None
-            
-            if any(palabra in mensaje_lower for palabra in ['horario', 'horarios', 'qué hora', 'que hora']):
-                consulta_intent = 'consultar_disponibilidad'
-            elif any(palabra in mensaje_lower for palabra in ['requisito', 'documento', 'qué necesito', 'que necesito']):
-                consulta_intent = 'consultar_requisitos'
-            elif any(palabra in mensaje_lower for palabra in ['cuesta', 'costo', 'cuánto', 'cuanto', 'precio']):
-                consulta_intent = 'consultar_costo'
-            elif any(palabra in mensaje_lower for palabra in ['demora', 'tarda', 'tiempo']):
-                consulta_intent = 'consulta_tiempo_espera'
-            
-            if consulta_intent:
-                logger.info(f"🎭 [MULTI-INTENT] Detectado: {consulta_intent} + agendar_turno")
-                # Retornar el intent de consulta, pero marcar que hay agendamiento después
-                return (consulta_intent, 0.94, {'multi_intent': True, 'siguiente_intent': 'agendar_turno'})
-        
-        # 🔥 PRIORIDAD ALTA: Detectar nombre cuando ESPERAMOS nombre
-        # PERO: NO si ya tiene nombre y está esperando otra cosa (hora, fecha, etc.)
-        if contexto.nombre is None and contexto.cedula is None:
-            # Si el mensaje tiene 2-4 palabras y empiezan con mayúscula → probablemente sea nombre
-            palabras = mensaje.split()
-            if 2 <= len(palabras) <= 4:
-                # Verificar que todas las palabras empiecen con mayúscula (típico de nombres)
-                if all(palabra[0].isupper() for palabra in palabras if palabra):
-                    # Verificar que no contenga números ni palabras prohibidas
-                    palabras_prohibidas_set = {'Yo', 'Tu', 'El', 'Ella', 'Ok', 'Perfecto', 'Entonces', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes'}
-                    if not any(palabra in palabras_prohibidas_set for palabra in palabras):
-                        if not any(char.isdigit() for char in mensaje):
-                            logger.info(f"🎯 [CONTEXTO] Mensaje parece nombre (2-4 palabras capitalizadas) → informar_nombre")
-                            return ("informar_nombre", 0.94)
-        
-        # 🔥 NUEVO: PROTECCIÓN - Si YA tiene nombre/cédula/fecha y dice algo con mayúsculas,
-        # NO interpretar como nombre (puede ser error de capitalización de hora)
-        elif contexto.nombre and (contexto.cedula or contexto.fecha):
-            # Si el mensaje parece hora pero está capitalizado: "Una Y Media"
-            palabras = mensaje.split()
-            if len(palabras) <= 4:
-                # Verificar si contiene palabras de hora
-                palabras_hora = ['una', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 
-                                'nueve', 'diez', 'once', 'doce', 'media', 'cuarto', 'menos']
-                if any(palabra.lower() in palabras_hora for palabra in palabras):
-                    logger.info(f"🎯 [PROTECCIÓN] Mensaje parece hora capitalizada, no nombre → elegir_horario")
-                    return ("elegir_horario", 0.95)
-        
-        # 🔥 PRIORIDAD ALTA: Detectar saludo al inicio de conversación (SIN DATOS)
-        if not contexto.nombre and not contexto.cedula and not contexto.fecha:
-            saludos_simples = ['hola', 'buenos dias', 'buenos días', 'buen dia', 'buen día', 
-                              'buenas tardes', 'buenas', 'que tal', 'qué tal', 'hey', 'hi']
-            
-            # Si el mensaje es SOLO un saludo (o saludo + "quiero")
-            palabras_msg = mensaje_lower.split()
-            if len(palabras_msg) <= 3:
-                if any(saludo == mensaje_lower for saludo in saludos_simples):
-                    logger.info(f"🎯 [CONTEXTO] Saludo simple al inicio → greet")
-                    return ("greet", 0.97)
-                elif any(saludo in mensaje_lower for saludo in saludos_simples) and len(palabras_msg) <= 2:
-                    logger.info(f"🎯 [CONTEXTO] Saludo corto al inicio → greet")
-                    return ("greet", 0.95)
-        
-        # 🔥 NUEVO: Detectar TRÁMITES que NO sean cédulas (RECHAZAR)
-        tramites_no_cedula = [
-            'pasaporte', 'licencia', 'licencia de conducir',
-            'antecedentes', 'certificado', 'apostilla',
-            'visa', 'permiso', 'registro', 'inscripcion', 'inscripción',
-            'partida', 'acta', 'matrimonio', 'nacimiento', 'defuncion', 'defunción',
-            'divorcio', 'adopcion', 'adopción', 'titulo', 'título'
-        ]
-        
-        # Detectar si menciona algún trámite NO relacionado con cédula
-        if any(tramite in mensaje_lower for tramite in tramites_no_cedula):
-            # Pero NO rechazar si está preguntando sobre trámites en general
-            if not any(patron in mensaje_lower for patron in ['qué trámites', 'que tramites', 'qué hacen', 'que hacen']):
-                logger.info(f"🚫 [RECHAZO] Trámite no relacionado con cédulas → tramite_fuera_alcance (0.96)")
-                return ("tramite_fuera_alcance", 0.96)
-        
-        # 🔥 NUEVO: Detectar preguntas sobre QUÉ TRÁMITES/SERVICIOS HACEN
-        patrones_pregunta_tramites = [
-            'qué trámites', 'que tramites', 'que trámites', 'qué tramites',
-            'qué servicios', 'que servicios',
-            'qué hacen', 'que hacen',
-            'para qué sirve', 'para que sirve',
-            'qué se puede hacer', 'que se puede hacer',
-            'qué tipo de trámites', 'que tipo de tramites',
-            'cuáles son los trámites', 'cuales son los tramites',
-            'qué documentos tramitan', 'que documentos tramitan'
-        ]
-        if any(patron in mensaje_lower for patron in patrones_pregunta_tramites):
-            logger.info(f"🎯 [PATRON] Pregunta sobre qué trámites hacen → consultar_tramites (0.94)")
-            return ("consultar_tramites", 0.94)
-        
-        # 🔥 FIX CONV #16: Priorizar "qué necesito" sobre "necesito" genérico
-        # Detectar PREGUNTAS sobre requisitos (no solo la palabra "necesito")
-        patrones_pregunta_requisitos = [
-            'qué necesito', 'que necesito',
-            'qué documentos', 'que documentos',
-            'cuáles son los requisitos', 'cuales son los requisitos',
-            'qué requisitos', 'que requisitos',
-            'qué debo llevar', 'que debo llevar',
-            'qué tengo que llevar', 'que tengo que llevar',
-            'qué hay que llevar', 'que hay que llevar',
-            'necesito saber qué', 'necesito saber que'
-        ]
-        if any(patron in mensaje_lower for patron in patrones_pregunta_requisitos):
-            logger.info(f"🎯 [PATRON] Pregunta sobre requisitos → consultar_requisitos (0.93)")
-            return ("consultar_requisitos", 0.93)
-        
-        # 🔥 NUEVO: Detectar "otro turno" / "nuevo turno" después de confirmar → resetear contexto
-        if contexto.tiene_datos_completos() or (contexto.nombre and contexto.cedula):
-            if any(frase in mensaje_lower for frase in [
-                'otro turno', 'otro turno más', 'un turno más',
-                'quiero otro turno', 'necesito otro turno',
-                'agendar otro turno', 'sacar otro turno',
-                'nuevo turno', 'un nuevo turno',
-                'turno para otra persona', 'turno diferente',
-                'con otro nombre'
-            ]):
-                logger.info(f"🎯 [CONTEXTO] Usuario quiere agendar OTRO turno → resetear contexto")
-                # Resetear TODO el contexto para empezar de cero
-                contexto.nombre = None
-                contexto.cedula = None
-                contexto.fecha = None
-                contexto.hora = None
-                contexto.email = None
-                contexto.tipo_tramite = None
-                contexto.hora_recomendada = None
-                contexto.campo_en_cambio = None
-                return ("agendar_turno", 0.98)
-        
-        # 🔥 FIX: Detectar "entonces/ok/dale quiero turno" (después de consultas)
-        palabras_transicion = ['entonces', 'ok', 'dale', 'perfecto', 'bueno']
-        if any(trans in mensaje_lower for trans in palabras_transicion):
-            palabras_turno = ['quiero turno', 'necesito turno', 'turno', 'agendar', 'sacar turno']
-            if any(palabra in mensaje_lower for palabra in palabras_turno):
-                # Solo si NO tenemos datos aún (significa que viene de consulta)
-                if not contexto.nombre:
-                    logger.info(f"🎯 [PATRON] Transición + turno (después de consulta) → agendar_turno (0.92)")
-                    return ("agendar_turno", 0.92)
         
         # Detectar CAMBIO de fecha cuando YA tiene fecha asignada
         if contexto.fecha:
@@ -933,152 +653,23 @@ class ClasificadorIntentsMejorado:
                     logger.info(f"🎯 [CONTEXTO] Usuario cambia fecha existente → consultar_disponibilidad")
                     return ("consultar_disponibilidad", 0.96)
         
-        # IMPORTANTE: Detectar CAMBIO/MODIFICACIÓN antes de confirmación
-        # ==========================================
-        # 🔥 NUEVO: Detectar corrección de nombre "no mi nombre es", "no solo"
-        # ==========================================
-        if contexto.nombre:  # Solo si ya tiene un nombre guardado
-            # Detectar intentos de corrección del nombre
-            if any(patron in mensaje_lower for patron in ['no mi nombre es', 'no, mi nombre es', 
-                                                          'no mi nombre', 'no, mi nombre',
-                                                          'no solo', 'no, solo']):
-                logger.info(f"🔄 [CORRECCION] Usuario corrige su nombre")
-                contexto.nombre = None  # Resetear para capturar el nuevo
-                contexto.campo_en_cambio = 'nombre'
-                return ("informar_nombre", 0.98)
-        
-        # 🔥 NUEVO: Detectar "está mal", "agarraste mal", "es incorrecto"
-        # ==========================================
-        if any(frase in mensaje_lower for frase in ['esta mal', 'está mal', 'agarraste mal', 'tomaste mal', 
-                                                      'es incorrecto', 'no es correcto', 'esta equivocado',
-                                                      'está equivocado', 'no esta bien', 'no está bien']):
-            # Detectar qué campo está mal
-            if any(palabra in mensaje_lower for palabra in ['nombre', 'nombres', 'mi nombre']):
-                logger.info(f"🔄 [ERROR DETECTADO] Usuario dice que el nombre está mal")
-                contexto.nombre = None
-                contexto.campo_en_cambio = 'nombre'
-                return ("informar_nombre", 0.98)
-            elif any(palabra in mensaje_lower for palabra in ['cedula', 'cédula', 'ci', 'documento']):
-                logger.info(f"🔄 [ERROR DETECTADO] Usuario dice que la cédula está mal")
-                contexto.cedula = None
-                contexto.campo_en_cambio = 'cedula'
-                return ("informar_cedula", 0.98)
-            elif any(palabra in mensaje_lower for palabra in ['email', 'correo', 'mail']):
-                logger.info(f"🔄 [ERROR DETECTADO] Usuario dice que el email está mal")
-                contexto.email = None
-                contexto.campo_en_cambio = 'email'
-                return ("informar_email", 0.98)
-            elif any(palabra in mensaje_lower for palabra in ['fecha', 'dia', 'día']):
-                logger.info(f"🔄 [ERROR DETECTADO] Usuario dice que la fecha está mal")
-                contexto.fecha = None
-                contexto.hora = None
-                contexto.campo_en_cambio = 'fecha'
-                return ("consultar_disponibilidad", 0.98)
-            elif any(palabra in mensaje_lower for palabra in ['hora', 'horario']):
-                logger.info(f"🔄 [ERROR DETECTADO] Usuario dice que la hora está mal")
-                contexto.hora = None
-                contexto.campo_en_cambio = 'hora'
-                return ("consultar_disponibilidad", 0.98)
-            else:
-                # No especificó qué está mal, preguntar
-                logger.info(f"🔄 [ERROR DETECTADO] Usuario dice que algo está mal (no especificó qué)")
-                return ("aclaracion_cambio", 0.95)
-        
-        # ==========================================
-        # DETECCIÓN CRÍTICA: "Cambiar [campo]" en resumen
-        # ==========================================
-        # 🔥 FIX: Detectar NEGACIÓN antes de "cambiar" ("no quiero cambiar")
-        es_negacion = any(neg in mensaje_lower for neg in ['no quiero cambiar', 'no cambiar', 'no quiero modificar', 'no modificar'])
-        
-        # Detectar "Cambiar email", "Cambiar hora", etc.
-        if (('cambiar' in mensaje_lower or 'modificar' in mensaje_lower or 'corregir' in mensaje_lower) 
-            and not es_negacion):
-            # Cambiar EMAIL
-            if any(palabra in mensaje_lower for palabra in ['email', 'correo', 'mail', 'e-mail']):
-                logger.info(f"🔄 [CAMBIO] Usuario quiere cambiar email → resetear email")
-                contexto.email = None
-                contexto.campo_en_cambio = 'email'  # Marcar que estamos cambiando
-                return ("informar_email", 0.98)
-            
-            # Cambiar HORA (sin especificar "cambiar fecha")
-            elif any(palabra in mensaje_lower for palabra in ['hora', 'horario']) and not any(p in mensaje_lower for p in ['fecha', 'dia', 'día']):
-                logger.info(f"🔄 [CAMBIO] Usuario quiere cambiar SOLO hora → mostrar horarios")
-                contexto.hora = None
-                contexto.campo_en_cambio = 'hora'  # Marcar que estamos cambiando
-                # 🔥 FIX: Retornar elegir_horario para mostrar horarios, NO fechas
-                return ("elegir_horario", 0.98)
-            
-            # Cambiar FECHA
-            elif any(palabra in mensaje_lower for palabra in ['fecha', 'dia', 'día']):
-                # 🔥 MEJORADO: Detectar si YA especifica "para mañana" o una fecha específica
-                if 'mañana' in mensaje_lower or 'ma�ana' in mensaje_lower:
-                    logger.info(f"🔄 [CAMBIO] Usuario quiere cambiar fecha para MAÑANA")
-                    # Calcular mañana
-                    manana = datetime.now() + timedelta(days=1)
-                    while manana.weekday() >= 5:  # Saltar fin de semana
-                        manana += timedelta(days=1)
-                    
-                    contexto.fecha = manana.strftime('%Y-%m-%d')
-                    contexto.hora = None  # Resetear hora para pedir nueva
-                    contexto.campo_en_cambio = 'hora'
-                    return ("consultar_disponibilidad", 0.98)
-                else:
-                    logger.info(f"🔄 [CAMBIO] Usuario quiere cambiar fecha → resetear fecha y hora")
-                    contexto.fecha = None
-                    contexto.hora = None  # También resetear hora
-                    contexto.campo_en_cambio = 'fecha'  # Marcar que estamos cambiando
-                    return ("consultar_disponibilidad", 0.98)
-            
-            # Cambiar NOMBRE
-            elif any(palabra in mensaje_lower for palabra in ['nombre', 'nombres']):
-                logger.info(f"🔄 [CAMBIO] Usuario quiere cambiar nombre → resetear nombre")
-                contexto.nombre = None
-                contexto.campo_en_cambio = 'nombre'  # Marcar que estamos cambiando
-                return ("informar_nombre", 0.98)
-            
-            # Cambiar CÉDULA
-            elif any(palabra in mensaje_lower for palabra in ['cedula', 'cédula', 'ci', 'documento']):
-                logger.info(f"🔄 [CAMBIO] Usuario quiere cambiar cédula → resetear cédula")
-                contexto.cedula = None
-                contexto.campo_en_cambio = 'cedula'  # Marcar que estamos cambiando
-                # Retornar mensaje específico para pedir nueva cédula
-                return ("informar_cedula", 0.98)
-            
-            # Cambiar EMAIL
-            elif any(palabra in mensaje_lower for palabra in ['email', 'correo', 'mail']):
-                logger.info(f"🔄 [CAMBIO] Usuario quiere cambiar email → resetear email")
-                contexto.email = None
-                return ("informar_email", 0.98)
-            
-            # Cambiar genérico (sin especificar qué)
-            else:
-                logger.info(f"🔄 [CAMBIO] Usuario quiere cambiar algo (no especificó qué)")
-                # Devolver un intent especial para manejar este caso
-                return ("aclaracion_cambio", 0.95)
-        
-        # 🔥 MEJORADO: Detectar confirmación cuando tiene nombre+cedula+fecha+hora (con o sin email)
-        if contexto.nombre and contexto.cedula and contexto.fecha and contexto.hora:
+        # Detectar confirmación simple cuando tiene fecha+hora+email (datos completos)
+        if contexto.nombre and contexto.fecha and contexto.hora and contexto.email:
             mensaje_limpio = mensaje_lower.strip()
-            
-            # Confirmación directa con palabras clave
-            if mensaje_limpio in ['esta bien', 'está bien', 'ok', 'vale', 'si', 'sí', 'perfecto', 'de acuerdo', 'confirmo', 'confirmado', 'confirm', 'acepto']:
-                logger.info(f"🎯 [CONTEXTO] Usuario confirma turno → affirm (msg: '{mensaje_limpio}')")
-                return ("affirm", 0.97)
-            
-            # Frases de confirmación más complejas
-            if any(frase in mensaje_lower for frase in ['si confirmo', 'sí confirmo', 'si acepto', 'sí acepto', 
-                                                         'todo bien', 'esta todo bien', 'está todo bien',
-                                                         'confirmame', 'confírmame', 'confirma el turno',
-                                                         'confirmar el turno', 'confirmar turno',
-                                                         'agendar', 'agenda', 'agendame', 'agéndame']):
-                logger.info(f"🎯 [CONTEXTO] Usuario confirma turno con frase → affirm")
-                return ("affirm", 0.97)
+            if mensaje_limpio in ['esta bien', 'está bien', 'ok', 'vale', 'si', 'sí', 'perfecto', 'de acuerdo', 'confirmo', 'confirmado', 'confirm', 'acepto', 'acepto']:
+                logger.info(f"🎯 [CONTEXTO] Usuario confirma turno completo → confirmar (msg: '{mensaje_limpio}')")
+                return ("confirmar", 0.97)
+            # También detectar frases de confirmación
+            if any(frase in mensaje_lower for frase in ['si confirmo', 'sí confirmo', 'si acepto', 'sí acepto', 'todo bien', 'esta todo bien', 'está todo bien']):
+                logger.info(f"🎯 [CONTEXTO] Usuario confirma turno con frase → confirmar")
+                return ("confirmar", 0.97)
         
         # Detectar cambio de hora cuando ya tiene fecha PERO NO hora
         if contexto.fecha and not contexto.hora:
             # Frases que indican elegir/cambiar hora
             if any(palabra in mensaje_lower for palabra in ['cambiar', 'mejor', 'prefiero', 'quiero']):
                 # Y tiene una hora en el mensaje
+                import re
                 if re.search(r'\b([0-9]{1,2}):?([0-9]{2})?\b', mensaje):
                     logger.info(f"🎯 [CONTEXTO] Usuario elige/cambia hora → elegir_horario")
                     return ("elegir_horario", 0.96)
@@ -1086,6 +677,7 @@ class ClasificadorIntentsMejorado:
         # Detectar hora aislada cuando esperamos hora
         if contexto.fecha and not contexto.hora:
             # Si el mensaje es solo una hora o "para/a las X"
+            import re
             if re.match(r'^(para\s+)?(a\s+)?las?\s+[0-9]{1,2}(:[0-9]{2})?$', mensaje_lower) or \
                re.match(r'^[0-9]{1,2}(:[0-9]{2})?$', mensaje_lower):
                 logger.info(f"🎯 [CONTEXTO] Usuario da hora directamente → elegir_horario")
@@ -1093,20 +685,10 @@ class ClasificadorIntentsMejorado:
         
         # Detectar tipo de trámite cuando pregunta por cédula
         if contexto.nombre and not contexto.cedula:
-            # Primera vez / no tengo cédula - MEJORADO: detecta "para mi hijo/hija/niño", "primera cedula"
-            if any(frase in mensaje_lower for frase in [
-                'primera vez', '1ra vez', 'primer tramite', 
-                'no tengo cedula', 'no tengo cédula', 
-                'todavia no tengo', 'todavía no tengo', 
-                'aun no tengo', 'aún no tengo',
-                'es para mi hijo', 'es para mi hija', 'es para mi niño', 'es para mi niña',
-                'para su primera cedula', 'para su primera cédula',
-                'su primera cedula', 'su primera cédula',
-                'primera cedula', 'primera cédula'
-            ]):
+            # Primera vez / no tengo cédula
+            if any(frase in mensaje_lower for frase in ['primera vez', '1ra vez', 'primer tramite', 'no tengo cedula', 'no tengo cédula', 'todavia no tengo', 'todavía no tengo', 'aun no tengo', 'aún no tengo']):
                 logger.info(f"🎯 [CONTEXTO] Tipo de trámite detectado: primera_vez")
                 contexto.tipo_tramite = 'primera_vez'
-                contexto.cedula = 'SIN_CEDULA'  # Marcar que no tiene cédula
                 return ("informar_tipo_tramite", 0.96)
             
             # Pérdida/Robo
@@ -1115,58 +697,11 @@ class ClasificadorIntentsMejorado:
                 contexto.tipo_tramite = 'perdida'
                 return ("informar_tipo_tramite", 0.96)
             
-            # 🔥 MEJORADO: Extranjero - detectar más variaciones de frases
-            if any(frase in mensaje_lower for frase in [
-                'soy extranjero', 'soy extranjera', 
-                'extranjero', 'extranjera', 
-                'no soy paraguayo', 'no soy paraguaya',
-                'no soy de paraguay', 'no soy paraguaya', 
-                'vengo de', 'soy de otro pais', 'soy de otro país',
-                'extranjeria', 'extranjería',
-                'residente extranjero', 'residente extranjera',
-                'de otro pais', 'de otro país',
-                'ciudadano extranjero', 'ciudadana extranjera'
-            ]):
+            # Extranjero
+            if any(frase in mensaje_lower for frase in ['soy extranjero', 'extranjera', 'no soy paraguayo', 'no soy paraguaya', 'extranjeria']):
                 logger.info(f"🎯 [CONTEXTO] Tipo de trámite detectado: extranjero")
                 contexto.tipo_tramite = 'extranjero'
                 return ("informar_tipo_tramite", 0.96)
-        
-        # 🔥 NUEVO: Detectar consulta de disponibilidad de próxima semana (lista de días)
-        frases_disponibilidad_semana = [
-            'que dias disponibles', 'qué días disponibles', 'que otros dias',
-            'qué otros días', 'dias disponibles de la proxima semana',
-            'días disponibles de la próxima semana', 'disponibilidad para la proxima semana',
-            'disponibilidad de la proxima semana', 'hay disponibilidad para la proxima semana',
-            'dame los dias', 'cuales son los dias', 'cuáles son los días',
-            'ver disponibilidad', 'mostrar disponibilidad',
-            'hay mas dias', 'hay más días', 'hay otros dias', 'hay otros días',
-            'mas dias disponibles', 'más días disponibles', 'otros dias disponibles'
-        ]
-        
-        # Detectar si menciona "proxima semana" explícitamente O si contexto ya tiene proxima_semana=True
-        if any(frase in mensaje_lower for frase in frases_disponibilidad_semana):
-            # CASO 1: Menciona explícitamente "próxima semana"
-            if any(sem in mensaje_lower for sem in ['proxima semana', 'próxima semana', 'siguiente semana', 'semana que viene']):
-                logger.info(f"🎯 [CONTEXTO] Consulta disponibilidad próxima semana (explícita) → consultar_disponibilidad (0.96)")
-                return ("consultar_disponibilidad", 0.96)
-            # CASO 2: Contexto YA tiene proxima_semana=True (usuario pregunta genéricamente)
-            elif contexto.proxima_semana:
-                logger.info(f"🎯 [CONTEXTO] Consulta disponibilidad con contexto próxima semana → consultar_disponibilidad (0.96)")
-                return ("consultar_disponibilidad", 0.96)
-        
-        # 🔥 NUEVO: Detectar preferencias de horario (SIEMPRE, incluso con fecha)
-        frases_preferencia_horario = [
-            'no puedo por la mañana', 'no puedo de mañana', 'no puedo en la mañana',
-            'no puedo por la tarde', 'no puedo de tarde', 'no puedo en la tarde',
-            'después del mediodía', 'despues del mediodia', 'pasado el mediodía',
-            'por la tarde', 'de tarde', 'en la tarde',
-            'turnos para mañana por la tarde', 'turnos de mañana por la tarde',
-            'horarios por la tarde', 'horarios de tarde', 'disponibilidad por la tarde'
-        ]
-        
-        if any(frase in mensaje_lower for frase in frases_preferencia_horario):
-            logger.info(f"🎯 [CONTEXTO] Preferencia de horario detectada → consultar_disponibilidad (0.95)")
-            return ("consultar_disponibilidad", 0.95)
         
         # Detectar negación sin cédula (sin importar contexto) - SOLO si no detectamos tipo arriba
         palabras_negacion_sin_cedula = [
@@ -1177,27 +712,14 @@ class ClasificadorIntentsMejorado:
         ]
         
         if any(neg in mensaje_lower for neg in palabras_negacion_sin_cedula):
-            # Si menciona "turno" o "agendar", convertir a agendar_turno en vez de solo negacion
-            if any(palabra in mensaje_lower for palabra in ['turno', 'agendar', 'cita', 'necesito']):
-                logger.info(f"🎯 [PATRON] negacion_sin_cedula + turno → agendar_turno (0.90)")
-                contexto.cedula = 'SIN_CEDULA'  # Marcar que no tiene cédula
-                return ("agendar_turno", 0.90)
-            else:
-                logger.info(f"🎯 [PATRON] negacion_sin_cedula (0.95)")
-                return ("negacion_sin_cedula", 0.95)
+            logger.info(f"🎯 [PATRON] negacion_sin_cedula (0.95)")
+            return ("negacion_sin_cedula", 0.95)
         
         # SOLO detectar "no tengo" SI estamos esperando cédula
         if contexto.nombre and not contexto.cedula:
             if mensaje_lower in ['no tengo', 'no tengo nada', 'nada']:
                 logger.info(f"🎯 [CONTEXTO] negacion_sin_cedula (0.98)")
                 return ("negacion_sin_cedula", 0.98)
-        
-        # 🔥 NUEVO: Detectar "no tengo email" cuando estamos esperando email
-        if contexto.nombre and contexto.cedula and contexto.fecha and contexto.hora and not contexto.email:
-            if any(frase in mensaje_lower for frase in ['no tengo email', 'no tengo correo', 'sin email', 'sin correo', 'no tengo mail']):
-                logger.info(f"🎯 [CONTEXTO] Usuario sin email → proceder a confirmación sin email (0.98)")
-                contexto.email = 'SIN_EMAIL'  # Marcar que no tiene email
-                return ("affirm", 0.98)  # Ir directo a confirmación
         
         # Palabras clave de intents de ACCIÓN (no son nombres)
         palabras_accion = ['agendar', 'turno', 'cita', 'horario', 'disponibilidad', 
@@ -1229,30 +751,6 @@ class ClasificadorIntentsMejorado:
             'gaga', 'total', 'pepe', 'test', 'prueba', 'fake', 'falso'
         }
         
-        # DETECCIÓN DE CÉDULA CONTEXTUAL (FORMATOS VÁLIDOS SOLAMENTE)
-        # Si NO tenemos nombre ni cédula, y el mensaje son solo números
-        if not contexto.nombre and not contexto.cedula:
-            # Solo aceptar formatos válidos:
-            # - Sin separadores: 1516500
-            # - Con puntos estándar: 1.516.500 o variantes
-            # - Con espacios estándar: 1 516 500
-            # NO aceptar: espacios dispersos como "1 2 3 4 5 6 7"
-            
-            # Formato sin separadores
-            if re.match(r'^\d{5,8}$', mensaje.strip()):
-                logger.info(f"🎯 [CONTEXTO] Cédula sin separadores → informar_cedula (0.98)")
-                return ("informar_cedula", 0.98)
-            
-            # Formato con puntos estándar: X.XXX.XXX
-            elif re.match(r'^\d{1,2}\.\d{3}\.\d{3}$', mensaje.strip()):
-                logger.info(f"🎯 [CONTEXTO] Cédula con puntos estándar → informar_cedula (0.98)")
-                return ("informar_cedula", 0.98)
-            
-            # Formato con espacios estándar: X XXX XXX
-            elif re.match(r'^\d{1,2}\s\d{3}\s\d{3}$', mensaje.strip()):
-                logger.info(f"🎯 [CONTEXTO] Cédula con espacios estándar → informar_cedula (0.98)")
-                return ("informar_cedula", 0.98)
-        
         # DETECCIÓN DE NOMBRES CONTEXTUAL (SIMPLIFICADA)
         # Si NO tenemos nombre y el mensaje es 1-4 palabras solo con letras, es probable que sea un nombre
         if not contexto.nombre and not es_accion:
@@ -1271,50 +769,14 @@ class ClasificadorIntentsMejorado:
         
         # CONTEXTO: Si ya tenemos nombre pero no cédula, y el mensaje son solo números
         if contexto.nombre and not contexto.cedula:
-            # Solo aceptar formatos válidos (sin separadores, puntos estándar, espacios estándar)
             if re.match(r'^\d{5,8}$', mensaje.strip()):
                 logger.info(f"🎯 Intent detectado por contexto: informar_cedula (0.98)")
                 return ("informar_cedula", 0.98)
-            elif re.match(r'^\d{1,2}\.\d{3}\.\d{3}$', mensaje.strip()):
-                logger.info(f"🎯 Intent detectado por contexto: informar_cedula (0.98)")
-                return ("informar_cedula", 0.98)
-            elif re.match(r'^\d{1,2}\s\d{3}\s\d{3}$', mensaje.strip()):
-                logger.info(f"🎯 Intent detectado por contexto: informar_cedula (0.98)")
-                return ("informar_cedula", 0.98)
-        
-        # CONTEXTO: Si ya tenemos cédula pero no fecha, y el mensaje contiene fecha
-        if contexto.cedula and not contexto.fecha:
-            # Detectar cualquier palabra relacionada con fechas o días
-            palabras_fecha = ['mañana', 'ma�ana', 'hoy', 'lunes', 'martes', 'miercoles', 'miércoles', 
-                            'jueves', 'viernes', 'sabado', 'sábado', 'domingo', 
-                            'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-                            'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-                            # Abreviaturas de meses
-                            'ene', 'feb', 'mar', 'abr', 'may', 'jun', 
-                            'jul', 'ago', 'sep', 'sept', 'oct', 'nov', 'dic',
-                            'pasado']
-            
-            # Detectar formato DD/MM o DD-MM o DD de MES (completo o abreviado)
-            tiene_formato_fecha = (
-                re.search(r'\b\d{1,2}[/-]\d{1,2}\b', mensaje) or  # DD/MM o DD-MM
-                re.search(r'\b\d{1,2}\s+(?:de\s+)?(?:ene|feb|mar|abr|may|jun|jul|ago|sep|sept|oct|nov|dic|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b', mensaje_lower)  # DD de MES
-            )
-            
-            if tiene_formato_fecha or any(palabra in mensaje_lower for palabra in palabras_fecha):
-                logger.info(f"🎯 [CONTEXTO PRIORITARIO] Esperamos fecha y detectamos palabras de fecha → informar_fecha (0.96)")
-                return ("informar_fecha", 0.96)
         
         # CONTEXTO: Si ya tenemos fecha pero no hora, y el mensaje habla de hora ESPECÍFICA
         if contexto.fecha and not contexto.hora:
-            # Detectar frases como "las 8", "para las 7", "a las 10", "8 está bien", o solo "9"
+            # Detectar frases como "las 8", "para las 7", "a las 10", "8 está bien"
             # PERO NO frases sobre consulta de horarios ("que horarios", "cierran", "abren", "atienden", "hay")
-            
-            # Detectar número simple (ej: "9", "14")
-            if re.match(r'^\s*\d{1,2}\s*$', mensaje):
-                logger.info(f"🎯 Intent detectado por contexto: elegir_horario [número simple] (0.99)")
-                return ("elegir_horario", 0.99)
-            
-            # Detectar frases con "las X"
             if re.search(r'\b(las|para\s+las|a\s+las)\s*\d{1,2}\b', mensaje_lower) and \
                not re.search(r'\b(que|qu[eé]|cuales|cu[aá]les|cual|cu[aá]l)\s+(horarios|horas|hora)\b', mensaje_lower) and \
                not re.search(r'\b(cierran|abren|atienden|trabajan|est[aá]n|hay|tienen)\b', mensaje_lower):
@@ -1362,80 +824,22 @@ class ClasificadorIntentsMejorado:
             # Retornar directamente, es una detección super confiable
             return intent_contexto, score_contexto
         
-        # 5. DECISION CON PRIORIZACION FUZZY: Fuzzy > Regex > LLM
-        logger.info(f"\nDECISION CON PRIORIZACION FUZZY:")
-        logger.info(f"   Contexto: {intent_contexto or 'N/A'} ({score_contexto:.2f})")
-        logger.info(f"   Regex:    {intent_patron} ({confianza_patron:.2f})")
-        logger.info(f"   LLM:      {intent_llm} ({confianza_llm:.2f})")
-        logger.info(f"   Fuzzy:    {intent_fuzzy} ({confianza_fuzzy:.2f})")
+        # 5. FUSIÓN DIFUSA: Combinar las 4 fuentes
+        logger.info(f"\n🔀 FUSIÓN DIFUSA DE CLASIFICADORES:")
+        logger.info(f"   📊 Contexto: {intent_contexto or 'N/A'} ({score_contexto:.2f})")
+        logger.info(f"   🔍 Regex:    {intent_patron} ({confianza_patron:.2f})")
+        logger.info(f"   🤖 LLM:      {intent_llm} ({confianza_llm:.2f})")
+        logger.info(f"   � Fuzzy:    {intent_fuzzy} ({confianza_fuzzy:.2f})")
         
-        # Prioridad 1: Fuzzy + Regex en consenso
-        if confianza_fuzzy > 0.65 and intent_fuzzy == intent_patron and confianza_patron > 0.7:
-            intent_final = intent_fuzzy
-            confianza_final = max(confianza_fuzzy, confianza_patron)
-            fuente = "fuzzy+regex_consenso"
+        intent_final, confianza_final, detalles = clasificar_con_fusion_difusa(
+            mensaje,
+            score_contexto, intent_contexto,
+            confianza_patron, intent_patron,
+            confianza_llm, intent_llm
+        )
         
-        # Prioridad 2: Fuzzy con buena confianza
-        elif confianza_fuzzy > 0.60:
-            intent_final = intent_fuzzy
-            confianza_final = confianza_fuzzy
-            fuente = "fuzzy_alta"
+        logger.info(f"✨ RESULTADO FINAL: {intent_final} ({confianza_final:.2f}) [fuente: {detalles.get('source')}]")
         
-        # Prioridad 3: Regex con alta confianza
-        elif confianza_patron > 0.85:
-            intent_final = intent_patron
-            confianza_final = confianza_patron
-            fuente = "regex_alta"
-        
-        # Prioridad 4: Fuzzy + Regex coinciden (baja confianza pero consenso)
-        elif intent_fuzzy == intent_patron and confianza_fuzzy > 0.4 and confianza_patron > 0.5:
-            intent_final = intent_fuzzy
-            confianza_final = (confianza_fuzzy + confianza_patron) / 2
-            fuente = "fuzzy+regex_coinciden"
-        
-        # Prioridad 5: LLM con ALTA confianza (threshold subido a 0.92 - REDUCIR INFLUENCIA LLM)
-        elif confianza_llm > 0.92:
-            intent_final = intent_llm
-            confianza_final = confianza_llm
-            fuente = "llm_alta"
-        
-        # Prioridad 6: Regex razonable
-        elif confianza_patron > 0.70:
-            intent_final = intent_patron
-            confianza_final = confianza_patron
-            fuente = "regex_razonable"
-        
-        # Prioridad 7: Fuzzy medio sobre LLM dudoso
-        elif confianza_fuzzy > 0.45 and confianza_llm < 0.85:
-            intent_final = intent_fuzzy
-            confianza_final = confianza_fuzzy
-            fuente = "fuzzy_medio"
-        
-        # Prioridad 8: Fuzzy razonable SIEMPRE gana sobre LLM (incluso si LLM tiene más confianza)
-        elif confianza_fuzzy > 0.40:
-            intent_final = intent_fuzzy
-            confianza_final = confianza_fuzzy
-            fuente = "fuzzy_prioridad"
-        
-        # Prioridad 9: LLM solo si Fuzzy no tiene idea
-        elif confianza_llm > 0.80 and confianza_fuzzy < 0.30:
-            intent_final = intent_llm
-            confianza_final = confianza_llm
-            fuente = "llm_backup"
-        
-        # Prioridad 10: Mejor score general (solo si todo es muy bajo)
-        else:
-            mejor = max([
-                (confianza_patron, intent_patron, "regex"),
-                (confianza_fuzzy, intent_fuzzy, "fuzzy"),  # Fuzzy ANTES que LLM
-                (confianza_llm, intent_llm, "llm")
-            ], key=lambda x: x[0])
-            intent_final = mejor[1]
-            confianza_final = mejor[0]
-            fuente = f"mejor_{mejor[2]}"
-        
-        logger.info(f"RESULTADO FINAL: {intent_final} ({confianza_final:.2f}) [fuente: {fuente}]")
-
         # 6. VALIDACIÓN FINAL: Si confianza es muy baja, fallback
         if confianza_final < 0.3:
             logger.warning(f"❓ Confianza muy baja, usando fallback")
@@ -1621,7 +1025,7 @@ Tu respuesta (SOLO el intent):"""
 # EXTRACTOR DE ENTIDADES
 # =====================================================
 
-def extraer_entidades(mensaje: str, intent: str, contexto: SessionContext = None) -> Dict:
+def extraer_entidades(mensaje: str, intent: str) -> Dict:
     """Extrae entidades del mensaje según el intent"""
     entidades = {}
     mensaje_lower = mensaje.lower()
@@ -1641,311 +1045,58 @@ def extraer_entidades(mensaje: str, intent: str, contexto: SessionContext = None
         'gaga', 'total', 'pepe', 'test', 'prueba', 'fake', 'falso'
     }
     
-    # 🔥 DETECCIÓN GLOBAL: Nombre en oraciones compuestas
-    # 1. Detectar "Nombre Apellido, 7776665" (con coma o número después)
-    nombre_global_match = re.search(r'^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})(?:\s*[,:]|\s+\d)', mensaje)
-    if nombre_global_match:
-        nombre_candidato = nombre_global_match.group(1).strip()
-        palabras_candidato = [p.lower() for p in nombre_candidato.split()]
-        
-        # Verificar que no contenga palabras prohibidas
-        if not any(p in palabras_prohibidas for p in palabras_candidato):
-            if len(nombre_candidato.split()) >= 2:  # Al menos 2 palabras
-                entidades['nombre'] = nombre_candidato.title()
-                logger.info(f"🎯 [GLOBAL] Nombre detectado en oración compuesta (con coma): {entidades['nombre']}")
-    
-    # 2. Detectar "soy [Nombre Apellido]" o "me llamo [Nombre]"
-    if 'nombre' not in entidades:
-        nombre_soy_match = re.search(r'\b(?:soy|me\s+llamo)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})', mensaje, re.IGNORECASE)
-        if nombre_soy_match:
-            nombre_candidato = nombre_soy_match.group(1).strip()
-            # Limpiar caracteres finales (comas, puntos)
-            nombre_candidato = re.sub(r'[,.]$', '', nombre_candidato).strip()
-            palabras_candidato = [p.lower() for p in nombre_candidato.split()]
-            
-            # Verificar que no contenga palabras prohibidas
-            if not any(p in palabras_prohibidas for p in palabras_candidato):
-                if len(nombre_candidato.split()) >= 2:  # Al menos 2 palabras
-                    entidades['nombre'] = nombre_candidato.title()
-                    logger.info(f"🎯 [GLOBAL] Nombre detectado con 'soy/me llamo': {entidades['nombre']}")
-    
-    # 3. Detectar "Nombre Apellido 7776665" (SIN coma, directo al número)
-    if 'nombre' not in entidades:
-        nombre_sinc_match = re.search(r'^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+(\d{5,8})', mensaje)
-        if nombre_sinc_match:
-            nombre_candidato = nombre_sinc_match.group(1).strip()
-            palabras_candidato = [p.lower() for p in nombre_candidato.split()]
-            
-            # Verificar que no contenga palabras prohibidas
-            if not any(p in palabras_prohibidas for p in palabras_candidato):
-                entidades['nombre'] = nombre_candidato.title()
-                logger.info(f"🎯 [GLOBAL] Nombre detectado SIN coma antes de número: {entidades['nombre']}")
-    
-    # 4. Detectar "Nombre Apellido, CI 123456" (con CI en medio)
-    if 'nombre' not in entidades:
-        nombre_ci_match = re.search(r'^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3}),?\s+(?:CI|ci)\s+(\d{5,8})', mensaje)
-        if nombre_ci_match:
-            nombre_candidato = nombre_ci_match.group(1).strip()
-            palabras_candidato = [p.lower() for p in nombre_candidato.split()]
-            
-            # Verificar que no contenga palabras prohibidas
-            if not any(p in palabras_prohibidas for p in palabras_candidato):
-                if len(nombre_candidato.split()) >= 2:
-                    entidades['nombre'] = nombre_candidato.title()
-                    entidades['cedula'] = nombre_ci_match.group(2)  # También extraer cédula
-                    logger.info(f"🎯 [GLOBAL] Nombre detectado con formato CI: {entidades['nombre']}")
-    
-    # Extraer NOMBRE - MEJORADO para oraciones compuestas
-    # PRIORIDAD: Detectar nombre ANTES que cédula en oraciones como "Miguel Ortiz, 7776665"
+    # Extraer NOMBRE - MEJORADO con validación de palabras prohibidas
     if intent == 'informar_nombre' or 'me llamo' in mensaje_lower or 'mi nombre es' in mensaje_lower:
         # 1. Buscar con "me llamo" o "mi nombre es"
         match = re.search(r'(me\s+llamo|mi\s+nombre\s+es|soy)\s+(.+)', mensaje, re.IGNORECASE)
         if match:
             nombre = match.group(2).strip()
-            # Limpiar el nombre (quitar puntos, comas, números al final)
+            # Limpiar el nombre (quitar puntos, comas al final)
             nombre = re.sub(r'[.,!?]$', '', nombre).strip()
-            nombre = re.sub(r',.*', '', nombre).strip()  # Cortar en coma (ej: "Juan Pérez, 123456")
             
-            # 🔥 LIMPIEZA: Quitar frases adicionales comunes
-            # Remover: "y quiero...", "y necesito...", "nomas", "no mas", "solo"
-            nombre = re.sub(r'\s+(y\s+(quiero|necesito|voy\s+a|queria|quisiera).*)$', '', nombre, flags=re.IGNORECASE)
-            nombre = re.sub(r'\s+(nomas|no\s+mas)$', '', nombre, flags=re.IGNORECASE)
-            nombre = re.sub(r'^(no\s+)?solo\s+', '', nombre, flags=re.IGNORECASE)  # "no solo Juan" → "Juan"
-            nombre = nombre.strip()
-            
-            # 🔥 NUEVO: Validar que no sea solo números (rechazar entradas numéricas)
-            if nombre and not re.match(r'^[\d\s\.]+$', nombre):  # No solo dígitos/espacios/puntos
-                # Verificar que no contenga palabras prohibidas
-                palabras_nombre = [p.lower() for p in nombre.split()]
-                if not any(p in palabras_prohibidas for p in palabras_nombre):
-                    entidades['nombre'] = nombre.title()
-            else:
-                logger.warning(f"⚠️ Nombre rechazado (solo números): {nombre}")
+            # Verificar que no contenga palabras prohibidas
+            palabras_nombre = [p.lower() for p in nombre.split()]
+            if not any(p in palabras_prohibidas for p in palabras_nombre):
+                entidades['nombre'] = nombre.title()
         else:
-            # 2. NUEVO: Detectar nombre en oraciones compuestas "Nombre Apellido, cedula, fecha"
-            # Buscar: Palabra Palabra(Palabra), seguido de coma o número
-            nombre_match = re.search(r'^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){1,3})(?:\s*,|\s+\d)', mensaje)
-            if nombre_match:
-                nombre = nombre_match.group(1).strip()
-                
-                # 🔥 NUEVO: Validar que no sea un formato de cédula
-                if not re.match(r'^\d+[\s\.]*\d+', nombre):  # No es patrón numérico
-                    palabras_nombre = [p.lower() for p in nombre.split()]
-                    
-                    # Verificar que no contenga palabras prohibidas
-                    if not any(p in palabras_prohibidas for p in palabras_nombre):
-                        if len(nombre.split()) >= 2:  # Al menos 2 palabras
-                            entidades['nombre'] = nombre.title()
-                else:
-                    logger.warning(f"⚠️ Nombre rechazado (patrón numérico): {nombre}")
-            else:
-                # 3. Si el intent es informar_nombre, tomar TODO el mensaje como nombre
-                # PERO con validaciones estrictas
-                nombre = mensaje.strip()
-                
-                # 🔥 LIMPIEZA: Remover frases comunes que no son parte del nombre
-                nombre = re.sub(r'\s+(y\s+(quiero|necesito|voy\s+a|queria|quisiera).*)$', '', nombre, flags=re.IGNORECASE)
-                nombre = re.sub(r'\s+(para|de|con|en|a|por).+$', '', nombre, flags=re.IGNORECASE)  # Cortar preposiciones
-                nombre = re.sub(r'\s+(nomas|no\s+mas)$', '', nombre, flags=re.IGNORECASE)
-                nombre = re.sub(r'^(no\s+)?solo\s+', '', nombre, flags=re.IGNORECASE)
-                nombre = nombre.strip()
-                
-                # 🔥 NUEVO: Validar que no sea solo números (rechazar entradas numéricas)
-                # Calcular porcentaje de dígitos en el texto
-                if nombre:
-                    total_chars = len(nombre.replace(' ', '').replace('.', ''))
-                    digit_chars = sum(c.isdigit() for c in nombre)
-                    digit_ratio = digit_chars / total_chars if total_chars > 0 else 0
-                    
-                    # Rechazar si >50% son dígitos O si es un patrón de cédula
-                    if digit_ratio > 0.5 or re.match(r'^[\d\s\.]+$', nombre):
-                        logger.warning(f"⚠️ Nombre rechazado (alto contenido numérico: {digit_ratio:.0%}): {nombre}")
-                    else:
-                        palabras_nombre = [p.lower() for p in nombre.split()]
-                        
-                        # Verificar que no contenga palabras prohibidas
-                        if not any(p in palabras_prohibidas for p in palabras_nombre):
-                            # Solo aceptar si tiene exactamente 2-4 palabras (nombre + apellido(s))
-                            num_palabras = len(nombre.split())
-                            if 2 <= num_palabras <= 4:
-                                entidades['nombre'] = nombre.title()
-                            else:
-                                logger.warning(f"⚠️ Nombre rechazado (demasiadas palabras: {num_palabras}): {nombre}")
+            # 2. Si el intent es informar_nombre, tomar TODO el mensaje como nombre
+            # (asumiendo que solo escribieron su nombre)
+            nombre = mensaje.strip()
+            palabras_nombre = [p.lower() for p in nombre.split()]
+            
+            # Verificar que no contenga palabras prohibidas
+            if not any(p in palabras_prohibidas for p in palabras_nombre):
+                if len(nombre.split()) >= 2:  # Al menos 2 palabras (nombre y apellido)
+                    entidades['nombre'] = nombre.title()
+                # Si solo tiene 1 palabra, NO la aceptamos (la validación en informar_nombre la rechazará)
     
     # Extraer CÉDULA (con o sin puntos)
-    # 🔥 VALIDACIÓN: Solo aceptar formatos válidos, rechazar espacios dispersos
-    # Formatos válidos:
-    #   - Sin separadores: 1516500
-    #   - Con puntos estándar: 1.516.500
-    #   - Con espacios estándar: 1 516 500
-    # Formatos INVÁLIDOS (rechazar):
-    #   - Espacios dispersos: "1 2 3 4 5 6 7" o "148 65 248"
-    
-    # Primero detectar si tiene formato inválido (espacios no estándar entre dígitos)
-    # Buscar si hay números separados por espacios que NO sean formato estándar
-    grupos_espaciados = re.findall(r'\b\d+\b', mensaje)
-    
-    # Validar si tiene múltiples grupos de dígitos
-    if len(grupos_espaciados) >= 3:
-        # Verificar si es formato estándar (X XXX XXX): 2-3 grupos con longitudes 1-2, 3, 3
-        es_formato_estandar = (
-            len(grupos_espaciados) == 3 and
-            len(grupos_espaciados[0]) in [1, 2] and
-            len(grupos_espaciados[1]) == 3 and
-            len(grupos_espaciados[2]) == 3
-        )
-        
-        # Si NO es formato estándar pero tiene múltiples grupos → INVÁLIDO
-        if not es_formato_estandar:
-            # Además, verificar que realmente sean dígitos de una posible cédula (5-8 dígitos totales)
-            total_digitos = sum(len(g) for g in grupos_espaciados)
-            if 5 <= total_digitos <= 8:
-                logger.warning(f"⚠️ Formato de cédula inválido detectado (espacios no estándar): {mensaje}")
-                entidades['cedula_invalida'] = True  # Marcar para mostrar mensaje de error
-    
-    # Si no es formato inválido, intentar extraer cédula normalmente
-    if not entidades.get('cedula_invalida'):
-        # 1. Primero buscar "mi cedula es NUMERO" o "cedula: NUMERO"
-        cedula_match = re.search(r'(?:mi\s+)?c[eé]dula\s+(?:es|:)?\s*([\d\.\s]+)', mensaje_lower)
+    # 1. Primero buscar "mi cedula es NUMERO" o "cedula: NUMERO"
+    cedula_match = re.search(r'(?:mi\s+)?c[eé]dula\s+(?:es|:)?\s*(\d{3,8})', mensaje_lower)
+    if cedula_match:
+        entidades['cedula'] = cedula_match.group(1)
+    else:
+        # 2. Intentar con puntos: XX.XXX.XXX
+        cedula_match = re.search(r'\b(\d{1,2}\.\d{3}\.\d{3})\b', mensaje)
         if cedula_match:
-            cedula_raw = cedula_match.group(1).strip()
-            # Validar que no sea formato disperso
-            if not re.match(r'^(\d\s+){4,}', cedula_raw):
-                # Normalizar: quitar espacios y puntos
-                cedula_limpia = re.sub(r'[\s\.]', '', cedula_raw)
-                if cedula_limpia.isdigit() and 5 <= len(cedula_limpia) <= 8:
-                    entidades['cedula'] = cedula_limpia
+            # Remover los puntos para almacenar solo números
+            entidades['cedula'] = cedula_match.group(1).replace('.', '')
         else:
-            # 2. Intentar con puntos estándar: X.XXX.XXX (1-2 dígitos, punto, 3 dígitos, punto, 3 dígitos)
-            cedula_match = re.search(r'\b(\d{1,2}\.\d{3}\.\d{3})\b', mensaje)
+            # 3. Si no tiene puntos, buscar 5-8 dígitos aislados
+            cedula_match = re.search(r'\b(\d{5,8})\b', mensaje)
             if cedula_match:
-                cedula_raw = cedula_match.group(1)
-                cedula_limpia = re.sub(r'\.', '', cedula_raw)
-                entidades['cedula'] = cedula_limpia
-                logger.info(f"📋 Cédula detectada (formato con puntos): {cedula_limpia}")
-            else:
-                # 3. Intentar con espacios estándar: X XXX XXX
-                cedula_match = re.search(r'\b(\d{1,2}\s\d{3}\s\d{3})\b', mensaje)
-                if cedula_match:
-                    cedula_raw = cedula_match.group(1)
-                    cedula_limpia = re.sub(r'\s', '', cedula_raw)
-                    entidades['cedula'] = cedula_limpia
-                    logger.info(f"📋 Cédula detectada (formato con espacios estándar): {cedula_limpia}")
-                else:
-                    # 4. Si no tiene separadores, buscar 5-8 dígitos consecutivos
-                    cedula_match = re.search(r'\b(\d{5,8})\b', mensaje)
-                    if cedula_match:
-                        entidades['cedula'] = cedula_match.group(1)
+                entidades['cedula'] = cedula_match.group(1)
     
     # Extraer FECHA
-    # 🔥 NUEVO: Detectar URGENCIA - asignar fecha más cercana automáticamente
-    frases_urgencia = [
-        'urgencia', 'urgente', 'fecha más cercana', 'fecha mas cercana',
-        'lo antes posible', 'lo más pronto', 'lo mas pronto',
-        'cuanto antes', 'cuánto antes', 'primera fecha', 'fecha disponible',
-        'más cercano', 'mas cercano', 'más próximo', 'mas proximo',
-        'próxima fecha', 'proxima fecha', 'turno más cercano', 'turno mas cercano',
-        'turno más próximo', 'turno mas proximo', 'día más cercano', 'dia mas cercano',
-        'el dia mas proximo', 'el día más próximo', 'dame el turno mas proximo',
-        'el turno mas cercano', 'el mas cercano', 'el más próximo'
-    ]
-    
-    if any(frase in mensaje_lower for frase in frases_urgencia):
-        # Asignar mañana (o siguiente día laboral si mañana es fin de semana)
-        manana = datetime.now() + timedelta(days=1)
-        
-        # Si mañana es sábado (5) o domingo (6), buscar el siguiente lunes
-        while manana.weekday() >= 5:
-            manana += timedelta(days=1)
-        
-        entidades['fecha'] = manana.strftime('%Y-%m-%d')
-        logger.info(f"🚨 Urgencia detectada → Fecha asignada automáticamente: {entidades['fecha']}")
-    
-    # 🔥 FIX CONV #11: Detectar "ese día" - usar fecha recomendada o fecha en contexto
-    elif 'ese dia' in mensaje_lower or 'ese día' in mensaje_lower:
-        # Prioridad: fecha_recomendada (para recomendaciones del bot) > contexto.fecha
-        if hasattr(contexto, 'fecha_recomendada') and contexto.fecha_recomendada:
-            entidades['fecha'] = contexto.fecha_recomendada
-            logger.info(f"🔗 Referencia 'ese día' resuelta usando recomendación: {contexto.fecha_recomendada}")
-        elif contexto.fecha:
-            entidades['fecha'] = contexto.fecha
-            logger.info(f"🔗 Referencia 'ese día' resuelta usando contexto: {contexto.fecha}")
-    elif 'mañana' in mensaje_lower or 'manana' in mensaje_lower:
-        # 🔥 FIX: NO detectar como fecha si es parte de preferencia horaria
-        es_preferencia_horaria = any(frase in mensaje_lower for frase in [
-            'por la mañana', 'de mañana', 'en la mañana', 'a la mañana',
-            'no puedo por la mañana', 'no puedo de mañana', 'no puedo en la mañana'
-        ])
-        
-        if not es_preferencia_horaria:
-            # 🔥 FIX: Detectar "pasado mañana" ANTES de "mañana" para evitar match incorrecto
-            if any(frase in mensaje_lower for frase in ['pasado mañana', 'pasado manana', 'pasado ma�ana', 'el dia despues de mañana', 'el día después de mañana', 'dos dias', 'dos días']):
-                # Calcular pasado mañana (dentro de 2 días)
-                fecha = (datetime.now() + timedelta(days=2)).strftime('%Y-%m-%d')
-                entidades['fecha'] = fecha
-                logger.info(f"📅 Fecha detectada (pasado mañana): {fecha}")
-            else:
-                # Es solo "mañana" como fecha (tomorrow)
-                fecha = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
-                entidades['fecha'] = fecha
-                logger.info(f"📅 Fecha detectada (mañana): {fecha}")
-    
-    # 🔥 NUEVO: Detectar "dia siguiente" / "al dia siguiente" relativo a fecha en contexto
-    elif any(frase in mensaje_lower for frase in ['dia siguiente', 'día siguiente', 'al dia siguiente', 'al día siguiente', 'el dia siguiente', 'el día siguiente']):
-        # Si hay fecha en contexto, sumar 1 día
-        if contexto.fecha:
-            try:
-                fecha_actual = datetime.strptime(contexto.fecha, '%Y-%m-%d')
-                fecha_siguiente = fecha_actual + timedelta(days=1)
-                # Saltar fines de semana
-                while fecha_siguiente.weekday() >= 5:  # 5=sábado, 6=domingo
-                    fecha_siguiente += timedelta(days=1)
-                entidades['fecha'] = fecha_siguiente.strftime('%Y-%m-%d')
-                logger.info(f"📅 'Día siguiente' detectado desde contexto {contexto.fecha} → {entidades['fecha']}")
-            except:
-                # Fallback: mañana
-                entidades['fecha'] = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
-                logger.info(f"📅 'Día siguiente' sin contexto válido → mañana: {entidades['fecha']}")
-        else:
-            # Sin contexto, asumir "mañana"
-            entidades['fecha'] = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
-            logger.info(f"📅 'Día siguiente' sin contexto → mañana: {entidades['fecha']}")
-    
+    if 'mañana' in mensaje_lower or 'manana' in mensaje_lower:
+        fecha = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        entidades['fecha'] = fecha
+    elif 'pasado mañana' in mensaje_lower or 'pasado manana' in mensaje_lower:
+        fecha = (datetime.now() + timedelta(days=2)).strftime('%Y-%m-%d')
+        entidades['fecha'] = fecha
     elif 'hoy' in mensaje_lower:
-        # 🔥 FIX: Detectar "X días desde hoy" para calcular fecha relativa
-        dias_match = re.search(r'(\w+)\s+d[ií]as?\s+(desde|a\s+partir\s+de)\s+hoy', mensaje_lower)
-        if dias_match:
-            # Convertir palabra a número (dos → 2, tres → 3, etc.)
-            dias_palabras = {
-                'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5,
-                'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10
-            }
-            palabra_dias = dias_match.group(1).lower()
-            if palabra_dias in dias_palabras:
-                num_dias = dias_palabras[palabra_dias]
-                fecha = (datetime.now() + timedelta(days=num_dias)).strftime('%Y-%m-%d')
-                entidades['fecha'] = fecha
-                logger.info(f"📅 Fecha detectada ({palabra_dias} días desde hoy): {fecha}")
-            elif palabra_dias.isdigit():
-                num_dias = int(palabra_dias)
-                fecha = (datetime.now() + timedelta(days=num_dias)).strftime('%Y-%m-%d')
-                entidades['fecha'] = fecha
-                logger.info(f"📅 Fecha detectada ({num_dias} días desde hoy): {fecha}")
-            else:
-                # Fallback: usar hoy
-                entidades['fecha'] = datetime.now().strftime('%Y-%m-%d')
-        else:
-            # Solo "hoy"
-            entidades['fecha'] = datetime.now().strftime('%Y-%m-%d')
-    elif any(frase in mensaje_lower for frase in ['esta semana', 'semana actual']):
-        # 🔥 FIX: Resetear flag de próxima semana cuando dice "esta semana"
-        entidades['proxima_semana'] = False
-        logger.info(f"📅 'Esta semana' detectado → flag proxima_semana=False")
-        # No asignar fecha automática, dejar que el usuario especifique el día
+        entidades['fecha'] = datetime.now().strftime('%Y-%m-%d')
     elif any(frase in mensaje_lower for frase in ['proxima semana', 'próxima semana', 'siguiente semana', 'semana que viene']):
-        # 🔥 NUEVO: Activar flag de próxima semana
-        entidades['proxima_semana'] = True
-        
         # Para "próxima semana", sugerir lunes de la próxima semana
         hoy = datetime.now()
         dias_hasta_lunes = (7 - hoy.weekday()) % 7
@@ -1953,7 +1104,6 @@ def extraer_entidades(mensaje: str, intent: str, contexto: SessionContext = None
             dias_hasta_lunes = 7
         fecha_proxima_semana = hoy + timedelta(days=dias_hasta_lunes)
         entidades['fecha'] = fecha_proxima_semana.strftime('%Y-%m-%d')
-        logger.info(f"📅 'Próxima semana' detectado → lunes {entidades['fecha']} (flag activado)")
     else:
         # Reconocer días de la semana (lunes, martes, etc.)
         dias_semana = {
@@ -1961,129 +1111,31 @@ def extraer_entidades(mensaje: str, intent: str, contexto: SessionContext = None
             'jueves': 3, 'viernes': 4, 'sabado': 5, 'sábado': 5, 'domingo': 6
         }
         
-        # 🔥 FIX: Detectar "próximo/a [día]" o "para el [día]"
         for dia_nombre, dia_num in dias_semana.items():
-            # Patrones: "próximo jueves", "el próximo lunes", "para el jueves"
-            patrones_proximo = [
-                f'proximo {dia_nombre}',
-                f'próximo {dia_nombre}',
-                f'proxima {dia_nombre}',
-                f'próxima {dia_nombre}',
-                f'el proximo {dia_nombre}',
-                f'el próximo {dia_nombre}',
-                f'la proxima {dia_nombre}',
-                f'la próxima {dia_nombre}',
-                f'para el {dia_nombre}',
-                f'para el dia {dia_nombre}',
-                f'para el día {dia_nombre}'
-            ]
-            
-            if any(patron in mensaje_lower for patron in patrones_proximo):
-                # Calcular el próximo [día] (próxima ocurrencia de ese día)
+            if dia_nombre in mensaje_lower:
+                # Encontrar el día de la semana
                 hoy = datetime.now()
                 dia_actual = hoy.weekday()
                 dias_hasta = (dia_num - dia_actual) % 7
                 
-                # Si dias_hasta es 0 (es hoy) y dice "próximo", ir a la próxima semana
+                # Si es hoy (dias_hasta == 0), usar hoy
+                # Si el día ya pasó (dias_hasta < 0), ir a la próxima semana
+                # Si el día está adelante (dias_hasta > 0), usar esta semana
                 if dias_hasta == 0:
-                    dias_hasta = 7
+                    # Es hoy, usar hoy
+                    fecha_dia = hoy
+                elif dias_hasta < 0 or (dias_hasta == 0 and hoy.hour >= 17):
+                    # Ya pasó o es muy tarde, ir a la próxima semana
+                    dias_hasta = 7 + dias_hasta
+                    fecha_dia = hoy + timedelta(days=dias_hasta)
+                else:
+                    # Está adelante esta semana
+                    fecha_dia = hoy + timedelta(days=dias_hasta)
                 
-                fecha_dia = hoy + timedelta(days=dias_hasta)
                 entidades['fecha'] = fecha_dia.strftime('%Y-%m-%d')
-                logger.info(f"📅 'Próximo {dia_nombre}' detectado → {entidades['fecha']}")
                 break
         
-        # Si no se detectó "próximo [día]", buscar día solo
-        if 'fecha' not in entidades:
-            for dia_nombre, dia_num in dias_semana.items():
-                if dia_nombre in mensaje_lower:
-                    # Encontrar el día de la semana
-                    hoy = datetime.now()
-                    dia_actual = hoy.weekday()
-                    
-                    # 🔥 PRIORIDAD 1: Si hay fecha_recomendada Y el día coincide, usar esa fecha
-                    if contexto.fecha_recomendada:
-                        fecha_rec_obj = datetime.strptime(contexto.fecha_recomendada, '%Y-%m-%d')
-                        if fecha_rec_obj.weekday() == dia_num:
-                            entidades['fecha'] = contexto.fecha_recomendada
-                            logger.info(f"📅 Día '{dia_nombre}' confirmado usando fecha recomendada: {contexto.fecha_recomendada}")
-                            break
-                    
-                    # 🔥 PRIORIDAD 2: Si el mensaje contiene "esta semana" explícitamente, forzar esta semana
-                    if any(frase in mensaje_lower for frase in ['esta semana', 'semana actual']):
-                        # Forzar esta semana incluso si contexto.proxima_semana=True
-                        dias_hasta = (dia_num - dia_actual) % 7
-                        if dias_hasta == 0:
-                            fecha_dia = hoy  # Es hoy
-                        else:
-                            fecha_dia = hoy + timedelta(days=dias_hasta)
-                        logger.info(f"📅 Día '{dia_nombre}' con 'esta semana' explícito → {fecha_dia.strftime('%Y-%m-%d')}")
-                    
-                    # 🔥 PRIORIDAD 3: Si contexto tiene flag "proxima_semana", forzar próxima semana
-                    elif contexto.proxima_semana:
-                        # Calcular días hasta el día específico de PRÓXIMA semana
-                        dias_hasta = (dia_num - dia_actual) % 7
-                        if dias_hasta == 0:
-                            dias_hasta = 7  # Si es el mismo día, ir a próxima semana
-                        else:
-                            dias_hasta += 7  # Siempre ir a próxima semana
-                        fecha_dia = hoy + timedelta(days=dias_hasta)
-                        logger.info(f"📅 Día '{dia_nombre}' con contexto 'próxima semana' → {fecha_dia.strftime('%Y-%m-%d')}")
-                    else:
-                        # Lógica original: esta semana o próxima según contexto
-                        dias_hasta = (dia_num - dia_actual) % 7
-                        
-                        # Si es hoy (dias_hasta == 0), usar hoy
-                        # Si el día ya pasó (dias_hasta < 0), ir a la próxima semana
-                        # Si el día está adelante (dias_hasta > 0), usar esta semana
-                        if dias_hasta == 0:
-                            # Es hoy, usar hoy
-                            fecha_dia = hoy
-                        elif dias_hasta < 0 or (dias_hasta == 0 and hoy.hour >= 17):
-                            # Ya pasó o es muy tarde, ir a la próxima semana
-                            dias_hasta = 7 + dias_hasta
-                            fecha_dia = hoy + timedelta(days=dias_hasta)
-                        else:
-                            # Está adelante esta semana
-                            fecha_dia = hoy + timedelta(days=dias_hasta)
-                    
-                    entidades['fecha'] = fecha_dia.strftime('%Y-%m-%d')
-                    break
-        
-        # Si no encontró día de semana, buscar formato "DD de Mes" (ej: "15 de Noviembre")
-        if 'fecha' not in entidades:
-            # Diccionario de meses en español
-            meses_espanol = {
-                'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4,
-                'mayo': 5, 'junio': 6, 'julio': 7, 'agosto': 8,
-                'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12,
-                # Abreviaciones
-                'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6,
-                'jul': 7, 'ago': 8, 'sep': 9, 'sept': 9, 'oct': 10, 'nov': 11, 'dic': 12
-            }
-            
-            # Buscar patrón "DD de MES" o "DD MES"
-            fecha_texto_match = re.search(r'\b(\d{1,2})\s+(?:de\s+)?(\w+)\b', mensaje_lower)
-            if fecha_texto_match:
-                dia = int(fecha_texto_match.group(1))
-                mes_texto = fecha_texto_match.group(2).lower()
-                
-                if mes_texto in meses_espanol:
-                    mes = meses_espanol[mes_texto]
-                    anio = datetime.now().year
-                    
-                    # Si la fecha ya pasó este año, usar el próximo año
-                    fecha_candidata = datetime(anio, mes, dia)
-                    if fecha_candidata.date() < datetime.now().date():
-                        anio += 1
-                    
-                    try:
-                        entidades['fecha'] = f"{anio}-{mes:02d}-{dia:02d}"
-                        logger.info(f"📅 Fecha detectada (formato texto): {dia} de {mes_texto} = {entidades['fecha']}")
-                    except:
-                        pass
-        
-        # Si aún no encontró fecha, buscar formato DD/MM o DD-MM
+        # Si no encontró día de semana, buscar formato DD/MM o DD-MM
         if 'fecha' not in entidades:
             fecha_match = re.search(r'\b(\d{1,2})[/-](\d{1,2})([/-](\d{2,4}))?\b', mensaje)
             if fecha_match:
@@ -2098,122 +1150,21 @@ def extraer_entidades(mensaje: str, intent: str, contexto: SessionContext = None
                     pass
     
     # Extraer HORA
-    # 🔥 FIX CONV #11: Detectar "ese horario"/"esa hora" - usar hora recomendada
-    if ('ese horario' in mensaje_lower or 'esa hora' in mensaje_lower or 'ese hora' in mensaje_lower):
-        if hasattr(contexto, 'hora_recomendada') and contexto.hora_recomendada:
-            entidades['hora'] = contexto.hora_recomendada
-            logger.info(f"🔗 Referencia 'ese horario/esa hora' resuelta: {contexto.hora_recomendada}")
-    
-    # 🔥 FIX: Detectar "mediodía" / "mediodia"
-    if 'mediodía' in mensaje_lower or 'mediodia' in mensaje_lower or 'al mediodia' in mensaje_lower:
-        entidades['hora'] = '12:00'
-        logger.info(f"🕐 Hora detectada (mediodía): 12:00")
-    
-    # 🔥 FIX: Detectar "temprano" → 08:00
-    if 'temprano' in mensaje_lower or 'bien temprano' in mensaje_lower or 'lo mas temprano' in mensaje_lower:
-        entidades['hora'] = '08:00'
-        entidades['franja_horaria'] = 'manana'
-        logger.info(f"🕐 Hora detectada (temprano): 08:00")
-    
-    # 🔥 NUEVO: Detectar preferencias NEGATIVAS (tienen MÁXIMA prioridad)
-    preferencia_negativa_manana = any(frase in mensaje_lower for frase in [
-        'no puedo por la mañana', 'no puedo de mañana', 'no puedo en la mañana', 
-        'no puedo a la mañana', 'no puedo mañana', 'no me sirve la mañana',
-        'no me sirve por la mañana', 'no me viene bien la mañana'
-    ])
-    
-    preferencia_negativa_tarde = any(frase in mensaje_lower for frase in [
-        'no puedo por la tarde', 'no puedo de tarde', 'no puedo en la tarde', 
-        'no me sirve la tarde', 'no me sirve por la tarde', 'no me viene bien la tarde'
-    ])
-    
-    if preferencia_negativa_manana:
-        entidades['franja_horaria'] = 'tarde'
-        entidades['preferencia_explicita'] = True
-        logger.info(f"📅 Preferencia negativa detectada → preferir tarde")
-    
-    elif preferencia_negativa_tarde:
-        entidades['franja_horaria'] = 'manana'
-        entidades['preferencia_explicita'] = True
-        logger.info(f"📅 Preferencia negativa detectada → preferir mañana")
-    
-    # 🔥 NUEVO: Detectar "después del mediodía" = tarde
-    elif any(frase in mensaje_lower for frase in ['despues del mediodia', 'después del mediodía',
-                                                     'despues de mediod', 'después de mediod',
-                                                     'pasado el mediodia', 'pasado el mediodía']):
-        entidades['franja_horaria'] = 'tarde'
-        entidades['preferencia_explicita'] = True
-        logger.info(f"📅 'Después del mediodía' detectado → preferir tarde")
-    
-    # 🔥 FIX: Detectar "por la tarde" → guardar franja (SOLO si no hay preferencia negativa)
-    elif not preferencia_negativa_manana and not preferencia_negativa_tarde:
-        if 'por la tarde' in mensaje_lower or 'de tarde' in mensaje_lower or 'en la tarde' in mensaje_lower:
-            entidades['franja_horaria'] = 'tarde'
-            logger.info(f"📅 Franja horaria detectada: tarde")
-        
-        # 🔥 FIX: Detectar "por la mañana" (horario) → guardar franja  
-        elif 'por la mañana' in mensaje_lower or 'de mañana' in mensaje_lower or 'en la mañana' in mensaje_lower or 'a la mañana' in mensaje_lower:
-            entidades['franja_horaria'] = 'manana'
-            logger.info(f"📅 Franja horaria detectada: mañana")
-    
     hora_match = re.search(r'\b(\d{1,2}):(\d{2})\b', mensaje)
     if hora_match:
         entidades['hora'] = f"{int(hora_match.group(1)):02d}:{hora_match.group(2)}"
     else:
-        # 🔥 NUEVO: Detectar horas en palabras: "una y media", "dos y cuarto", etc.
-        horas_texto = {
-            'una': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5, 'seis': 6,
-            'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10, 'once': 11, 'doce': 12,
-            'trece': 13, 'catorce': 14, 'quince': 15
-        }
-        
-        # Buscar "una y media", "dos y cuarto", etc.
-        for hora_palabra, hora_num in horas_texto.items():
-            patron_texto = rf'\b{hora_palabra}\s+(y\s+(media|cuarto)|menos\s+cuarto)\b'
-            hora_texto_match = re.search(patron_texto, mensaje_lower)
-            if hora_texto_match:
-                fraccion = hora_texto_match.group(1)
-                
-                # Ajustar AM/PM
-                if hora_num < 7:  # Menor a 7 = probablemente PM
-                    hora_num += 12
-                
-                # Calcular minutos
-                if 'media' in fraccion:
-                    minutos = "30"
-                elif 'menos cuarto' in fraccion:
-                    hora_num -= 1
-                    minutos = "45"
-                else:  # "y cuarto"
-                    minutos = "15"
-                
-                entidades['hora'] = f"{hora_num:02d}:{minutos}"
-                logger.info(f"🕐 Hora detectada (texto con fracción): '{hora_palabra} {fraccion}' → {entidades['hora']}")
-                break
-        
-        # Buscar "X y media", "X y cuarto", "X menos cuarto" (con "las" opcional)
-        if 'hora' not in entidades:
-            # 🔥 NUEVO: Patrón más flexible - "las" es opcional
-            hora_match = re.search(r'(?:para\s+)?(?:a\s+)?(?:las\s+)?(\d{1,2})\s+(y\s+(media|cuarto)|menos\s+cuarto)', mensaje_lower)
-            if hora_match:
-                hora = int(hora_match.group(1))
-                fraccion_completa = hora_match.group(2)  # "y media", "y cuarto", "menos cuarto"
-                
-                # Asumir AM/PM basado en el número
-                if hora < 7:  # Si es menor a 7, probablemente sea PM (tarde)
-                    hora += 12
-                
-                # Agregar minutos según la fracción
-                if 'media' in fraccion_completa:
-                    minutos = "30"
-                elif 'menos cuarto' in fraccion_completa:
-                    hora -= 1  # Hora anterior
-                    minutos = "45"
-                else:  # "y cuarto"
-                    minutos = "15"
-                
-                entidades['hora'] = f"{hora:02d}:{minutos}"
-                logger.info(f"🕐 Hora detectada (fracción): {entidades['hora']}")
+        # Buscar "X y media", "X y cuarto"
+        hora_match = re.search(r'(?:para\s+)?(?:a\s+)?las\s+(\d{1,2})\s+y\s+(media|cuarto)', mensaje_lower)
+        if hora_match:
+            hora = int(hora_match.group(1))
+            fraccion = hora_match.group(2)
+            # Asumir AM/PM basado en el número
+            if hora < 7:  # Si es menor a 7, probablemente sea PM (tarde)
+                hora += 12
+            # Agregar minutos
+            minutos = "30" if fraccion == "media" else "15"
+            entidades['hora'] = f"{hora:02d}:{minutos}"
         else:
             # Buscar formato "a las X", "las X", "para las X" o "X hs"
             hora_match = re.search(r'(?:para\s+)?(?:a\s+)?las\s+(\d{1,2})', mensaje_lower)
@@ -2232,35 +1183,12 @@ def extraer_entidades(mensaje: str, intent: str, contexto: SessionContext = None
                     if sufijo == 'pm' and hora < 12:
                         hora += 12
                     entidades['hora'] = f"{hora:02d}:00"
-                else:
-                    # Buscar número solo (ej: "9", "14")
-                    # 🔥 FIX: Solo si el mensaje es ÚNICAMENTE un número de 1-2 dígitos Y dentro del rango de horas válidas (0-23)
-                    hora_match = re.search(r'^\s*(\d{1,2})\s*$', mensaje)
-                    if hora_match:
-                        hora = int(hora_match.group(1))
-                        # 🔥 VALIDACIÓN: Solo aceptar si es una hora válida (0-23)
-                        if hora >= 0 and hora <= 23:
-                            # Asumir AM/PM basado en el número
-                            if hora < 7:  # Si es menor a 7, probablemente sea PM (tarde)
-                                hora += 12
-                            elif hora >= 7 and hora <= 12:  # 7-12 es mañana
-                                pass  # Mantener como está
-                            # Si es 13-23, ya es formato 24h
-                            entidades['hora'] = f"{hora:02d}:00"
-                            logger.info(f"🕐 Hora detectada (número simple): {entidades['hora']} del mensaje: '{mensaje}'")
     
-    # Extraer FRANJA HORARIA (mañana/tarde) - SOLO si no hay preferencia explícita ya configurada
-    if not entidades.get('preferencia_explicita'):
-        # 🔥 PRIORIDAD 1: Detectar frases completas primero (ej: "mañana por la tarde")
-        if any(frase in mensaje_lower for frase in ['por la tarde', 'de tarde', 'en la tarde', 'a la tarde', 'despues del mediodia', 'después del mediodía', 'para mañana por la tarde', 'mañana por la tarde']):
-            entidades['franja_horaria'] = 'tarde'
-        elif any(frase in mensaje_lower for frase in ['por la mañana', 'de mañana', 'en la mañana', 'a la mañana', 'para mañana por la mañana']):
-            entidades['franja_horaria'] = 'manana'
-        # 🔥 PRIORIDAD 2: Solo palabra "tarde" o "mañana" (si no hay frase completa)
-        elif 'tarde' in mensaje_lower:
-            entidades['franja_horaria'] = 'tarde'
-        elif any(palabra in mensaje_lower for palabra in ['mañana', 'manana', 'temprano']) and 'por la tarde' not in mensaje_lower:
-            entidades['franja_horaria'] = 'manana'
+    # Extraer FRANJA HORARIA (mañana/tarde)
+    if any(palabra in mensaje_lower for palabra in ['mañana', 'manana', 'temprano', 'por la mañana', 'de mañana', 'a la mañana']):
+        entidades['franja_horaria'] = 'manana'
+    elif any(palabra in mensaje_lower for palabra in ['tarde', 'por la tarde', 'de tarde', 'a la tarde', 'despues del mediodia', 'después del mediodía']):
+        entidades['franja_horaria'] = 'tarde'
     
     # Extraer EMAIL
     email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', mensaje)
@@ -2361,134 +1289,15 @@ def procesar_mensaje_inteligente(user_message: str, session_id: str) -> Dict:
         contexto.ultimo_mensaje = user_message
         
         # 2. Clasificar intent
-        resultado_clasificacion = clasificador.clasificar(user_message, contexto)
-        
-        # Manejar multi-intent
-        metadata = {}
-        if len(resultado_clasificacion) == 3:
-            intent, confidence, metadata = resultado_clasificacion
-        else:
-            intent, confidence = resultado_clasificacion
-        
-        # Guardar intent anterior antes de actualizar
-        if hasattr(contexto, 'intent_actual') and contexto.intent_actual:
-            contexto.ultimo_intent = contexto.intent_actual
-        
+        intent, confidence = clasificador.clasificar(user_message, contexto)
         contexto.intent_actual = intent
         contexto.ultimo_intent_confianza = confidence
         
         logger.info(f"🎯 Intent: {intent} | Confianza: {confidence:.2f}")
         
-        # 3. Extraer entidades (SALVO que sea un comando de cambio)
-        mensaje_lower = user_message.lower()
-        es_comando_cambio = (
-            ('cambiar' in mensaje_lower or 'modificar' in mensaje_lower or 'corregir' in mensaje_lower) and
-            any(campo in mensaje_lower for campo in ['nombre', 'email', 'correo', 'hora', 'fecha', 'cedula', 'cédula'])
-        )
-        
-        if not es_comando_cambio:
-            entidades = extraer_entidades(user_message, intent, contexto)
-            
-            # 🔥 VALIDAR FORMATO DE CÉDULA: Rechazar formatos inválidos
-            if entidades.get('cedula_invalida'):
-                logger.warning(f"❌ Formato de cédula inválido detectado")
-                return {
-                    'text': "❌ El formato de cédula no es válido. Por favor, escribe tu cédula de una de estas formas:\n\n"
-                            "• Sin separadores: `1516500`\n"
-                            "• Con puntos: `1.516.500`\n"
-                            "• Con espacios estándar: `1 516 500`\n\n"
-                            "Por favor, vuelve a escribir tu número de cédula:",
-                    'intent': 'cedula_invalida',
-                    'confidence': 1.0,
-                    'entidades': {},
-                    'contexto': contexto.to_dict()
-                }
-            
-            contexto.actualizar(**entidades)
-            
-            # 🔥 NUEVO: Si detectamos "próxima semana" → recomendar día específico (lunes)
-            # PERO si el usuario pregunta por disponibilidad/días, NO recomendar, dejar que consultar_disponibilidad maneje
-            frases_consulta_disponibilidad = [
-                'que dias disponibles', 'qué días disponibles', 'que otros dias', 'qué otros días',
-                'cuales son los dias', 'cuáles son los días', 'dame los dias', 'dame los días',
-                'ver disponibilidad', 'mostrar disponibilidad', 'hay disponibilidad',
-                'hay mas dias', 'hay más días', 'hay otros dias', 'hay otros días',
-                'mas dias disponibles', 'más días disponibles', 'otros dias disponibles'
-            ]
-            pregunta_por_lista = any(frase in mensaje_lower for frase in frases_consulta_disponibilidad)
-            
-            if entidades.get('proxima_semana') and contexto.fecha and not pregunta_por_lista:
-                # Guardar fecha recomendada (lunes) en contexto
-                contexto.fecha_recomendada = contexto.fecha
-                
-                # Calcular día de la semana en español
-                dias_esp = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
-                fecha_obj = datetime.strptime(contexto.fecha, '%Y-%m-%d')
-                dia_semana = dias_esp[fecha_obj.weekday()]
-                dia_mes = fecha_obj.day
-                
-                logger.info(f"📅 'Próxima semana' detectado → recomendar {dia_semana} {dia_mes}")
-                
-                # Generar respuesta con recomendación
-                return {
-                    'text': f"Perfecto, la proxima semana. Te recomiendo el **{dia_semana} {dia_mes} de noviembre**. "
-                            f"Te sirve ese dia? Si prefieres otro dia de la semana, dime cual.",
-                    'intent': 'agendar_turno',
-                    'confidence': 0.95,
-                    'entidades': entidades,
-                    'contexto': contexto.to_dict()
-                }
-            
-            # 🔥 NUEVO: Si usuario indica preferencia de horario sin fecha, asignar mañana y mostrar horarios filtrados
-            if entidades.get('preferencia_explicita') and contexto.franja_horaria and not contexto.fecha:
-                # Asignar mañana automáticamente
-                manana = datetime.now() + timedelta(days=1)
-                while manana.weekday() >= 5:  # Skip weekend
-                    manana += timedelta(days=1)
-                
-                contexto.fecha = manana.strftime('%Y-%m-%d')
-                logger.info(f"🎯 Preferencia de horario detectada sin fecha → asignar mañana ({contexto.fecha}) y filtrar por {contexto.franja_horaria}")
-                
-                # Forzar mostrar disponibilidad filtrada
-                intent = 'consultar_disponibilidad'
-            
-            # 🔥 VERIFICAR SI ACABAMOS DE COMPLETAR UN CAMBIO
-            # Si acabamos de actualizar un campo que estaba en proceso de cambio
-            # y ahora todos los datos están completos, mostrar resumen
-            if contexto.campo_en_cambio and contexto.tiene_datos_completos() and entidades:
-                logger.info(f"✅ [CAMBIO COMPLETADO] Campo '{contexto.campo_en_cambio}' actualizado → Mostrar resumen")
-                
-                # Limpiar la bandera de cambio
-                contexto.campo_en_cambio = None
-                
-                # Generar resumen de confirmación
-                resumen = f"📋 Perfecto! Resumen actualizado de tu turno:\n"
-                resumen += f"Nombre: {contexto.nombre}\n"
-                
-                # Solo mostrar cédula si tiene una válida
-                if contexto.cedula and contexto.cedula != "SIN_CEDULA":
-                    resumen += f"Cédula: {contexto.cedula}\n"
-                else:
-                    resumen += f"Cédula: Sin cédula (trámite nuevo)\n"
-                
-                resumen += f"Fecha: {contexto.fecha}\n"
-                resumen += f"Hora: {contexto.hora}\n"
-                resumen += f"Email: {contexto.email}\n\n"
-                resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)\n\n"
-                resumen += f"💡 Si quieres corregir algo más, di:\n"
-                resumen += f"• 'Cambiar [nombre/cédula/fecha/hora/email]'\n"
-                resumen += f"• 'Cancelar' (empezar de nuevo)"
-                
-                return {
-                    'text': resumen,
-                    'intent': 'confirmar',
-                    'confidence': 0.98,
-                    'entidades': entidades,
-                    'contexto': contexto.to_dict()
-                }
-        else:
-            entidades = {}  # No extraer entidades de "Cambiar nombre"
-            logger.info(f"⏭️ Saltando extracción de entidades (comando de cambio detectado)")
+        # 3. Extraer entidades
+        entidades = extraer_entidades(user_message, intent)
+        contexto.actualizar(**entidades)
         
         # 3.5. VALIDAR FECHA: No permitir fin de semana
         if entidades.get('fecha'):
@@ -2514,20 +1323,6 @@ def procesar_mensaje_inteligente(user_message: str, session_id: str) -> Dict:
         
         # 4. Generar respuesta según intent
         respuesta = generar_respuesta_inteligente(intent, confidence, contexto, user_message)
-        
-        # 🔥 MANEJO DE MULTI-INTENT: Generar respuesta compuesta
-        if metadata.get('multi_intent'):
-            siguiente_intent = metadata.get('siguiente_intent')
-            logger.info(f"🎭 Generando respuesta compuesta: {intent} + {siguiente_intent}")
-            
-            # Agregar al final: transición al agendamiento
-            if isinstance(respuesta, str):
-                respuesta += "\n\n¿Quieres agendar turno? ¿Cuál es tu nombre completo?"
-            elif isinstance(respuesta, dict):
-                respuesta['text'] += "\n\n¿Quieres agendar turno? ¿Cuál es tu nombre completo?"
-            
-            # Marcar que esperamos inicio de agendamiento
-            contexto.flujo_activo = siguiente_intent
         
         # Si la respuesta es un diccionario (ej: modo_desarrollador con botón), 
         # combinar con los datos base
@@ -2651,17 +1446,6 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
         contexto.cedula = "SIN_CEDULA"
         return "Entendido, sin problema. Continuamos con el agendamiento. ¿Para qué día necesitas el turno? Puedes decir 'mañana' o una fecha específica."
     
-    # Intent: ACLARACIÓN DE CAMBIO - Usuario dijo "cambiar" sin especificar qué
-    if intent == 'aclaracion_cambio':
-        return (
-            "¿Qué dato quieres cambiar? Puedes decir:\n"
-            "• 'Cambiar nombre'\n"
-            "• 'Cambiar cédula'\n"
-            "• 'Cambiar fecha'\n"
-            "• 'Cambiar hora'\n"
-            "• 'Cambiar email'"
-        )
-    
     # Intent: INFORMAR NOMBRE - Guardar nombre y continuar flujo
     if intent == 'informar_nombre':
         if contexto.nombre:
@@ -2703,12 +1487,8 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
             # Ya tenemos la cédula, preguntar fecha
             return "¿Para qué día necesitas el turno? Puedes decir 'mañana' o una fecha específica."
         else:
-            # Si estamos en proceso de cambio, no volver a preguntar (solo esperar)
-            if contexto.campo_en_cambio == 'cedula':
-                return "¿Cuál es tu nueva cédula?"
-            else:
-                # Algo salió mal o primera vez
-                return "¿Cuál es tu número de cédula?"
+            # Algo salió mal
+            return "¿Cuál es tu número de cédula?"
     
     # Intent: AGENDAR TURNO
     if intent == 'agendar_turno':
@@ -2738,100 +1518,18 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
             resumen += f"Fecha: {contexto.fecha}\n"
             resumen += f"Hora: {contexto.hora}\n"
             resumen += f"Email: {contexto.email}\n\n"
-            resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)\n\n"
-            resumen += f"💡 Si quieres corregir algo, di:\n"
-            resumen += f"• 'Cambiar [nombre/cédula/fecha/hora/email]'\n"
-            resumen += f"• 'Cancelar' (empezar de nuevo)"
+            resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)"
             
             return resumen
     
     # Intent: ELEGIR HORARIO
     elif intent == 'elegir_horario':
-        # 🔥 VALIDAR HORA FUERA DE RANGO (07:00 - 15:00)
-        if contexto.hora:
-            try:
-                hora_obj = datetime.strptime(contexto.hora, '%H:%M').time()
-                hora_inicio = datetime.strptime('07:00', '%H:%M').time()
-                hora_fin = datetime.strptime('15:00', '%H:%M').time()
-                
-                if hora_obj < hora_inicio or hora_obj > hora_fin:
-                    contexto.hora = None  # Resetear hora inválida
-                    return (
-                        f"⚠️ Lo siento, solo atendemos de 07:00 a 15:00.\n\n"
-                        f"Por favor, elige un horario dentro de ese rango. Por ejemplo:\n"
-                        f"• 09:00\n"
-                        f"• 11:30\n"
-                        f"• 14:00"
-                    )
-                
-                # 🔥 NUEVO: VALIDAR SI EL HORARIO YA ESTÁ LLENO (máximo 2 personas por turno)
-                if contexto.fecha:
-                    try:
-                        disponibilidad = obtener_disponibilidad_real(contexto.fecha)
-                        ocupacion = disponibilidad.get(contexto.hora, 0)
-                        
-                        if ocupacion >= 2:
-                            logger.warning(f"⚠️ Horario {contexto.hora} lleno ({ocupacion}/2) para {contexto.fecha}")
-                            
-                            # Buscar siguiente horario disponible
-                            horarios_disponibles = [h for h, o in sorted(disponibilidad.items()) if o < 2 and h > contexto.hora]
-                            
-                            contexto.hora = None  # Resetear hora llena
-                            
-                            if horarios_disponibles:
-                                siguiente_horario = horarios_disponibles[0]
-                                # 🔥 NUEVO: Guardar horario recomendado para que el usuario pueda aceptarlo con "sí"
-                                contexto.hora_recomendada = siguiente_horario
-                                logger.info(f"💡 Horario recomendado guardado: {siguiente_horario}")
-                                return (
-                                    f"⚠️ Lo siento, el horario {hora_obj.strftime('%H:%M')} ya está completo (2 personas agendadas).\n\n"
-                                    f"🌟 Te recomiendo el siguiente horario disponible: **{siguiente_horario}**\n\n"
-                                    f"Otros horarios disponibles: {', '.join(horarios_disponibles[:5])}\n\n"
-                                    f"¿Prefieres alguno de estos?"
-                                )
-                            else:
-                                return (
-                                    f"⚠️ Lo siento, el horario {hora_obj.strftime('%H:%M')} ya está completo.\n\n"
-                                    f"❌ No hay más horarios disponibles para el {contexto.fecha}.\n\n"
-                                    f"¿Prefieres otro día? Puedes decir 'mañana', 'próxima semana', etc."
-                                )
-                    except Exception as e:
-                        logger.error(f"❌ Error validando disponibilidad: {e}")
-                        import traceback
-                        traceback.print_exc()
-                        # Continuar sin validación si hay error
-                        
-            except Exception as e:
-                logger.error(f"❌ Error en procesamiento de hora: {e}")
-                import traceback
-                traceback.print_exc()
-        
         if not contexto.nombre:
             return "Primero necesito que me digas tu nombre completo."
         elif not contexto.cedula:
             return f"Gracias {contexto.nombre}. ¿Cuál es tu número de cédula?"
         elif not contexto.fecha:
             return "¿Para qué día necesitas el turno?"
-        # 🔥 FIX: Si estamos en "cambiar hora" y tiene fecha, mostrar horarios disponibles
-        elif not contexto.hora and contexto.fecha and contexto.campo_en_cambio == 'hora':
-            try:
-                # Función ya está definida en este mismo archivo (línea ~2204)
-                disponibilidad = obtener_disponibilidad_real(contexto.fecha)
-                horarios_disponibles = [h for h, o in disponibilidad.items() if o < 2]
-                
-                if horarios_disponibles[:5]:
-                    fecha_obj = datetime.strptime(contexto.fecha, '%Y-%m-%d')
-                    return (
-                        f"✅ Para el {fecha_obj.strftime('%Y-%m-%d')}:\n\n"
-                        f"🌟 Te recomiendo las {horarios_disponibles[0]} (menor tiempo de espera).\n\n"
-                        f"Otros horarios: {', '.join(horarios_disponibles[:5])}\n\n"
-                        f"¿A qué hora prefieres?"
-                    )
-                else:
-                    return f"❌ No hay horarios disponibles para el {contexto.fecha}. ¿Prefieres otro día?"
-            except Exception as e:
-                logger.error(f"Error obteniendo disponibilidad: {e}")
-                return "¿A qué hora prefieres? Por ejemplo: 09:00, 14:30, etc."
         elif not contexto.email:
             # Pedir email antes de confirmar
             return "Perfecto! Para enviarte la confirmación y el código QR, ¿cuál es tu email?"
@@ -2848,10 +1546,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
             resumen += f"Fecha: {contexto.fecha}\n"
             resumen += f"Hora: {contexto.hora}\n"
             resumen += f"Email: {contexto.email}\n\n"
-            resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)\n\n"
-            resumen += f"💡 Si quieres corregir algo, di:\n"
-            resumen += f"• 'Cambiar [nombre/cédula/fecha/hora/email]'\n"
-            resumen += f"• 'Cancelar' (empezar de nuevo)"
+            resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)"
             
             return resumen
         else:
@@ -2875,10 +1570,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                 resumen += f"Fecha: {contexto.fecha}\n"
                 resumen += f"Hora: {contexto.hora}\n"
                 resumen += f"Email: {contexto.email}\n\n"
-                resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)\n\n"
-                resumen += f"💡 Si quieres corregir algo, di:\n"
-                resumen += f"• 'Cambiar [nombre/cédula/fecha/hora/email]'\n"
-                resumen += f"• 'Cancelar' (empezar de nuevo)"
+                resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)"
                 
                 return resumen
             else:
@@ -3043,10 +1735,8 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                 # Sugerir horario con menos espera (ocupación más baja)
                 mejor_horario = min(horarios_disponibles.items(), key=lambda x: x[1])[0]
                 
-                # 🔥 FIX CONV #11: GUARDAR fecha y hora recomendadas para referencia posterior ("ese día/hora")
-                contexto.fecha_recomendada = fecha_str
+                # GUARDAR hora recomendada para usar después
                 contexto.hora_recomendada = mejor_horario
-                logger.info(f"💾 Guardado recomendación: fecha={fecha_str}, hora={mejor_horario}")
                 
                 return (
                     f"✅ **Muy buena disponibilidad para el {fecha_str}** ({dia_nombre}).\n\n"
@@ -3129,11 +1819,8 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
         # ==========================================
         # CONSULTAS GENERALES (sin especificar franja)
         # ==========================================
-        # 🔥 FIX: Detectar si pregunta EXPLÍCITAMENTE por "esta semana" (resetear contexto proxima_semana)
+        # Detectar si pregunta por "esta semana" o "próxima semana"
         if any(frase in mensaje_lower for frase in ['esta semana', 'semana actual']):
-            # IMPORTANTE: Resetear flag proxima_semana para evitar confusión
-            contexto.proxima_semana = False
-            
             # Mostrar disponibilidad del resto de esta semana (desde hoy hasta viernes)
             hoy = datetime.now()
             respuesta = "📅 **Disponibilidad para esta semana:**\n\n"
@@ -3177,9 +1864,8 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
             respuesta += "\n¿Para qué día prefieres agendar?"
             return respuesta
         
-        # Detectar si pregunta por "próxima semana" O si contexto ya tiene proxima_semana=True
-        elif (any(frase in mensaje_lower for frase in ['proxima semana', 'próxima semana', 'siguiente semana', 'semana que viene']) 
-              or contexto.proxima_semana):
+        # Detectar si pregunta por "próxima semana"
+        elif any(frase in mensaje_lower for frase in ['proxima semana', 'próxima semana', 'siguiente semana', 'semana que viene']):
             # Mostrar disponibilidad de varios días de la próxima semana
             hoy = datetime.now()
             dias_hasta_lunes = (7 - hoy.weekday()) % 7
@@ -3290,88 +1976,13 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
         if not contexto.cedula:
             return f"Gracias {contexto.nombre}. ¿Cuál es tu número de cédula?"
         
-        # 🔥 NUEVO: Si ya tiene fecha pero pide recomendación, asignar mejor horario automáticamente
-        if contexto.fecha and not contexto.hora:
-            disponibilidad = obtener_disponibilidad_real(contexto.fecha)
-            if disponibilidad:
-                # Buscar horarios disponibles
-                horarios_disponibles = [(hora, ocupacion) for hora, ocupacion in disponibilidad.items() if ocupacion < 2]
-                horarios_disponibles.sort(key=lambda x: (x[1], x[0]))  # Ordenar por ocupación, luego por hora
-                
-                if horarios_disponibles:
-                    mejor_horario = horarios_disponibles[0][0]  # Primer horario con menos ocupación
-                    contexto.hora = mejor_horario
-                    
-                    logger.info(f"🌟 Asignando horario recomendado automáticamente: {mejor_horario}")
-                    
-                    resumen = f"🌟 Te recomiendo y asigno el mejor horario: **{mejor_horario}**\n\n"
-                    resumen += f"📋 Resumen de tu turno:\n"
-                    resumen += f"Nombre: {contexto.nombre}\n"
-                    
-                    if contexto.cedula and contexto.cedula != "SIN_CEDULA":
-                        resumen += f"Cédula: {contexto.cedula}\n"
-                    else:
-                        resumen += f"Cédula: Sin cédula (trámite nuevo)\n"
-                    
-                    resumen += f"Fecha: {contexto.fecha}\n"
-                    resumen += f"Hora: {mejor_horario}\n\n"
-                    
-                    if not contexto.email:
-                        resumen += f"¿Cuál es tu email para enviarte la confirmación?"
-                    else:
-                        resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)\n\n"
-                        resumen += f"💡 Si quieres cambiar algo, di 'Cambiar [nombre/cédula/fecha/hora/email]'"
-                    
-                    return resumen
-        
-        # 🔥 MEJORADO: Buscar el horario más próximo disponible (hoy si es posible)
+        # Si no tenemos fecha, usar el siguiente día hábil
         if not contexto.fecha:
             ahora = datetime.now()
-            hora_actual = ahora.hour
-            minuto_actual = ahora.minute
-            
-            # Calcular hora mínima (2 horas después de ahora)
-            hora_minima = hora_actual + 2
-            
-            # Si es antes de las 13:00 (15:00 - 2 horas), intentar HOY
-            if hora_minima < 15:  # Horario de atención hasta 15:00
-                fecha_hoy = ahora.strftime('%Y-%m-%d')
-                disponibilidad_hoy = obtener_disponibilidad_real(fecha_hoy)
-                
-                # Buscar horarios disponibles HOY después de 2 horas
-                horarios_hoy = []
-                for hora, ocupacion in disponibilidad_hoy.items():
-                    if ocupacion < 2:  # Disponible
-                        hora_int = int(hora.split(':')[0])
-                        if hora_int >= hora_minima:
-                            horarios_hoy.append(hora)
-                
-                if horarios_hoy:
-                    # HAY turnos hoy, usar HOY
-                    contexto.fecha = fecha_hoy
-                    mejor_hora = min(horarios_hoy)
-                    contexto.hora = mejor_hora
-                    
-                    resumen = f"✅ Perfecto, te asigno el horario más próximo para HOY:\n\n"
-                    resumen += f"📋 Resumen de tu turno:\n"
-                    resumen += f"Nombre: {contexto.nombre}\n"
-                    
-                    if contexto.cedula and contexto.cedula != "SIN_CEDULA":
-                        resumen += f"Cédula: {contexto.cedula}\n"
-                    else:
-                        resumen += f"Cédula: Sin cédula (trámite nuevo)\n"
-                    
-                    resumen += f"Fecha: {contexto.fecha} (HOY)\n"
-                    resumen += f"Hora: {mejor_hora}\n\n"
-                    resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)\n\n"
-                    resumen += f"💡 Si quieres corregir algo, di:\n"
-                    resumen += f"• 'Cambiar [nombre/cédula/fecha/hora/email]'\n"
-                    resumen += f"• 'Cancelar' (empezar de nuevo)"
-                    
-                    return resumen
-            
-            # Si no hay turnos hoy o ya es muy tarde, buscar mañana
-            fecha_obj = ahora + timedelta(days=1)
+            if ahora.hour >= 17:
+                fecha_obj = ahora + timedelta(days=1)
+            else:
+                fecha_obj = ahora
             
             # Saltar fin de semana
             while fecha_obj.weekday() >= 5:
@@ -3406,10 +2017,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                     
                     resumen += f"Fecha: {contexto.fecha}\n"
                     resumen += f"Hora: {mejor_hora}\n\n"
-                    resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)\n\n"
-                    resumen += f"💡 Si quieres corregir algo, di:\n"
-                    resumen += f"• 'Cambiar [nombre/cédula/fecha/hora/email]'\n"
-                    resumen += f"• 'Cancelar' (empezar de nuevo)"
+                    resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)"
                     
                     return resumen
             except:
@@ -3509,10 +2117,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
             resumen += f"Fecha: {contexto.fecha}\n"
             resumen += f"Hora: {contexto.hora}\n"
             resumen += f"Email: {contexto.email}\n\n"
-            resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)\n\n"
-            resumen += f"💡 Si quieres corregir algo, di:\n"
-            resumen += f"• 'Cambiar [nombre/cédula/fecha/hora/email]'\n"
-            resumen += f"• 'Cancelar' (empezar de nuevo)"
+            resumen += f"¿Confirmas estos datos? (Responde 'sí' para confirmar)"
             
             return resumen
     
@@ -3577,40 +2182,6 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                 codigo_turno = generar_codigo_turno()
                 
                 # ==========================================
-                # 🔥 VALIDACIÓN FINAL DE DISPONIBILIDAD (evitar race condition)
-                # ==========================================
-                try:
-                    disponibilidad_final = obtener_disponibilidad_real(contexto.fecha)
-                    ocupacion_final = disponibilidad_final.get(contexto.hora, 0)
-                    
-                    if ocupacion_final >= 2:
-                        logger.warning(f"⚠️ RACE CONDITION EVITADA: {contexto.hora} se llenó antes de confirmar")
-                        
-                        # Buscar alternativa
-                        horarios_disponibles = [h for h, o in sorted(disponibilidad_final.items()) 
-                                                if o < 2 and h > contexto.hora]
-                        
-                        contexto.hora = None  # Resetear hora llena
-                        
-                        if horarios_disponibles:
-                            siguiente_horario = horarios_disponibles[0]
-                            return (
-                                f"⚠️ Lo siento mucho! El horario {contexto.hora} se llenó mientras confirmabas.\n\n"
-                                f"🌟 Te ofrezco el siguiente disponible: **{siguiente_horario}**\n\n"
-                                f"Otros horarios: {', '.join(horarios_disponibles[:5])}\n\n"
-                                f"¿Te sirve {siguiente_horario}?"
-                            )
-                        else:
-                            return (
-                                f"⚠️ Lo siento, el horario {contexto.hora} ya no está disponible.\n\n"
-                                f"❌ No quedan más horarios para el {contexto.fecha}.\n\n"
-                                f"¿Prefieres otro día?"
-                            )
-                except Exception as e:
-                    logger.error(f"❌ Error en validación final de disponibilidad: {e}")
-                    # Continuar con el guardado si falla la validación (mejor que perder el turno)
-                
-                # ==========================================
                 # GUARDAR EN BASE DE DATOS
                 # ==========================================
                 try:
@@ -3664,28 +2235,10 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                             'fecha': contexto.fecha,
                             'hora': contexto.hora,
                             'numero_turno': str(turno_id),
-                            'codigo_turno': codigo_turno,
-                            'turno_id': turno_id
+                            'codigo_turno': codigo_turno
                         }
                         qr_data = qr_gen.generate_qr_confirmation(turno_data_qr)
-                        token = qr_data['token']
-                        logger.info(f"✅ QR generado para turno {turno_id} con código {codigo_turno}, token: {token[:10]}...")
-                        
-                        # Guardar el token en la BD para confirmación
-                        try:
-                            conn_token = psycopg2.connect(**DB_CONFIG)
-                            cursor_token = conn_token.cursor()
-                            cursor_token.execute("""
-                                UPDATE turnos 
-                                SET token_confirmacion = %s 
-                                WHERE id = %s
-                            """, (token, turno_id))
-                            conn_token.commit()
-                            cursor_token.close()
-                            conn_token.close()
-                            logger.info(f"✅ Token de confirmación guardado en BD")
-                        except Exception as e_token:
-                            logger.warning(f"⚠️ No se pudo guardar token en BD (puede que la columna no exista): {e_token}")
+                        logger.info(f"✅ QR generado para turno {turno_id} con código {codigo_turno}")
                         
                         # ==========================================
                         # ENVIAR EMAIL CON QR
@@ -3695,9 +2248,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                         
                         if smtp_email and smtp_password:
                             try:
-                                logger.info(f"📧 Intentando enviar email a {contexto.email}...")
                                 from email_sender import EmailNotificationSender
-                                logger.info("✅ EmailNotificationSender importado correctamente")
                                 
                                 email_sender = EmailNotificationSender(
                                     smtp_server=os.getenv('SMTP_SERVER', 'smtp.gmail.com'),
@@ -3705,17 +2256,12 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
                                     email=smtp_email,
                                     password=smtp_password
                                 )
-                                logger.info("✅ EmailNotificationSender instanciado correctamente")
                                 
-                                resultado = email_sender.send_confirmation_email(contexto.email, turno_data_qr, qr_data)
-                                if resultado:
-                                    logger.info(f"✅ Email enviado exitosamente a {contexto.email}")
-                                else:
-                                    logger.warning(f"⚠️ Email NO enviado a {contexto.email} (retorno False)")
+                                email_sender.send_confirmation_email(contexto.email, turno_data_qr, qr_data)
+                                logger.info(f"✅ Email enviado a {contexto.email}")
                                 
                             except Exception as e_email:
                                 logger.error(f"❌ Error al enviar email: {e_email}")
-                                logger.error(f"❌ Traceback: {traceback.format_exc()}")
                         else:
                             logger.warning("⚠️ Credenciales de email no configuradas. Email no enviado.")
                         
@@ -3760,20 +2306,7 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
     
     # Intent: NEGAR
     elif intent == 'deny':
-        # Si el usuario tiene datos completos (estaba en confirmación), preguntar qué quiere cambiar
-        if contexto.tiene_datos_completos():
-            return (
-                "Entendido. ¿Qué dato quieres cambiar?\n\n"
-                "Puedes decir:\n"
-                "• 'Cambiar nombre'\n"
-                "• 'Cambiar cédula'\n"
-                "• 'Cambiar fecha'\n"
-                "• 'Cambiar hora'\n"
-                "• 'Cambiar email'\n"
-                "• 'Cancelar' (empezar de nuevo)"
-            )
-        else:
-            return "Entendido. ¿Hay algo más en lo que pueda ayudarte?"
+        return "Entendido. ¿Hay algo más en lo que pueda ayudarte?"
     
     # Intent: AGRADECIMIENTO
     elif intent == 'agradecimiento':
@@ -3787,40 +2320,6 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
             'show_dashboard_button': True,
             'dashboard_url': dashboard_url
         }
-    
-    # Intent: TRÁMITE FUERA DE ALCANCE (no es cédula)
-    elif intent == 'tramite_fuera_alcance':
-        return (
-            "❌ **Lo siento, este chatbot es EXCLUSIVO para trámites de CÉDULA DE IDENTIDAD.**\n\n"
-            "Para otros trámites como:\n"
-            "• Pasaportes\n"
-            "• Licencias de conducir\n"
-            "• Certificados de antecedentes\n"
-            "• Otros documentos\n\n"
-            "Por favor, **acércate directamente a las oficinas** del departamento o consulta en ventanilla.\n\n"
-            "¿Necesitas agendar un turno para **CÉDULA DE IDENTIDAD**?"
-        )
-    
-    # Intent: CONSULTAR TRÁMITES/SERVICIOS
-    elif intent == 'consultar_tramites':
-        return (
-            "📋 **Servicios del Departamento de Identificaciones:**\n\n"
-            "El Departamento de Identificaciones de la Policía Nacional realiza diversos trámites:\n\n"
-            "🪪 **Cédula de Identidad:**\n"
-            "  • Primera cédula\n"
-            "  • Renovación\n"
-            "  • Por pérdida o robo\n"
-            "  • Para extranjeros\n"
-            "  • Para menores\n\n"
-            "📄 **Certificados:**\n"
-            "  • Antecedentes judiciales\n"
-            "  • Antecedentes policiales\n"
-            "  • Otros documentos de identificación\n\n"
-            "🤖 **Este chatbot:**\n"
-            "Este bot está diseñado específicamente para **agendar turnos de trámites de cédula de identidad**.\n\n"
-            "Para otros trámites (antecedentes, etc.), debes acercarte directamente a las oficinas o consultar en ventanilla.\n\n"
-            "¿Quieres agendar un turno para cédula de identidad?"
-        )
     
     # Intent: CONSULTAR REQUISITOS
     elif intent == 'consultar_requisitos':
@@ -3978,61 +2477,17 @@ def generar_respuesta_inteligente(intent: str, confidence: float,
             "• Transferencia bancaria\n\n"
         )
         
-        # 🔥 MEJORADO: Si el usuario ya tiene un turno en proceso, mantener el contexto
-        if contexto.nombre and contexto.cedula and contexto.fecha and contexto.hora:
-            # Usuario ya tiene turno casi completo, solo recordarle
-            if not contexto.email:
-                return respuesta_base + "¿Cuál es tu email para enviarte la confirmación?"
-            else:
-                # Mostrar resumen actual
-                return respuesta_base + "¿Quieres confirmar tu turno o hacer algún cambio?"
-        
-        # VERIFICAR SI ESTAMOS EN MEDIO DE UN FORMULARIO (sin turno completo)
+        # VERIFICAR SI ESTAMOS EN MEDIO DE UN FORMULARIO
         if not contexto.nombre:
-            return respuesta_base + "¿Quieres agendar un turno? Indícame tu nombre completo."
+            return respuesta_base + "Ahora, ¿cuál es tu nombre completo para continuar con tu turno?"
         elif not contexto.cedula:
-            return respuesta_base + f"¿Cuál es tu número de cédula para continuar?"
+            return respuesta_base + f"Perfecto {contexto.nombre}. ¿Cuál es tu número de cédula para continuar?"
         elif not contexto.fecha:
             return respuesta_base + "¿Para qué día necesitas el turno?"
         elif not contexto.hora:
             return respuesta_base + "¿A qué hora prefieres tu turno?"
         else:
             return respuesta_base + "¿Necesitas agendar un turno?"
-    
-    # Intent: CANCELAR TURNO
-    elif intent == 'cancelar':
-        mensaje_lower = mensaje.lower()
-        
-        # Si el usuario tiene un turno en progreso (datos completos o parciales)
-        if contexto.tiene_datos_completos() or contexto.nombre or contexto.cedula or contexto.fecha or contexto.hora:
-            # Resetear TODOS los datos
-            contexto.nombre = None
-            contexto.cedula = None
-            contexto.fecha = None
-            contexto.hora = None
-            contexto.email = None
-            contexto.franja_horaria = None
-            contexto.hora_recomendada = None
-            contexto.tipo_tramite = None
-            
-            logger.info("🗑️ Turno cancelado - Contexto reseteado completamente")
-            
-            return (
-                "✅ Turno cancelado correctamente. Todos los datos han sido eliminados.\n\n"
-                "Si deseas agendar un nuevo turno, puedes decir:\n"
-                "• 'Quiero sacar un turno'\n"
-                "• '¿Qué horarios tienen disponibles?'\n"
-                "• 'Necesito un turno para mañana'"
-            )
-        else:
-            # No hay nada que cancelar
-            return (
-                "No tienes ningún turno en progreso para cancelar.\n\n"
-                "Si deseas agendar un turno, puedes decir:\n"
-                "• 'Quiero sacar un turno'\n"
-                "• '¿Qué horarios tienen disponibles?'\n"
-                "• 'Necesito un turno para mañana'"
-            )
     
     # Intent: FALLBACK - Consultar Rasa
     else:

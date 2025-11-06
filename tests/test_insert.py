@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import psycopg2
 
 DATABASE_URL = 'postgresql://botuser:root@localhost:5432/chatbotdb'

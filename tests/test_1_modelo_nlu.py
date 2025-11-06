@@ -2,18 +2,19 @@
 TEST 1 DEFINITIVO: EVALUACIÓN MODELO NLU
 =======================================
 
-✅ RUTAS EXACTAS CONFIRMADAS DE TU PROYECTO:
+[OK] RUTAS EXACTAS CONFIRMADAS DE TU PROYECTO:
 - Chatbot-TFG-V2.0/domain.yml (raíz)
 - Chatbot-TFG-V2.0/data/nlu.yml, stories.yml, rules.yml
 - Chatbot-TFG-V2.0/actions/actions.py
 - Chatbot-TFG-V2.0/flask-chatbot/motor_difuso.py, app.py
 
-✅ EJECUCIÓN AUTOMÁTICA - SIN INTERRUPCIONES
-✅ DETECTA SERVIDOR RASA REAL O USA SIMULACIÓN
+[OK] EJECUCIÓN AUTOMÁTICA - SIN INTERRUPCIONES
+[OK] DETECTA SERVIDOR RASA REAL O USA SIMULACIÓN
 
 Guardar como: test_1_nlu_DEFINITIVO.py
 Ejecutar: python test_1_nlu_DEFINITIVO.py
 """
+# -*- coding: utf-8 -*-
 
 import sys
 import requests
@@ -40,7 +41,7 @@ PROJECT_ROOT = Path(__file__).parent.parent  # tests/ -> Chatbot-TFG-V2.0/
 OUTPUT_DIR = PROJECT_ROOT / "tests" / "resultados_testing"
 OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
 
-# ✅ RUTAS EXACTAS DE TU ESTRUCTURA CONFIRMADA
+# [OK] RUTAS EXACTAS DE TU ESTRUCTURA CONFIRMADA
 ARCHIVOS_PROYECTO = {
     'domain.yml': PROJECT_ROOT / 'domain.yml',
     'nlu.yml': PROJECT_ROOT / 'data' / 'nlu.yml',
@@ -51,7 +52,7 @@ ARCHIVOS_PROYECTO = {
     'app.py': PROJECT_ROOT / 'flask-chatbot' / 'app.py'
 }
 
-# ✅ CASOS ESPECÍFICOS CÉDULAS CIUDAD DEL ESTE
+# [OK] CASOS ESPECÍFICOS CÉDULAS CIUDAD DEL ESTE
 CASOS_PRUEBA_NLU = [
     # Saludos
     {"texto": "Hola buenos días", "intent_esperado": "greet"},
@@ -115,7 +116,7 @@ CASOS_PRUEBA_NLU = [
 
 def verificar_estructura_proyecto():
     """Verifica estructura con rutas exactas"""
-    print("📁 Verificando estructura del proyecto...")
+    print("[*] Verificando estructura del proyecto...")
     
     encontrados = []
     faltantes = []
@@ -123,13 +124,13 @@ def verificar_estructura_proyecto():
     for nombre, ruta in ARCHIVOS_PROYECTO.items():
         if ruta.exists():
             tamaño = ruta.stat().st_size
-            print(f"  ✅ {nombre:<20} | {tamaño:>8,} bytes")
+            print(f"  [OK] {nombre:<20} | {tamaño:>8,} bytes")
             encontrados.append(nombre)
         else:
-            print(f"  ❌ {nombre:<20} | NO ENCONTRADO")
+            print(f"  [FAIL] {nombre:<20} | NO ENCONTRADO")
             faltantes.append(nombre)
     
-    print(f"📊 Archivos encontrados: {len(encontrados)}/{len(ARCHIVOS_PROYECTO)}")
+    print(f"[STATS] Archivos encontrados: {len(encontrados)}/{len(ARCHIVOS_PROYECTO)}")
     return len(encontrados) >= 4
 
 def test_servidor_rasa():
@@ -137,14 +138,14 @@ def test_servidor_rasa():
     try:
         response = requests.get(f"{RASA_URL}/status", timeout=5)
         if response.status_code == 200:
-            print("✅ Servidor Rasa activo y operativo")
+            print("[OK] Servidor Rasa activo y operativo")
             return True
         else:
-            print(f"⚠️  Servidor Rasa responde código {response.status_code}")
+            print(f"[WARN]  Servidor Rasa responde código {response.status_code}")
             return False
     except Exception:
-        print("❌ Servidor Rasa no disponible")
-        print("💡 Continuando con simulación realista...")
+        print("[FAIL] Servidor Rasa no disponible")
+        print("[IDEA] Continuando con simulación realista...")
         return False
 
 def es_nombre(texto):
@@ -235,17 +236,17 @@ def evaluar_intent_rasa(texto, servidor_activo):
 
 def ejecutar_evaluacion_nlu():
     """Ejecuta evaluación completa"""
-    print("\n🧠 EJECUTANDO EVALUACIÓN NLU...")
+    print("\n[BRAIN] EJECUTANDO EVALUACIÓN NLU...")
     
     estructura_ok = verificar_estructura_proyecto()
     servidor_activo = test_servidor_rasa()
     
-    print(f"\n📋 Configuración:")
-    print(f"   🔍 Casos de prueba: {len(CASOS_PRUEBA_NLU)}")
-    print(f"   🤖 Servidor: {'✅ Rasa Activo' if servidor_activo else '📊 Simulación'}")
-    print(f"   📁 Estructura: {'✅ Completa' if estructura_ok else '⚠️ Parcial'}")
+    print(f"\n[*] Configuración:")
+    print(f"   [SEARCH] Casos de prueba: {len(CASOS_PRUEBA_NLU)}")
+    print(f"   [BOT] Servidor: {'[OK] Rasa Activo' if servidor_activo else '[STATS] Simulación'}")
+    print(f"   [*] Estructura: {'[OK] Completa' if estructura_ok else '[WARN] Parcial'}")
     
-    print(f"\n🚀 INICIANDO EVALUACIÓN...")
+    print(f"\n[START] INICIANDO EVALUACIÓN...")
     
     resultados = []
     
@@ -268,14 +269,14 @@ def ejecutar_evaluacion_nlu():
         
         resultados.append(resultado)
         
-        estado = "✅" if correcto else "❌"
+        estado = "[OK]" if correcto else "[FAIL]"
         print(f" {estado} | {resultado_nlu['intent']:<20} | {resultado_nlu['confidence']:.3f}")
     
     return resultados, servidor_activo
 
 def calcular_metricas(resultados):
     """Calcula métricas del modelo"""
-    print(f"\n📊 CALCULANDO MÉTRICAS...")
+    print(f"\n[STATS] CALCULANDO MÉTRICAS...")
     
     y_true = [r['intent_esperado'] for r in resultados]
     y_pred = [r['intent_predicho'] for r in resultados]
@@ -301,12 +302,12 @@ def calcular_metricas(resultados):
         'intents_detectados': len(set(y_true + y_pred))
     }
     
-    print(f"  ✅ Métricas calculadas: {len(metricas)} indicadores")
+    print(f"  [OK] Métricas calculadas: {len(metricas)} indicadores")
     return metricas, sorted(list(set(y_true + y_pred)))
 
 def generar_graficos(resultados, metricas, servidor_activo):
     """Genera gráficos de evaluación"""
-    print(f"\n📊 GENERANDO GRÁFICOS...")
+    print(f"\n[STATS] GENERANDO GRÁFICOS...")
     
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     df = pd.DataFrame(resultados)
@@ -385,35 +386,35 @@ def generar_graficos(resultados, metricas, servidor_activo):
     
     plt.tight_layout()
     plt.savefig(OUTPUT_DIR / "graficos_modelo_nlu_definitivo.png", dpi=300, bbox_inches='tight')
-    print(f"✅ Gráficos guardados: graficos_modelo_nlu_definitivo.png")
+    print(f"[OK] Gráficos guardados: graficos_modelo_nlu_definitivo.png")
 
 def generar_reporte(resultados, metricas, servidor_activo):
     """Genera reporte completo"""
-    print(f"\n📝 GENERANDO REPORTE...")
+    print(f"\n[NOTE] GENERANDO REPORTE...")
     
     tipo_datos = "Datos Reales del Servidor Rasa" if servidor_activo else "Simulación Realista Validada"
     
     reporte = f"""# REPORTE EVALUACIÓN MODELO NLU - CHATBOT CÉDULAS CIUDAD DEL ESTE
 
-## 📊 RESUMEN EJECUTIVO
+## [STATS] RESUMEN EJECUTIVO
 
 - **Tipo de Evaluación**: {tipo_datos}
 - **Casos Evaluados**: {metricas['casos_evaluados']}
 - **Intents Detectados**: {metricas['intents_detectados']}
 
-### 🎯 Métricas Principales
+### [TARGET] Métricas Principales
 - **Accuracy**: {metricas['accuracy']:.3f} ({metricas['accuracy']*100:.1f}%)
 - **Precision (Macro)**: {metricas['precision_macro']:.3f}
 - **Recall (Macro)**: {metricas['recall_macro']:.3f}
 - **F1-Score (Macro)**: {metricas['f1_macro']:.3f}
 - **Confidence Promedio**: {metricas['confidence_promedio']:.3f}
 
-### ⏱️ Métricas de Rendimiento
+### [TIME] Métricas de Rendimiento
 - **Tiempo Promedio**: {metricas['tiempo_promedio_ms']:.1f} ms
 - **Casos Correctos**: {metricas['casos_correctos']}/{metricas['casos_evaluados']}
 - **Tasa de Error**: {(1-metricas['accuracy'])*100:.1f}%
 
-## 🔍 INTERPRETACIÓN TÉCNICA
+## [SEARCH] INTERPRETACIÓN TÉCNICA
 
 ### Calidad del Modelo:
 - **Accuracy {metricas['accuracy']:.1%}**: {"Excelente" if metricas['accuracy'] > 0.9 else "Buena" if metricas['accuracy'] > 0.8 else "Aceptable"}
@@ -424,20 +425,20 @@ def generar_reporte(resultados, metricas, servidor_activo):
 - **Latencia {metricas['tiempo_promedio_ms']:.0f}ms**: {"Excelente" if metricas['tiempo_promedio_ms'] < 1000 else "Buena" if metricas['tiempo_promedio_ms'] < 2000 else "Aceptable"}
 - **Robustez**: {"Sistema real probado" if servidor_activo else "Metodología validada"}
 
-## 📋 PARA TU TFG
+## [*] PARA TU TFG
 
 ### Datos Obtenidos:
-- ✅ **Accuracy Cuantificable**: {metricas['accuracy']:.1%}
-- ✅ **F1-Score Medido**: {metricas['f1_macro']:.3f}
-- ✅ **Casos de Prueba**: {metricas['casos_evaluados']} evaluaciones
-- ✅ **Dominio Específico**: Gestión de cédulas Ciudad del Este
+- [OK] **Accuracy Cuantificable**: {metricas['accuracy']:.1%}
+- [OK] **F1-Score Medido**: {metricas['f1_macro']:.3f}
+- [OK] **Casos de Prueba**: {metricas['casos_evaluados']} evaluaciones
+- [OK] **Dominio Específico**: Gestión de cédulas Ciudad del Este
 
 ### Validación:
-{"✅ Modelo NLU operativo para producción" if servidor_activo else "✅ Metodología de evaluación NLU validada"}
-✅ Métricas estándar de ML aplicadas
-✅ Evaluación con casos específicos del dominio
+{"[OK] Modelo NLU operativo para producción" if servidor_activo else "[OK] Metodología de evaluación NLU validada"}
+[OK] Métricas estándar de ML aplicadas
+[OK] Evaluación con casos específicos del dominio
 
-## 📊 CONCLUSIÓN
+## [STATS] CONCLUSIÓN
 
 {"El modelo NLU está funcionando correctamente" if servidor_activo else "La metodología de evaluación NLU está validada"} para gestión de turnos de cédulas en Ciudad del Este.
 
@@ -449,20 +450,20 @@ def generar_reporte(resultados, metricas, servidor_activo):
     with open(OUTPUT_DIR / "reporte_modelo_nlu_definitivo.md", 'w', encoding='utf-8') as f:
         f.write(reporte)
     
-    print(f"✅ Reporte guardado: reporte_modelo_nlu_definitivo.md")
+    print(f"[OK] Reporte guardado: reporte_modelo_nlu_definitivo.md")
 
 def main():
     """Función principal"""
     print("=" * 70)
-    print("  🧠 TEST MODELO NLU (DEFINITIVO)")
-    print("  📍 Proyecto: Chatbot-TFG-V2.0 - Ciudad del Este")
+    print("  [BRAIN] TEST MODELO NLU (DEFINITIVO)")
+    print("  [*] Proyecto: Chatbot-TFG-V2.0 - Ciudad del Este")
     print("=" * 70)
     
     # Ejecutar evaluación
     resultados, servidor_activo = ejecutar_evaluacion_nlu()
     
     if not resultados:
-        print("❌ No se pudieron generar resultados")
+        print("[FAIL] No se pudieron generar resultados")
         return
     
     # Calcular métricas
@@ -470,15 +471,15 @@ def main():
     
     # Mostrar resultados
     print("\n" + "="*70)
-    print("  📊 RESULTADOS OBTENIDOS")
+    print("  [STATS] RESULTADOS OBTENIDOS")
     print("="*70)
     
-    print(f"🎯 Tipo: {'Datos Reales' if servidor_activo else 'Simulación Validada'}")
-    print(f"✅ Accuracy: {metricas['accuracy']:.1%}")
-    print(f"📊 F1-Score: {metricas['f1_macro']:.3f}")
-    print(f"⏱️ Tiempo: {metricas['tiempo_promedio_ms']:.1f} ms")
-    print(f"💬 Casos: {metricas['casos_evaluados']}")
-    print(f"🔍 Intents: {metricas['intents_detectados']}")
+    print(f"[TARGET] Tipo: {'Datos Reales' if servidor_activo else 'Simulación Validada'}")
+    print(f"[OK] Accuracy: {metricas['accuracy']:.1%}")
+    print(f"[STATS] F1-Score: {metricas['f1_macro']:.3f}")
+    print(f"[TIME] Tiempo: {metricas['tiempo_promedio_ms']:.1f} ms")
+    print(f"[CHAT] Casos: {metricas['casos_evaluados']}")
+    print(f"[SEARCH] Intents: {metricas['intents_detectados']}")
     
     # Generar archivos
     df_resultados = pd.DataFrame(resultados)
@@ -488,17 +489,23 @@ def main():
     generar_reporte(resultados, metricas, servidor_activo)
     
     print("\n" + "="*70)
-    print("  ✅ TEST 1 COMPLETADO EXITOSAMENTE")
+    print("  [OK] TEST 1 COMPLETADO EXITOSAMENTE")
     print("="*70)
-    print("📁 Archivos generados:")
-    print(f"   📄 resultados_modelo_nlu_definitivo.csv")
-    print(f"   📝 reporte_modelo_nlu_definitivo.md")
-    print(f"   📊 graficos_modelo_nlu_definitivo.png")
+    print("[*] Archivos generados:")
+    print(f"   [*] resultados_modelo_nlu_definitivo.csv")
+    print(f"   [NOTE] reporte_modelo_nlu_definitivo.md")
+    print(f"   [STATS] graficos_modelo_nlu_definitivo.png")
     print()
-    print("🎓 Para tu TFG:")
-    print(f"   📊 Accuracy: {metricas['accuracy']:.1%}")
-    print(f"   📈 F1-Score: {metricas['f1_macro']:.3f}")
-    print(f"   🔬 Método: {'Experimental real' if servidor_activo else 'Simulación validada'}")
+    print("[EDU] Para tu TFG:")
+    print(f"   [STATS] Accuracy: {metricas['accuracy']:.1%}")
+    print(f"   [GRAPH] F1-Score: {metricas['f1_macro']:.3f}")
+    print(f"   [*] Método: {'Experimental real' if servidor_activo else 'Simulación validada'}")
 
 if __name__ == "__main__":
+    try:
     main()
+    except Exception as e:
+        print(f"[ERROR] {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        exit(1)

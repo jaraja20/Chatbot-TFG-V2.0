@@ -1,0 +1,104 @@
+================================================================================
+RESUMEN DE FIXES IMPLEMENTADOS - PROXIMA SEMANA
+================================================================================
+
+PROBLEMAS REPORTADOS (Chat del Usuario):
+----------------------------------------
+1. Usuario: "hay otros dias disponibles?" (despues de "proxima semana")
+   Bot (ANTES): Solo muestra horarios del lunes 10
+   Bot (AHORA): Muestra lista completa Lunes-Viernes
+
+2. Usuario: "el lunes" (despues de recomendacion de lunes 10)
+   Bot (ANTES): Ofrece lunes 17 (siguiente semana incorrecta)
+   Bot (AHORA): Usa lunes 10 (fecha recomendada correctamente)
+
+================================================================================
+CAMBIOS IMPLEMENTADOS
+================================================================================
+
+ARCHIVO: orquestador_inteligente.py
+
+CAMBIO 1: Deteccion contextual mejorada (lineas 1007-1020)
+----------------------------------------------------------
+Agregadas frases:
+- "hay mas dias", "hay mas dias", "hay otros dias"
+- "mas dias disponibles", "otros dias disponibles"
+
+Logica:
+IF (frase de consulta de disponibilidad):
+    IF (mensaje contiene "proxima semana" explicitamente):
+        -> consultar_disponibilidad (0.96)
+    ELIF (contexto.proxima_semana == True):  # NUEVO
+        -> consultar_disponibilidad (0.96)
+
+CAMBIO 2: Evitar recomendacion cuando pregunta por lista (lineas 2150-2156)
+----------------------------------------------------------------------------
+Agregadas mismas frases a lista de verificacion:
+- "hay mas dias", "hay otros dias", "mas dias disponibles"
+
+Logica:
+pregunta_por_lista = any(frase in mensaje for frase in frases_consulta)
+IF (proxima_semana AND fecha AND NOT pregunta_por_lista):
+    -> Recomendar lunes especifico
+ELSE:
+    -> Dejar que consultar_disponibilidad maneje
+
+CAMBIO 3: Priorizar fecha_recomendada para dias de semana (lineas 1795-1803)
+-----------------------------------------------------------------------------
+ANTES:
+IF (contexto.proxima_semana):
+    dias_hasta += 7  # Siempre suma 7 dias
+
+AHORA:
+IF (contexto.fecha_recomendada Y dia coincide):  # PRIORIDAD 1
+    -> Usar fecha_recomendada directamente
+ELIF (contexto.proxima_semana):  # PRIORIDAD 2
+    dias_hasta += 7
+
+CAMBIO 4: Detectar proxima_semana en contexto (linea 2870)
+----------------------------------------------------------
+ANTES:
+IF (mensaje contiene "proxima semana"):
+    -> Mostrar lista de dias
+
+AHORA:
+IF (mensaje contiene "proxima semana" OR contexto.proxima_semana):
+    -> Mostrar lista de dias
+
+================================================================================
+RESULTADO FINAL (Test Validado)
+================================================================================
+
+CONVERSACION SIMULADA:
+----------------------
+Usuario: "hay disponible la proxima semana?"
+Bot: "Te recomiendo el lunes 10 de noviembre. Te sirve ese dia?"
+
+Usuario: "hay otros dias disponibles?"
+Bot: "Disponibilidad para la proxima semana:
+      Lunes 10/11: 17 horarios
+      Martes 11/11: 17 horarios
+      Miercoles 12/11: 17 horarios
+      Jueves 13/11: 17 horarios
+      Viernes 14/11: 17 horarios"
+
+Usuario: "el lunes"
+Bot: "Para el 2025-11-10: ..." (usa lunes 10 correctamente)
+
+TESTS:
+------
+[PASS] Problema 1: Lista de dias mostrada correctamente
+[PASS] Problema 2: Usa fecha recomendada (lunes 10) no lunes 17
+
+================================================================================
+PROXIMO PASO
+================================================================================
+
+REINICIAR SERVIDOR FLASK para cargar los cambios:
+
+cd "c:\\tfg funcional\\Chatbot-TFG-V2.0\\flask-chatbot"
+python app.py
+
+Luego probar en frontend con la misma conversacion reportada.
+
+================================================================================

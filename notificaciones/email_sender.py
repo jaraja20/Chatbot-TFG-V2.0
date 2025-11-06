@@ -85,12 +85,27 @@ class EmailNotificationSender:
         
         # Enviar email
         try:
+            print(f"📧 Conectando a SMTP {self.smtp_server}:{self.smtp_port}...")
             server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            print(f"✅ Conexión establecida")
+            
+            print(f"🔒 Iniciando TLS...")
             server.starttls()
+            print(f"✅ TLS activado")
+            
+            print(f"🔑 Autenticando con {self.email}...")
             server.login(self.email, self.password)
+            print(f"✅ Autenticación exitosa")
+            
+            print(f"📤 Enviando email a {recipient_email}...")
             server.send_message(msg)
+            print(f"✅ Email enviado exitosamente")
+            
             server.quit()
+            print(f"✅ Conexión cerrada")
             return True
         except Exception as e:
-            print(f"Error enviando email: {e}")
+            print(f"❌ Error enviando email: {e}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
             return False

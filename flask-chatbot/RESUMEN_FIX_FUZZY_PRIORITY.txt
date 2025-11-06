@@ -1,0 +1,160 @@
+================================================================================
+FIXES IMPLEMENTADOS - PRIORIDAD FUZZY + DETECCION CONTEXTUAL
+================================================================================
+
+PROBLEMAS IDENTIFICADOS (Logs del Usuario):
+-------------------------------------------
+1. "no podre por la mañana" → LLM clasifica como consultar_costo (MAL)
+   Fuzzy: negacion (0.50) ✅ CORRECTO
+   Sistema elige: LLM consultar_costo (0.85) ❌ INCORRECTO
+
+2. "fecha" (después de pedir cambiar) → nlu_fallback
+   Bot pregunta qué cambiar, usuario dice "fecha", bot no entiende
+
+3. LLM siempre gana sobre Fuzzy, incluso cuando Fuzzy detecta correctamente
+
+================================================================================
+SOLUCION 1: PRIORIDAD ABSOLUTA A FUZZY
+================================================================================
+
+Archivo: orquestador_inteligente.py (Líneas 1299-1318)
+
+ANTES:
+------
+Prioridad 8: Mejor score general
+  -> LLM con 0.85 ganaba sobre Fuzzy con 0.50
+
+AHORA:
+------
+Prioridad 8: Fuzzy razonable SIEMPRE gana sobre LLM (>0.40)
+Prioridad 9: LLM solo si Fuzzy no tiene idea (<0.30)
+Prioridad 10: Mejor score (Fuzzy ANTES que LLM en orden)
+
+NUEVA JERARQUIA:
+1. Fuzzy + Regex consenso (>0.65)
+2. Fuzzy alta confianza (>0.60)
+3. Regex muy alta (>0.85)
+4. Fuzzy + Regex coinciden (>0.40 + >0.50)
+5. LLM SOLO si muy alta (>0.92) - THRESHOLD SUBIDO
+6. Regex razonable (>0.70)
+7. Fuzzy medio sobre LLM dudoso (>0.45 y LLM <0.85)
+8. 🔥 NUEVO: Fuzzy prioridad (>0.40) - SIEMPRE GANA SOBRE LLM
+9. 🔥 NUEVO: LLM backup (>0.80) - SOLO si Fuzzy <0.30
+10. Mejor score general (Fuzzy ANTES que LLM)
+
+RESULTADO:
+----------
+Con esta lógica:
+- Fuzzy (0.50) GANA sobre LLM (0.85) ✅
+- LLM solo se usa cuando Fuzzy está perdido o tiene >0.92 confianza
+- Fuzzy es la FUENTE PRINCIPAL de verdad
+
+================================================================================
+SOLUCION 2: DETECCION CONTEXTUAL MEJORADA
+================================================================================
+
+Archivo: orquestador_inteligente.py (Líneas 599-638)
+
+PROBLEMA:
+---------
+Bot: "¿Qué quieres cambiar?"
+Usuario: "fecha"
+Bot: nlu_fallback ❌
+
+SOLUCION:
+---------
+Detectar cuando usuario acaba de recibir "aclaracion_cambio" y responde con:
+- "nombre" → informar_nombre
+- "cedula" / "cédula" → informar_cedula
+- "fecha" / "dia" / "día" → consultar_disponibilidad
+- "hora" / "horario" → consultar_disponibilidad
+- "email" / "correo" / "mail" → informar_email
+
+LOGICA:
+-------
+if contexto.ultimo_intent == 'aclaracion_cambio':
+    if mensaje es 1-2 palabras:
+        if contiene campo válido:
+            -> Resetear ese campo
+            -> Devolver intent de cambio (0.98)
+
+IMPLEMENTACION:
+---------------
+1. Agregado campo `ultimo_intent` a SessionContext (línea 92)
+2. Guardar intent anterior antes de actualizar (líneas 2203-2205)
+3. Detectar respuesta corta después de aclaracion_cambio (líneas 599-638)
+
+================================================================================
+PRUEBA DE CONCEPTO
+================================================================================
+
+CASO 1: "no puedo por la mañana"
+---------------------------------
+ANTES:
+- Fuzzy: negacion (0.50) ✅
+- LLM: consultar_costo (0.85) ❌
+- DECISION: consultar_costo (LLM gana)
+
+AHORA:
+- Fuzzy: negacion (0.50) ✅
+- LLM: consultar_costo (0.85)
+- DECISION: negacion (Fuzzy prioridad >0.40) ✅
+
+CASO 2: Usuario dice "fecha" después de "¿Qué cambiar?"
+--------------------------------------------------------
+ANTES:
+- Intent: nlu_fallback ❌
+- Bot confundido
+
+AHORA:
+- Detecta: ultimo_intent = aclaracion_cambio
+- Mensaje: "fecha" (1 palabra)
+- DECISION: consultar_disponibilidad (0.98) ✅
+- Resetea: fecha = None, hora = None
+
+================================================================================
+RESULTADO ESPERADO
+================================================================================
+
+Logs del Usuario (con los fixes):
+---------------------------------
+Usuario: "no podre por la mañana"
+Fuzzy: negacion (0.50)
+LLM: consultar_costo (0.85)
+RESULTADO: negacion (0.50) [fuente: fuzzy_prioridad] ✅
+
+Bot: "¿Qué quieres cambiar?"
+Usuario: "fecha"
+CONTEXTO: ultimo_intent = aclaracion_cambio
+RESULTADO: consultar_disponibilidad (0.98) [fuente: contexto] ✅
+
+================================================================================
+ARCHIVOS MODIFICADOS
+================================================================================
+
+1. orquestador_inteligente.py (Líneas 92)
+   - Agregado: self.ultimo_intent = None
+
+2. orquestador_inteligente.py (Líneas 599-638)
+   - Agregado: Detección contextual después de aclaracion_cambio
+
+3. orquestador_inteligente.py (Líneas 2203-2205)
+   - Agregado: Guardar ultimo_intent antes de actualizar
+
+4. orquestador_inteligente.py (Líneas 1299-1318)
+   - Modificado: Jerarquía de decisión - Fuzzy ANTES que LLM
+   - Agregado: Prioridad 8 (Fuzzy >0.40)
+   - Agregado: Prioridad 9 (LLM backup)
+   - Modificado: Prioridad 10 (Fuzzy antes que LLM en orden)
+
+================================================================================
+PROXIMO PASO
+================================================================================
+
+El servidor Flask con watchdog ya debe haber recargado los cambios.
+Probar en el frontend:
+
+1. "no puedo por la mañana" → Debe mostrar tarde
+2. "cambiar" + "fecha" → Debe entender y resetear fecha
+
+================================================================================

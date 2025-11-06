@@ -1,0 +1,547 @@
+================================================================================
+DOCUMENTACIÓN TÉCNICA COMPLETA - CHATBOT TFG V2.0
+PARTE 1: ARQUITECTURA Y FUNCIONAMIENTO DEL SISTEMA
+================================================================================
+
+Fecha de generación: 04 de Noviembre de 2025
+Proyecto: Sistema de Gestión de Turnos con Chatbot Inteligente
+Versión: 2.0 (Optimizada con Soluciones Inteligentes)
+
+================================================================================
+1. INTRODUCCIÓN Y CONTEXTO DEL PROYECTO
+================================================================================
+
+1.1 Objetivo General
+--------------------
+Desarrollar un sistema automatizado de gestión de turnos para trámites de 
+cedulación que utilice procesamiento de lenguaje natural (NLU) para entender 
+solicitudes de usuarios en español conversacional.
+
+1.2 Alcance del Sistema
+-----------------------
+- Agendamiento de turnos mediante conversación natural
+- Consultas sobre requisitos, costos, horarios y ubicación
+- Gestión de cambios y cancelaciones
+- Validaciones de datos en tiempo real
+- Confirmación vía email con código QR
+- Sistema de notificaciones automáticas
+
+1.3 Versiones del Sistema
+-------------------------
+- VERSIÓN 1.0: Sistema base con Rasa (55% precisión inicial)
+- VERSIÓN 2.0: Sistema optimizado con arquitectura híbrida (85% precisión)
+
+================================================================================
+2. ARQUITECTURA DEL SISTEMA
+================================================================================
+
+2.1 Stack Tecnológico
+---------------------
+
+Backend:
+- Python 3.8+
+- Flask (servidor web)
+- SQLite (base de datos)
+- LM Studio (servidor LLM local en http://localhost:1234)
+
+NLU/IA:
+- Rasa 3.x (framework base)
+- Lógica Difusa (razonamiento fuzzy)
+- LLM Local (Qwen 2.5 o similar)
+- Regex avanzado (patrones contextuales)
+
+Frontend:
+- HTML5 + CSS3 + JavaScript
+- Bootstrap 4
+- Chat UI responsivo
+
+Notificaciones:
+- SMTP (correo electrónico)
+- QR Code generation
+- Templates HTML para emails
+
+2.2 Componentes Principales
+----------------------------
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         USUARIO                                  │
+│                    (Navegador Web)                               │
+└───────────────────────────┬──────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    FLASK WEB SERVER                              │
+│                      (app.py)                                    │
+│  • Manejo de sesiones                                           │
+│  • Rutas HTTP                                                   │
+│  • Integración componentes                                      │
+└───────────────────────────┬──────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              ORQUESTADOR INTELIGENTE                             │
+│           (orquestador_inteligente.py)                          │
+│  ┌─────────────────────────────────────────────────┐           │
+│  │  1. CLASIFICADOR HÍBRIDO                        │           │
+│  │     • Contexto (prioridad 1)                    │           │
+│  │     • Fuzzy Logic (prioridad 2)                 │           │
+│  │     • Regex (prioridad 3)                       │           │
+│  │     • LLM (prioridad 4)                         │           │
+│  └─────────────────────────────────────────────────┘           │
+│  ┌─────────────────────────────────────────────────┐           │
+│  │  2. EXTRACTOR DE ENTIDADES                      │           │
+│  │     • Nombres (6 regex diferentes)              │           │
+│  │     • Cédulas (validación formato)              │           │
+│  │     • Fechas (días semana, DD/MM, mañana)       │           │
+│  │     • Horas (HH:MM, fracciones, lenguaje nat.)  │           │
+│  │     • Emails (validación RFC)                   │           │
+│  └─────────────────────────────────────────────────┘           │
+│  ┌─────────────────────────────────────────────────┐           │
+│  │  3. GESTOR DE CONTEXTO                          │           │
+│  │     • SessionContext (estado conversación)      │           │
+│  │     • Memoria temporal                          │           │
+│  │     • Referencias contextuales                  │           │
+│  └─────────────────────────────────────────────────┘           │
+│  ┌─────────────────────────────────────────────────┐           │
+│  │  4. GENERADOR DE RESPUESTAS                     │           │
+│  │     • Respuestas según intent                   │           │
+│  │     • Validaciones de datos                     │           │
+│  │     • Respuestas compuestas (multi-intent)      │           │
+│  └─────────────────────────────────────────────────┘           │
+└───────────────────────────┬──────────────────────────────────────┘
+                            │
+            ┌───────────────┴───────────────┐
+            │                               │
+            ▼                               ▼
+┌────────────────────────┐    ┌────────────────────────┐
+│   BASE DE DATOS        │    │   MOTOR DIFUSO         │
+│   (turnos.db)          │    │   (razonamiento_       │
+│                        │    │    difuso.py)          │
+│  • Usuarios            │    │                        │
+│  • Turnos              │    │  • Reglas lingüísticas │
+│  • Disponibilidad      │    │  • Conjuntos difusos   │
+│  • Logs                │    │  • Defuzzificación     │
+└────────────────────────┘    └────────────────────────┘
+
+2.3 Flujo de Procesamiento de Mensajes
+---------------------------------------
+
+1. Usuario envía mensaje
+   └→ POST /chat (app.py)
+
+2. Obtener/crear SessionContext
+   └→ contexto = obtener_contexto_usuario(session_id)
+
+3. Clasificar intent
+   └→ clasificador.clasificar(mensaje, contexto)
+       │
+       ├→ Detección Contextual (>0.95)
+       │   • Estado de conversación
+       │   • Campos faltantes
+       │   • Patrones específicos
+       │
+       ├→ Fuzzy Logic (>0.60)
+       │   • Reglas lingüísticas
+       │   • Palabras clave ponderadas
+       │   • Consenso con otras fuentes
+       │
+       ├→ Regex Patterns (>0.85)
+       │   • Patrones validados
+       │   • Alta especificidad
+       │   • Bajo falso positivo
+       │
+       └→ LLM Fallback (>0.92)
+           • Casos complejos
+           • Lenguaje ambiguo
+           • Threshold alto
+
+4. Extraer entidades
+   └→ extraer_entidades(mensaje, intent, contexto)
+       └→ {nombre, cedula, fecha, hora, email}
+
+5. Actualizar contexto
+   └→ contexto.actualizar(**entidades)
+
+6. Validaciones
+   ├→ Fecha: no fin de semana
+   ├→ Hora: 07:00-15:00
+   ├→ Email: formato válido
+   └→ Cédula: 5-8 dígitos
+
+7. Generar respuesta
+   └→ generar_respuesta_inteligente(intent, confidence, contexto, mensaje)
+       │
+       ├→ Multi-intent: Respuesta compuesta
+       ├→ Validación fallida: Solicitar corrección
+       ├→ Flujo incompleto: Solicitar siguiente dato
+       └→ Flujo completo: Confirmar turno
+
+8. Enviar respuesta al usuario
+   └→ return jsonify({'response': respuesta})
+
+================================================================================
+3. SISTEMA DE CLASIFICACIÓN HÍBRIDO
+================================================================================
+
+3.1 Metodología de Priorización
+--------------------------------
+
+El sistema utiliza 4 fuentes de clasificación en orden de prioridad:
+
+FUENTE 1: CONTEXTO (Confianza: 0.95-0.98)
+------------------------------------------
+Analiza el estado de la conversación para determinar el intent más probable.
+
+Ejemplo:
+- Si contexto.nombre es None → "María López" → informar_nombre (0.94)
+- Si contexto.cedula es None → "1234567" → informar_cedula (0.98)
+- Si contexto.fecha y contexto.hora → "Perfecto" → affirm (0.96)
+
+Ventajas:
+✓ Alta precisión en flujos estructurados
+✓ No requiere procesamiento externo
+✓ Bajo costo computacional
+
+FUENTE 2: FUZZY LOGIC (Confianza: 0.50-0.80)
+---------------------------------------------
+Utiliza lógica difusa para evaluar múltiples palabras clave y su contexto.
+
+Variables de entrada:
+- Palabras clave detectadas
+- Peso de cada palabra
+- Contexto de la conversación
+
+Conjuntos difusos:
+- bajo: [0.0, 0.3]
+- medio: [0.3, 0.6]
+- alto: [0.6, 1.0]
+
+Reglas:
+- SI "turno" AND "quiero" → agendar_turno (0.67)
+- SI "requisitos" AND pregunta → consultar_requisitos (0.72)
+- SI "cancelar" → cancelar (0.50)
+
+Ventajas:
+✓ Maneja ambigüedad
+✓ Robusto con lenguaje natural
+✓ Aprende patrones complejos
+
+FUENTE 3: REGEX PATTERNS (Confianza: 0.59-0.90)
+------------------------------------------------
+Patrones específicos validados con alta precisión.
+
+Ejemplos de patrones:
+
+1. Nombres:
+   r'(Soy|Me llamo)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)'
+
+2. Cédulas:
+   r'\b(\d{5,8})\b'
+
+3. Horarios:
+   r'\b(\d{1,2}):(\d{2})\b'
+   r'las\s+(\d{1,2})\s+(y\s+(media|cuarto)|menos\s+cuarto)'
+
+4. Emails:
+   r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+Ventajas:
+✓ Alta precisión en patrones conocidos
+✓ Rápido
+✓ Determinístico
+
+FUENTE 4: LLM (Confianza: 0.85+)
+--------------------------------
+Modelo de lenguaje local para casos complejos.
+
+Configuración:
+- Endpoint: http://localhost:1234/v1/chat/completions
+- Modelo: Qwen 2.5 (o similar)
+- Temperature: 0.1 (respuestas consistentes)
+- Threshold: 0.92 (reducir dominancia)
+
+Prompt:
+"""
+Clasifica el siguiente mensaje en EXACTAMENTE UNO de estos intents:
+[Lista de intents válidos]
+
+Mensaje: "{mensaje}"
+Responde SOLO con el nombre del intent.
+"""
+
+Ventajas:
+✓ Comprensión semántica
+✓ Casos no vistos
+✓ Lenguaje muy natural
+
+Desventajas:
+✗ Latencia (200-500ms)
+✗ Inconsistente si temperatura alta
+✗ Requiere servidor LM Studio
+
+3.2 Algoritmo de Decisión
+--------------------------
+
+def clasificar(mensaje, contexto):
+    # 1. Detección contextual (MÁXIMA PRIORIDAD)
+    intent_ctx, conf_ctx = detectar_por_contexto(mensaje, contexto)
+    if conf_ctx > 0.95:
+        return (intent_ctx, conf_ctx)
+    
+    # 2. Clasificar con todas las fuentes
+    intent_fuzzy, conf_fuzzy = fuzzy.clasificar(mensaje)
+    intent_regex, conf_regex = regex.clasificar(mensaje)
+    intent_llm, conf_llm = llm.clasificar(mensaje)
+    
+    # 3. Priorización con umbrales
+    if conf_ctx > 0.95:
+        return (intent_ctx, conf_ctx)  # CONTEXTO
+    
+    if conf_fuzzy > 0.60 and conf_regex > 0.70:
+        if intent_fuzzy == intent_regex:
+            return (intent_fuzzy, max(conf_fuzzy, conf_regex))  # CONSENSO
+    
+    if conf_llm > 0.92:
+        return (intent_llm, conf_llm)  # LLM (alta confianza)
+    
+    if conf_regex > 0.85:
+        return (intent_regex, conf_regex)  # REGEX
+    
+    if conf_fuzzy > 0.60:
+        return (intent_fuzzy, conf_fuzzy)  # FUZZY
+    
+    # 4. Fallback
+    return ('nlu_fallback', 0.0)
+
+================================================================================
+4. INTENTS Y ENTIDADES SOPORTADAS
+================================================================================
+
+4.1 Intents Principales (21 totales)
+-------------------------------------
+
+1. greet
+   - Descripción: Saludo inicial
+   - Ejemplos: "Hola", "Buenos días", "Buenas tardes"
+   - Respuesta: Saludo + menú de opciones
+
+2. agendar_turno
+   - Descripción: Iniciar proceso de agendamiento
+   - Ejemplos: "Quiero turno", "Necesito sacar turno", "Agendar"
+   - Respuesta: Solicitar nombre completo
+
+3. informar_nombre
+   - Descripción: Usuario proporciona nombre
+   - Ejemplos: "Juan Pérez", "Soy María López"
+   - Respuesta: Solicitar cédula
+
+4. informar_cedula
+   - Descripción: Usuario proporciona cédula
+   - Ejemplos: "1234567", "Mi CI es 7654321"
+   - Respuesta: Solicitar fecha
+
+5. informar_fecha
+   - Descripción: Usuario proporciona fecha
+   - Ejemplos: "Mañana", "Para el lunes", "15/11"
+   - Respuesta: Mostrar disponibilidad + solicitar hora
+
+6. elegir_horario
+   - Descripción: Usuario elige hora
+   - Ejemplos: "A las 9", "09:00", "9 de la mañana"
+   - Respuesta: Solicitar email
+
+7. informar_email
+   - Descripción: Usuario proporciona email
+   - Ejemplos: "juan@mail.com", "mi email es maria@gmail.com"
+   - Respuesta: Resumen del turno + confirmar
+
+8. confirmar
+   - Descripción: Confirmar datos y agendar
+   - Ejemplos: "Confirmar", "Sí, está bien", "Todo correcto"
+   - Respuesta: Turno agendado + código QR por email
+
+9. consultar_disponibilidad
+   - Descripción: Ver horarios disponibles
+   - Ejemplos: "¿Qué horarios tienen?", "Horarios para mañana?"
+   - Respuesta: Lista de horarios disponibles
+
+10. consultar_requisitos
+    - Descripción: Consultar documentos necesarios
+    - Ejemplos: "¿Qué necesito?", "Requisitos para renovación"
+    - Respuesta: Lista de documentos según tipo de trámite
+
+11. consultar_costo
+    - Descripción: Consultar precios
+    - Ejemplos: "¿Cuánto cuesta?", "Precio de renovación"
+    - Respuesta: Tabla de costos
+
+12. consultar_ubicacion
+    - Descripción: Dirección y teléfonos
+    - Ejemplos: "¿Dónde quedan?", "Número de teléfono"
+    - Respuesta: Dirección + mapa + contactos
+
+13. consulta_tiempo_espera
+    - Descripción: Tiempo de espera promedio
+    - Ejemplos: "¿Cuánto demora?", "Tiempo de atención"
+    - Respuesta: Estimación de tiempo
+
+14. cancelar
+    - Descripción: Cancelar turno actual
+    - Ejemplos: "Cancelar", "Eliminar turno", "Borrar todo"
+    - Respuesta: Confirmación de cancelación
+
+15. affirm
+    - Descripción: Confirmación positiva
+    - Ejemplos: "Sí", "Ok", "Dale", "Perfecto"
+    - Respuesta: Continuar flujo
+
+16. negacion
+    - Descripción: Negación
+    - Ejemplos: "No", "No quiero", "Cancelar"
+    - Respuesta: Preguntar qué desea hacer
+
+17. negacion_sin_cedula
+    - Descripción: Usuario no tiene cédula todavía
+    - Ejemplos: "No tengo cédula", "Aún no tengo"
+    - Respuesta: Marcar como SIN_CEDULA + continuar
+
+18. informar_tipo_tramite
+    - Descripción: Tipo de trámite específico
+    - Ejemplos: "Primera vez", "Renovación", "Pérdida"
+    - Respuesta: Requisitos específicos + continuar
+
+19. cambiar_datos
+    - Descripción: Modificar datos ingresados
+    - Ejemplos: "Cambiar nombre", "Cambiar fecha"
+    - Respuesta: Resetear campo + solicitar nuevo valor
+
+20. despedida
+    - Descripción: Finalizar conversación
+    - Ejemplos: "Chau", "Gracias", "Hasta luego"
+    - Respuesta: Despedida + recordatorio
+
+21. nlu_fallback
+    - Descripción: No se comprende el mensaje
+    - Ejemplos: Mensajes ambiguos o fuera de contexto
+    - Respuesta: Solicitar reformulación
+
+4.2 Entidades Extraídas
+------------------------
+
+1. nombre: str
+   - Formato: Nombre completo (2-4 palabras capitalizadas)
+   - Validación: No palabras prohibidas
+   - Ejemplo: "María Gabriela Fernández López"
+
+2. cedula: str
+   - Formato: 5-8 dígitos
+   - Validación: Solo números
+   - Ejemplo: "1234567", "SIN_CEDULA" (caso especial)
+
+3. fecha: str
+   - Formato: YYYY-MM-DD
+   - Validación: No fin de semana, fecha futura
+   - Ejemplo: "2025-11-05"
+
+4. hora: str
+   - Formato: HH:MM
+   - Validación: 07:00-15:00
+   - Ejemplo: "09:30"
+
+5. email: str
+   - Formato: RFC 5322 compliant
+   - Validación: Regex + dominio válido
+   - Ejemplo: "usuario@dominio.com"
+
+6. franja_horaria: str
+   - Valores: 'manana', 'tarde'
+   - Uso: Filtrar disponibilidad
+   - Ejemplo: "manana"
+
+7. tipo_tramite: str
+   - Valores: 'primera_vez', 'renovacion', 'perdida', 'extranjero'
+   - Uso: Mostrar requisitos específicos
+   - Ejemplo: "renovacion"
+
+================================================================================
+5. GESTIÓN DE SESIONES Y CONTEXTO
+================================================================================
+
+5.1 SessionContext - Clase Principal
+-------------------------------------
+
+class SessionContext:
+    """Mantiene el estado de la conversación"""
+    
+    Atributos:
+    - session_id: str          # Identificador único
+    - nombre: str              # Nombre completo
+    - cedula: str              # Número de cédula
+    - fecha: str               # Fecha del turno (YYYY-MM-DD)
+    - hora: str                # Hora del turno (HH:MM)
+    - email: str               # Email para confirmación
+    - flujo_activo: str        # Intent del flujo actual
+    - tipo_tramite: str        # Tipo de trámite
+    - franja_horaria: str      # Preferencia horaria
+    - turno_id: int            # ID en base de datos
+    
+    # NUEVOS (V2.0)
+    - fecha_recomendada: str   # Fecha sugerida por el bot
+    - hora_recomendada: str    # Hora sugerida por el bot
+
+5.2 Métodos de SessionContext
+------------------------------
+
+1. actualizar(**kwargs)
+   - Actualiza múltiples campos a la vez
+   - Ejemplo: contexto.actualizar(nombre="Juan", cedula="123456")
+
+2. resetear()
+   - Limpia todos los datos
+   - Mantiene session_id
+   - Ejemplo: contexto.resetear()
+
+3. campos_completos()
+   - Verifica si tiene todos los datos para agendar
+   - Retorna: bool
+   - Ejemplo: if contexto.campos_completos(): confirmar()
+
+4. to_dict()
+   - Convierte a diccionario
+   - Útil para serialización
+   - Ejemplo: data = contexto.to_dict()
+
+5.3 Ciclo de Vida de una Sesión
+--------------------------------
+
+1. Usuario inicia conversación
+   └→ session_id = generar_session_id()
+   └→ contexto = SessionContext(session_id)
+   └→ contextos_activos[session_id] = contexto
+
+2. Usuario proporciona datos
+   └→ contexto.actualizar(nombre="Juan")
+   └→ contexto.actualizar(cedula="123456")
+   └→ contexto.actualizar(fecha="2025-11-05")
+   └→ contexto.actualizar(hora="09:00")
+   └→ contexto.actualizar(email="juan@mail.com")
+
+3. Usuario confirma
+   └→ crear_turno_bd(contexto)
+   └→ enviar_email_confirmacion(contexto)
+   └→ turno_id = resultado.lastrowid
+   └→ contexto.turno_id = turno_id
+
+4. Sesión finaliza
+   └→ contexto.resetear() (si cancela)
+   └→ o mantener contexto por 30 minutos
+
+5. Limpieza periódica
+   └→ limpiar_contextos_viejos() cada 1 hora
+   └→ Eliminar sesiones inactivas >30 minutos
+
+================================================================================
+FIN DE PARTE 1 - ARQUITECTURA Y FUNCIONAMIENTO
+================================================================================
+
+Continúa en: DOCUMENTACION_COMPLETA_PARTE_2_MEJORAS.txt
